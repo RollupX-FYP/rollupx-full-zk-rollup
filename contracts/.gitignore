@@ -1,0 +1,38 @@
+# -----------------------------
+# Hardhat / Node
+# -----------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+
+# Hardhat build outputs
+artifacts/
+cache/
+typechain/
+typechain-types/
+
+# Coverage
+coverage/
+coverage.json
+
+# Gas reports
+gas-report.txt
+
+# Env files (never commit secrets)
+.env
+.env.*
+!.env.example
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# Local deployment outputs (if you generate any)
+deployments/
+broadcast/
