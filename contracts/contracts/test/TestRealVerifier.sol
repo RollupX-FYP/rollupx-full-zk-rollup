@@ -22,7 +22,7 @@ contract TestRealVerifier is RealVerifier {
         Pairing.G1Point memory p,
         uint256 s
     ) public view returns (Pairing.G1Point memory) {
-        return Pairing.scalar_mul(p, s);
+        return Pairing.scalarMul(p, s);
     }
     
     function testPairingCheck(

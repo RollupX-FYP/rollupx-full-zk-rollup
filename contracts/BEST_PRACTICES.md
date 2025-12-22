@@ -54,6 +54,7 @@ We use the Strategy Pattern to support multiple DA modes:
 
 ### Adapter Pattern (Verifier)
 The `RealVerifier` contract adapts the `Pairing` library and low-level elliptic curve operations to the clean `IVerifier` interface expected by the Bridge.
+- **Implementation Detail**: The `vk.IC` array in `RealVerifier` is sized to 4. This aligns with the 1 constant + 3 public inputs (Commitment, OldRoot, NewRoot) required by the protocol.
 
 ---
 
@@ -78,6 +79,7 @@ contracts/
 - **Registry Pattern**: DA providers must be explicitly allowlisted (`daEnabled`) by the owner. Arbitrary addresses are blocked.
 - **Immutable Verifier**: The verifier address is immutable to prevent malicious swaps after deployment. (Upgrades should use a Router pattern if needed).
 - **Strict Boundaries**: The Bridge never parses batch data; it only stores commitments.
+- **Sequencer Permissionless Mode**: If the `sequencer` is set to `address(0)`, the bridge enters a dev-only permissionless mode where any address can submit batches. This must be managed carefully.
 
 ### Testing
 - **100% Coverage**: All branches, including error states and edge cases, must be covered.

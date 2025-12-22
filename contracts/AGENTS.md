@@ -37,3 +37,10 @@ Before submitting any changes, you **MUST**:
 ## 5. Documentation
 - Refer to `BEST_PRACTICES.md` for detailed architectural decisions.
 - Keep `README.md` updated if directory structure changes.
+
+## 6. Technical Constraints
+- **Node.js Version**: The `crytic/slither-action` requires `node-version: 20` to prevent execution errors.
+- **CodeQL**: GitHub Actions workflows utilizing CodeQL must use `v4` actions (`github/codeql-action/*@v4`).
+- **Contract Names**: Duplicate contract names in different files (e.g., `contracts/MockVerifier.sol` vs `contracts/verifiers/MockVerifier.sol`) must be avoided to prevent Hardhat artifact collision errors.
+- **Dependencies**: Peer dependencies for `@nomicfoundation/hardhat-toolbox` must be explicitly installed in `devDependencies`.
+- **Package Lock**: `package-lock.json` must be explicitly unignored in `.gitignore` and committed.

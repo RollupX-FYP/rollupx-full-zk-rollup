@@ -77,6 +77,11 @@ describe("ZKRollupBridge", function () {
         bridge.connect(otherAccount).setSequencer(sequencer.address)
       ).to.be.revertedWithCustomError(bridge, "OwnableUnauthorizedAccount");
     });
+
+    it("Should revert if new sequencer is address 0", async function () {
+      await expect(bridge.setSequencer(ethers.ZeroAddress))
+        .to.be.revertedWithCustomError(bridge, "InvalidSequencerAddress");
+    });
   });
 
   describe("DA Provider Management", function () {

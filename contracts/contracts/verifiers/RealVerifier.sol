@@ -44,10 +44,11 @@ contract RealVerifier is IVerifier {
     uint256[2] calldata c,
     uint256[3] calldata input
   ) public view override returns (bool) {
-    Proof memory _proof;
-    _proof.A = Pairing.G1Point(a[0], a[1]);
-    _proof.B = Pairing.G2Point([b[0][0], b[0][1]], [b[1][0], b[1][1]]);
-    _proof.C = Pairing.G1Point(c[0], c[1]);
+    Proof memory _proof = Proof(
+      Pairing.G1Point(a[0], a[1]),
+      Pairing.G2Point([b[0][0], b[0][1]], [b[1][0], b[1][1]]),
+      Pairing.G1Point(c[0], c[1])
+    );
 
     VerifyingKey memory vk = verifyingKey();
 
@@ -57,7 +58,7 @@ contract RealVerifier is IVerifier {
     // Ensure we don't read past IC array or input array
     for (uint256 i = 0; i < input.length && i < vk.IC.length - 1; i++) {
       require(input[i] < SNARK_SCALAR_FIELD, "verifier-gte-snark-scalar-field");
-      vk_x = Pairing.plus(vk_x, Pairing.scalar_mul(vk.IC[i + 1], input[i]));
+      vk_x = Pairing.plus(vk_x, Pairing.scalarMul(vk.IC[i + 1], input[i]));
     }
 
     return Pairing.pairing(

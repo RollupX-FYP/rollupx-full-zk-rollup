@@ -16,6 +16,7 @@ contract ZKRollupBridge is Ownable2Step {
     error DAProviderNotEnabled();
     error InvalidProof();
     error DAProviderAlreadySet(); // Optional if we want to prevent overwrites, but setDAProvider allows updates usually.
+    error InvalidSequencerAddress();
 
     // -------------------------
     // Events
@@ -68,9 +69,10 @@ contract ZKRollupBridge is Ownable2Step {
     // -------------------------
     // Admin
     // -------------------------
-    function setSequencer(address _sequencer) external onlyOwner {
-        sequencer = _sequencer;
-        emit SequencerUpdated(_sequencer);
+    function setSequencer(address newSequencer) external onlyOwner {
+        if (newSequencer == address(0)) revert InvalidSequencerAddress();
+        sequencer = newSequencer;
+        emit SequencerUpdated(newSequencer);
     }
 
     function setDAProvider(uint8 daId, address provider, bool enabled) external onlyOwner {

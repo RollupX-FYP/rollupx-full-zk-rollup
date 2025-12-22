@@ -5,6 +5,8 @@
 [![Docker](https://github.com/RollupX-FYP/contracts/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/RollupX-FYP/contracts/actions/workflows/docker-publish.yml)
 [![codecov](https://codecov.io/gh/RollupX-FYP/contracts/branch/main/graph/badge.svg)](https://codecov.io/gh/RollupX-FYP/contracts)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Solidity](https://img.shields.io/badge/Solidity-0.8.24-e6e6e6?logo=solidity&logoColor=black)](https://docs.soliditylang.org/en/v0.8.24/)
+[![Node.js](https://img.shields.io/badge/Node.js-18%20|%2020-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 
 This repository contains the Solidity smart contracts for an L1 ZK Rollup Bridge, supporting both traditional Calldata Data Availability (DA) and EIP-4844 Blob DA. It includes a complete testing suite with 100% code coverage.
 
@@ -15,11 +17,13 @@ This repository contains the Solidity smart contracts for an L1 ZK Rollup Bridge
   - **Modular DA**: Uses the Strategy Pattern to support multiple DA Providers (Calldata, Blob).
   - **Security**: Allowlisted DA providers, immutable verifier, and strict state transition boundaries.
   - **Ownable (2-step)** for secure administration.
+  - **Sequencer Modes**: Supports a restricted mode (only `sequencer` can submit) and a permissionless dev mode (if `sequencer` is `address(0)`).
 - **RealVerifier**: A Groth16 verifier implementation (BN254 curve) for production use.
 - **Test Utilities**:
   - `MockVerifier`: For simulating proof verification results.
   - `TestRealVerifier`: Wraps the pairing library to verify elliptic curve operations.
   - `TestBlobDA`: Mocks `blobhash` opcode for testing on non-Cancun environments.
+  - `TestZKRollupBridge`: Wrapper around the bridge to expose internal functions if needed for testing.
 
 ## Documentation
 
