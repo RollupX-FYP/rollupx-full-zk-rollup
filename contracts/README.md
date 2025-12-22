@@ -1,19 +1,28 @@
 # ZK Rollup Bridge Contracts
 
+[![CI](https://github.com/RollupX-FYP/contracts/actions/workflows/ci.yml/badge.svg)](https://github.com/RollupX-FYP/contracts/actions/workflows/ci.yml)
+[![Security](https://github.com/RollupX-FYP/contracts/actions/workflows/security.yml/badge.svg)](https://github.com/RollupX-FYP/contracts/actions/workflows/security.yml)
+[![codecov](https://codecov.io/gh/RollupX-FYP/contracts/branch/main/graph/badge.svg)](https://codecov.io/gh/RollupX-FYP/contracts)
+
 This repository contains the Solidity smart contracts for an L1 ZK Rollup Bridge, supporting both traditional Calldata Data Availability (DA) and EIP-4844 Blob DA. It includes a complete testing suite with 100% code coverage.
 
 ## Features
 
 *   **ZKRollupBridge**: The core contract managing state roots, batch commitments, and proof verification.
-    *   Supports **Calldata DA** (legacy).
-    *   Supports **Blob DA** (Cancun/EIP-4844), with optional `blobhash` verification.
+    *   **Architecture**: Built using Domain-Driven Design (DDD) and SOLID principles.
+    *   **Modular DA**: Uses the Strategy Pattern to support multiple DA Providers (Calldata, Blob).
+    *   **Security**: Allowlisted DA providers, immutable verifier, and strict state transition boundaries.
     *   **Ownable (2-step)** for secure administration.
-    *   **Sequencer** role management.
 *   **RealVerifier**: A Groth16 verifier implementation (BN254 curve) for production use.
 *   **Test Utilities**:
     *   `MockVerifier`: For simulating proof verification results.
     *   `TestRealVerifier`: Wraps the pairing library to verify elliptic curve operations.
-    *   `TestZKRollupBridge`: Mocks `blobhash` opcode for testing on non-Cancun environments.
+    *   `TestBlobDA`: Mocks `blobhash` opcode for testing on non-Cancun environments.
+
+## Documentation
+
+*   **[BEST_PRACTICES.md](BEST_PRACTICES.md)**: Detailed guide on the architectural decisions, DDD boundaries, SOLID principles, and security standards used in this project.
+*   **[AGENTS.md](AGENTS.md)**: Instructions and context for AI agents working on this codebase.
 
 ## Prerequisites
 
@@ -90,11 +99,14 @@ A CI/CD pipeline is configured in `.github/workflows/docker-publish.yml`. It aut
 
 ## Project Structure
 
-*   `contracts/`: Solidity source files.
-    *   `ZKRollupBridge.sol`: Main bridge contract.
-    *   `RealVerifier.sol`: Groth16 verifier logic.
-    *   `MockVerifier.sol`: Mock verifier for testing.
+The project follows a modular structure based on DDD layers:
+
+*   `contracts/`
+    *   `bridge/`: **Aggregate Root** (`ZKRollupBridge.sol`) - Core settlement logic.
+    *   `interfaces/`: **Abstractions** (`IVerifier.sol`, `IDAProvider.sol`) - Dependency inversion.
+    *   `da/`: **Strategies** (`CalldataDA.sol`, `BlobDA.sol`) - Data Availability implementations.
+    *   `verifiers/`: **Domain Services** (`RealVerifier.sol`, `MockVerifier.sol`) - Cryptographic verification.
+    *   `libraries/`: **Shared Logic** (`Pairing.sol`) - Elliptic curve math.
 *   `test/`: Hardhat tests (TypeScript).
-    *   `ZKRollupBridge.test.ts`: Tests for the bridge contract.
-    *   `RealVerifier.test.ts`: Tests for the verifier logic.
-*   `scripts/`: Deployment scripts (if any).
+    *   `ZKRollupBridge.test.ts`: Integration tests for the bridge and DA strategies.
+    *   `RealVerifier.test.ts`: Unit tests for the verifier and pairing library.

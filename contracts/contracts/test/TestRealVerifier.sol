@@ -1,39 +1,44 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {RealVerifier, Pairing} from "../../contracts/RealVerifier.sol";
+import {RealVerifier} from "../verifiers/RealVerifier.sol";
+import {Pairing} from "../libraries/Pairing.sol";
 
+// Expose internal functions of RealVerifier and Pairing library for testing
 contract TestRealVerifier is RealVerifier {
     using Pairing for *;
 
-    function testAdd(uint256 x1, uint256 y1, uint256 x2, uint256 y2) external view returns (uint256 rx, uint256 ry) {
-        Pairing.G1Point memory p1 = Pairing.G1Point(x1, y1);
-        Pairing.G1Point memory p2 = Pairing.G1Point(x2, y2);
-        Pairing.G1Point memory r = Pairing.plus(p1, p2);
-        return (r.X, r.Y);
+    // Helper to expose verifyProof directly (already public in RealVerifier, but included for completeness if we add more helpers)
+    
+    // Wrapper for library functions to test them in isolation
+    function testPairingAdd(
+        Pairing.G1Point memory p1,
+        Pairing.G1Point memory p2
+    ) public view returns (Pairing.G1Point memory) {
+        return Pairing.plus(p1, p2);
     }
-
-    function testMul(uint256 x, uint256 y, uint256 s) external view returns (uint256 rx, uint256 ry) {
-        Pairing.G1Point memory p = Pairing.G1Point(x, y);
-        Pairing.G1Point memory r = Pairing.scalar_mul(p, s);
-        return (r.X, r.Y);
+    
+    function testPairingMul(
+        Pairing.G1Point memory p,
+        uint256 s
+    ) public view returns (Pairing.G1Point memory) {
+        return Pairing.scalar_mul(p, s);
     }
-
-    function testPairing(
-        uint256[2] memory a1, uint256[2][2] memory a2,
-        uint256[2] memory b1, uint256[2][2] memory b2,
-        uint256[2] memory c1, uint256[2][2] memory c2,
-        uint256[2] memory d1, uint256[2][2] memory d2
-    ) external view returns (bool) {
-        return Pairing.pairing(
-            Pairing.G1Point(a1[0], a1[1]),
-            Pairing.G2Point([a2[0][0], a2[0][1]], [a2[1][0], a2[1][1]]),
-            Pairing.G1Point(b1[0], b1[1]),
-            Pairing.G2Point([b2[0][0], b2[0][1]], [b2[1][0], b2[1][1]]),
-            Pairing.G1Point(c1[0], c1[1]),
-            Pairing.G2Point([c2[0][0], c2[0][1]], [c2[1][0], c2[1][1]]),
-            Pairing.G1Point(d1[0], d1[1]),
-            Pairing.G2Point([d2[0][0], d2[0][1]], [d2[1][0], d2[1][1]])
-        );
+    
+    function testPairingCheck(
+        Pairing.G1Point memory a1,
+        Pairing.G2Point memory a2,
+        Pairing.G1Point memory b1,
+        Pairing.G2Point memory b2,
+        Pairing.G1Point memory c1,
+        Pairing.G2Point memory c2,
+        Pairing.G1Point memory d1,
+        Pairing.G2Point memory d2
+    ) public view returns (bool) {
+        return Pairing.pairing(a1, a2, b1, b2, c1, c2, d1, d2);
+    }
+    
+    function testNegate(Pairing.G1Point memory p) public pure returns (Pairing.G1Point memory) {
+        return Pairing.negate(p);
     }
 }

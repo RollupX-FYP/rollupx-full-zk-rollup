@@ -6,6 +6,9 @@ describe("RealVerifier", function () {
   let verifier: RealVerifier;
   let testVerifier: TestRealVerifier;
 
+  // BN254 Prime Q
+  const PRIME_Q = 21888242871839275222246405745257275088696311157297823662689037894645226208583n;
+
   beforeEach(async function () {
     const Verifier = await ethers.getContractFactory("RealVerifier");
     verifier = await Verifier.deploy();
@@ -20,46 +23,37 @@ describe("RealVerifier", function () {
     const G1x = 1;
     const G1y = 2;
     
-    // 2 * G1 = (0x... , 0x...) known values or we can just test property
-    
     it("Should add two G1 points", async function () {
-      const [rx, ry] = await testVerifier.testAdd(G1x, G1y, G1x, G1y);
+      const result = await testVerifier.testPairingAdd([G1x, G1y], [G1x, G1y]);
       // G1(1, 2) + G1(1, 2) should be on curve.
-      // 2 * (1, 2) in BN254
-      // We assume precompile works, just checking it doesn't revert.
-      expect(rx).to.not.equal(0);
-      expect(ry).to.not.equal(0);
+      expect(result.X).to.not.equal(0);
+      expect(result.Y).to.not.equal(0);
     });
 
     it("Should multiply G1 point", async function () {
-      const [rx, ry] = await testVerifier.testMul(G1x, G1y, 2);
+      const result = await testVerifier.testPairingMul([G1x, G1y], 2);
       // Should match addition result
-      const [ax, ay] = await testVerifier.testAdd(G1x, G1y, G1x, G1y);
-      expect(rx).to.equal(ax);
-      expect(ry).to.equal(ay);
+      const added = await testVerifier.testPairingAdd([G1x, G1y], [G1x, G1y]);
+      expect(result.X).to.equal(added.X);
+      expect(result.Y).to.equal(added.Y);
     });
 
-    it("Should fail addition for invalid points", async function () {
-        // (1, 1) is not on BN254 G1 curve (y^2 = x^3 + 3) => 1 != 1 + 3
-        // The error bubbling in newer hardhat/ethers versions sometimes loses the reason string for low-level calls/precompiles
-        // if not handled perfectly, but here we expect revert.
-        await expect(testVerifier.testAdd(1, 1, 1, 1)).to.be.reverted;
+    it("Should fail addition for invalid points (out of field)", async function () {
+        // Use PRIME_Q as coordinate to force failure (>= modulus)
+        await expect(testVerifier.testPairingAdd([PRIME_Q, 1], [G1x, G1y]))
+            .to.be.revertedWith("pairing-add-failed");
     });
     
-    it("Should fail multiplication for invalid points", async function () {
-        await expect(testVerifier.testMul(1, 1, 2)).to.be.reverted;
+    it("Should fail multiplication for invalid points (out of field)", async function () {
+        await expect(testVerifier.testPairingMul([PRIME_Q, 1], 2))
+            .to.be.revertedWith("pairing-mul-failed");
     });
     
     it("Should pass pairing check for trivial valid pairing", async function () {
-       // We can't easily construct a full valid pairing e(a,b)*...=1 without a math lib.
-       // However, we can check that it runs and returns SOMETHING (likely false for random inputs).
-       // We can construct a 0 check? e(0, G2) = 1.
-       // Point at infinity is (0,0).
        const zeroG1 = [0, 0];
        const zeroG2 = [[0, 0], [0, 0]];
        
-       // e(0, 0) * ... = 1 * 1 * 1 * 1 = 1.
-       const result = await testVerifier.testPairing(
+       const result = await testVerifier.testPairingCheck(
            zeroG1, zeroG2,
            zeroG1, zeroG2,
            zeroG1, zeroG2,
@@ -68,46 +62,43 @@ describe("RealVerifier", function () {
        expect(result).to.be.true;
     });
 
-     it("Should fail pairing check for random points (likely)", async function () {
-        // G1 (1,2)
-        const g1 = [1, 2];
-        // G2 generator (standard BN254)
-        const g2 = [
-            ["10857046999023057135944570762232829481370756359578518086990519993285655852781", "11559732032986387107991004021392285783925812861821192530917403151452391805634"],
-            ["8495653923123431417604973247489272438418190587263600148770280649306958101930", "4082367875863433681332203403145435568316851327593401208105741076214120093531"]
-        ];
-
-        // e(g1, g2) != 1.
+    it("Should fail pairing check for invalid points (out of field)", async function () {
         const zeroG1 = [0, 0];
         const zeroG2 = [[0, 0], [0, 0]];
+        // Invalid G1 point [PRIME_Q, 0]
+        const invalidG1 = [PRIME_Q, 0];
         
-        // Wait, if pairing precompile fails (e.g. invalid encoding), it reverts.
-        // If it succeeds but pairing check fails, it returns 0.
-        // We want to test that it returns false (0), not reverts.
-        // However, if we mess up the encoding (like passing a G2 point with invalid coords), it reverts.
-        // The points used above are valid G1 and G2.
-        // So this should run and return false.
+        await expect(testVerifier.testPairingCheck(
+           invalidG1, zeroG2,
+           zeroG1, zeroG2,
+           zeroG1, zeroG2,
+           zeroG1, zeroG2
+       )).to.be.revertedWith("pairing-opcode-failed");
+    });
+    
+    it("Should test negate", async function () {
+        const zeroG1 = [0, 0];
+        const res = await testVerifier.testNegate(zeroG1);
+        expect(res.X).to.equal(0);
+        expect(res.Y).to.equal(0);
         
-        // If it reverts with invalid opcode, it means staticcall failed.
-        // Maybe Hardhat gas limit? Or something else.
-        // I'll wrap in try/catch or expect revert if it's consistently reverting.
-        // But verifying failure is also a test.
-        
-        try {
-            const result = await testVerifier.testPairing(
-            g1, g2, 
-            zeroG1, zeroG2,
-            zeroG1, zeroG2,
-            zeroG1, zeroG2
-            );
-            expect(result).to.be.false;
-        } catch (e) {
-            // If it reverts, it's also "failing" the check, which is fine for coverage but we want to know why.
-            // Often invalid opcode on pairing means bad input data.
-            // I'll just accept revert here as well if it happens.
-            // console.log("Reverted as expected (sort of)");
-        }
-     });
+        const g1 = [1, 2];
+        const res2 = await testVerifier.testNegate(g1);
+        expect(res2.X).to.equal(1);
+        expect(res2.Y).to.equal(PRIME_Q - 2n);
+
+        // Test branch coverage for negate: p.X == 0 but p.Y != 0
+        // This is technically an invalid point on G1 curve (since Y^2 = X^3 + 3 => Y^2 = 3),
+        // but negate function logic doesn't check curve membership, just does arithmetic.
+        // It hits the "else" branch of the (p.X == 0 && p.Y == 0) check.
+        // If we pass (0, 1), it fails first part of AND? No, 0==0 is true. Fails second part 1==0.
+        // So short-circuit evaluation proceeds to second check.
+        const invalidPoint = [0, 1];
+        const res3 = await testVerifier.testNegate(invalidPoint);
+        // Should return (0, PRIME_Q - 1)
+        expect(res3.X).to.equal(0);
+        expect(res3.Y).to.equal(PRIME_Q - 1n);
+    });
   });
 
   describe("RealVerifier Contract", function () {
@@ -117,14 +108,6 @@ describe("RealVerifier", function () {
           const b = [[0, 0], [0, 0]];
           const c = [0, 0];
           const input = [0, 0, 0];
-          
-          // Should not revert, but return true (because all 0s => points at infinity => pairing is 1*1*1*1=1)
-          // Actually vk terms are non-zero.
-          // e(-A, B) = 1
-          // e(alpha, beta) = constant != 1
-          // e(vk_x, gamma) = e(IC0, gamma) != 1
-          // e(C, delta) = 1
-          // Total != 1.
           
           const ret = await verifier.verifyProof(a, b, c, input);
           expect(ret).to.be.false;
@@ -147,8 +130,18 @@ describe("RealVerifier", function () {
            const c: [any, any] = [0, 0];
            const input: [any, any, any] = [0, 0, 0];
            
-           // Same here, custom error handling in ethers v6/hardhat might be tricky
-           await expect(verifier.verifyProof(a, b, c, input)).to.be.reverted;
+           // This will likely revert in the library call or the struct unpacking?
+           // Actually, verifyProof unpacks calldata to G1Point struct. 
+           // If passed values are > uint256 max it's issue, but they fit in uint256.
+           // The revert happens when verifyProof calls Pairing.pairing (via negate or pairing check).
+           // Specifically, verifyProof computes vk_x using pairing add/mul.
+           // It calls Pairing.pairing at the end.
+           // If A is [PRIME_Q, 0], Pairing.negate(A) uses modulo? No, negate uses check X==0.
+           // Negate returns (PRIME_Q, 0) -> (PRIME_Q, 0).
+           // Then Pairing.pairing is called with that point.
+           // Precompile fails => "pairing-opcode-failed".
+           
+           await expect(verifier.verifyProof(a, b, c, input)).to.be.revertedWith("pairing-opcode-failed");
       });
   });
 });
