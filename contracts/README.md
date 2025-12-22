@@ -2,32 +2,34 @@
 
 [![CI](https://github.com/RollupX-FYP/contracts/actions/workflows/ci.yml/badge.svg)](https://github.com/RollupX-FYP/contracts/actions/workflows/ci.yml)
 [![Security](https://github.com/RollupX-FYP/contracts/actions/workflows/security.yml/badge.svg)](https://github.com/RollupX-FYP/contracts/actions/workflows/security.yml)
+[![Docker](https://github.com/RollupX-FYP/contracts/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/RollupX-FYP/contracts/actions/workflows/docker-publish.yml)
 [![codecov](https://codecov.io/gh/RollupX-FYP/contracts/branch/main/graph/badge.svg)](https://codecov.io/gh/RollupX-FYP/contracts)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 This repository contains the Solidity smart contracts for an L1 ZK Rollup Bridge, supporting both traditional Calldata Data Availability (DA) and EIP-4844 Blob DA. It includes a complete testing suite with 100% code coverage.
 
 ## Features
 
-*   **ZKRollupBridge**: The core contract managing state roots, batch commitments, and proof verification.
-    *   **Architecture**: Built using Domain-Driven Design (DDD) and SOLID principles.
-    *   **Modular DA**: Uses the Strategy Pattern to support multiple DA Providers (Calldata, Blob).
-    *   **Security**: Allowlisted DA providers, immutable verifier, and strict state transition boundaries.
-    *   **Ownable (2-step)** for secure administration.
-*   **RealVerifier**: A Groth16 verifier implementation (BN254 curve) for production use.
-*   **Test Utilities**:
-    *   `MockVerifier`: For simulating proof verification results.
-    *   `TestRealVerifier`: Wraps the pairing library to verify elliptic curve operations.
-    *   `TestBlobDA`: Mocks `blobhash` opcode for testing on non-Cancun environments.
+- **ZKRollupBridge**: The core contract managing state roots, batch commitments, and proof verification.
+  - **Architecture**: Built using Domain-Driven Design (DDD) and SOLID principles.
+  - **Modular DA**: Uses the Strategy Pattern to support multiple DA Providers (Calldata, Blob).
+  - **Security**: Allowlisted DA providers, immutable verifier, and strict state transition boundaries.
+  - **Ownable (2-step)** for secure administration.
+- **RealVerifier**: A Groth16 verifier implementation (BN254 curve) for production use.
+- **Test Utilities**:
+  - `MockVerifier`: For simulating proof verification results.
+  - `TestRealVerifier`: Wraps the pairing library to verify elliptic curve operations.
+  - `TestBlobDA`: Mocks `blobhash` opcode for testing on non-Cancun environments.
 
 ## Documentation
 
-*   **[BEST_PRACTICES.md](BEST_PRACTICES.md)**: Detailed guide on the architectural decisions, DDD boundaries, SOLID principles, and security standards used in this project.
-*   **[AGENTS.md](AGENTS.md)**: Instructions and context for AI agents working on this codebase.
+- **[BEST_PRACTICES.md](BEST_PRACTICES.md)**: Detailed guide on the architectural decisions, DDD boundaries, SOLID principles, and security standards used in this project.
+- **[AGENTS.md](AGENTS.md)**: Instructions and context for AI agents working on this codebase.
 
 ## Prerequisites
 
-*   Node.js (v18 or v20 LTS recommended)
-*   npm or yarn
+- Node.js (v18 or v20 LTS recommended)
+- npm or yarn
 
 ## Installation
 
@@ -62,11 +64,12 @@ npx hardhat coverage
 ## Configuration
 
 The project is configured in `hardhat.config.ts`.
-*   **Solidity Version**: 0.8.24
-*   **EVM Version**: `cancun` (required for `blobhash`)
-*   **Networks**:
-    *   `hardhat`: Configured with `cancun` hardfork.
-    *   `sepolia`: configured via `.env` (see below).
+
+- **Solidity Version**: 0.8.24
+- **EVM Version**: `cancun` (required for `blobhash`)
+- **Networks**:
+  - `hardhat`: Configured with `cancun` hardfork.
+  - `sepolia`: configured via `.env` (see below).
 
 ### Environment Variables
 
@@ -101,12 +104,12 @@ A CI/CD pipeline is configured in `.github/workflows/docker-publish.yml`. It aut
 
 The project follows a modular structure based on DDD layers:
 
-*   `contracts/`
-    *   `bridge/`: **Aggregate Root** (`ZKRollupBridge.sol`) - Core settlement logic.
-    *   `interfaces/`: **Abstractions** (`IVerifier.sol`, `IDAProvider.sol`) - Dependency inversion.
-    *   `da/`: **Strategies** (`CalldataDA.sol`, `BlobDA.sol`) - Data Availability implementations.
-    *   `verifiers/`: **Domain Services** (`RealVerifier.sol`, `MockVerifier.sol`) - Cryptographic verification.
-    *   `libraries/`: **Shared Logic** (`Pairing.sol`) - Elliptic curve math.
-*   `test/`: Hardhat tests (TypeScript).
-    *   `ZKRollupBridge.test.ts`: Integration tests for the bridge and DA strategies.
-    *   `RealVerifier.test.ts`: Unit tests for the verifier and pairing library.
+- `contracts/`
+  - `bridge/`: **Aggregate Root** (`ZKRollupBridge.sol`) - Core settlement logic.
+  - `interfaces/`: **Abstractions** (`IVerifier.sol`, `IDAProvider.sol`) - Dependency inversion.
+  - `da/`: **Strategies** (`CalldataDA.sol`, `BlobDA.sol`) - Data Availability implementations.
+  - `verifiers/`: **Domain Services** (`RealVerifier.sol`, `MockVerifier.sol`) - Cryptographic verification.
+  - `libraries/`: **Shared Logic** (`Pairing.sol`) - Elliptic curve math.
+- `test/`: Hardhat tests (TypeScript).
+  - `ZKRollupBridge.test.ts`: Integration tests for the bridge and DA strategies.
+  - `RealVerifier.test.ts`: Unit tests for the verifier and pairing library.
