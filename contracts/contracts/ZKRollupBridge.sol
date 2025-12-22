@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /// -----------------------------------------------------------------------
 /// REAL VERIFIER (COMMENTED FOR NOW)
@@ -81,7 +82,7 @@ contract ZKRollupBridge is Ownable2Step {
     // -------------------------
     // Constructor
     // -------------------------
-    constructor(address _verifier, bytes32 _genesisRoot) {
+    constructor(address _verifier, bytes32 _genesisRoot) Ownable(msg.sender) {
         verifier = IVerifierLike(_verifier);
         stateRoot = _genesisRoot;
         nextBatchId = 1;
@@ -156,7 +157,7 @@ contract ZKRollupBridge is Ownable2Step {
 
         if (useOpcodeBlobhash) {
             // Cancun+ only
-            bytes32 actual = blobhash(blobIndex);
+            bytes32 actual = _getBlobHash(blobIndex);
             if (actual == bytes32(0)) revert NoBlobAttached();
             if (actual != expectedVersionedHash) revert BlobHashMismatch();
         }
@@ -177,5 +178,9 @@ contract ZKRollupBridge is Ownable2Step {
         batchNewRoot[batchId] = newRoot;
 
         emit BatchFinalized(batchId, expectedVersionedHash, oldRoot, newRoot, 1);
+    }
+
+    function _getBlobHash(uint8 index) internal view virtual returns (bytes32) {
+        return blobhash(index);
     }
 }

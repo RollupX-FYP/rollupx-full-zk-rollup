@@ -1,4 +1,4 @@
-﻿import { HardhatUserConfig } from "hardhat/config";
+import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
 import "dotenv/config";
 
@@ -10,11 +10,13 @@ const config: HardhatUserConfig = {
     version: "0.8.24",
     settings: {
       optimizer: { enabled: true, runs: 200 },
+      evmVersion: "cancun",
     },
   },
   networks: {
     hardhat: {
       // Local dev (blob opcode not available in hardhat EVM; we keep blob mode as "mock" locally)
+      hardfork: "cancun",
     },
     sepolia: {
       url: SEPOLIA_RPC_URL,
