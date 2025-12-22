@@ -1,21 +1,16 @@
-# Use Node.js LTS (Long Term Support) as the base image
-FROM node:20-slim
+FROM node:20-alpine
 
-# Set the working directory inside the container
 WORKDIR /app
 
-# Copy package.json and package-lock.json (if available)
-COPY package.json package-lock.json* ./
+# Install deps (including devDeps) using lockfile
+COPY package.json package-lock.json ./
+RUN npm ci
 
-# Install dependencies
-# We use --legacy-peer-deps to avoid potential conflicts with hardhat plugins/ethers versions if strict
-RUN npm ci --legacy-peer-deps || npm install --legacy-peer-deps
-
-# Copy the rest of the application code
+# Copy source
 COPY . .
 
-# Compile the contracts
+# Compile (will work now)
 RUN npx hardhat compile
 
-# Run tests by default when the container starts
+# Default: run tests
 CMD ["npx", "hardhat", "test"]
