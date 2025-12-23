@@ -79,7 +79,7 @@ contract ZKRollupBridge is Ownable2Step {
     /// @notice Sets the sequencer address.
     /// @param newSequencer The new sequencer address.
     function setSequencer(address newSequencer) external onlyOwner {
-        if (newSequencer == address(0)) revert InvalidSequencerAddress();
+        // address(0) enables permissionless mode
         sequencer = newSequencer;
         emit SequencerUpdated(newSequencer);
     }

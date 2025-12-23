@@ -83,9 +83,11 @@ describe("ZKRollupBridge", function () {
       ).to.be.revertedWithCustomError(bridge, "OwnableUnauthorizedAccount");
     });
 
-    it("Should revert if new sequencer is address 0", async function () {
+    it("Should allow setting sequencer to address 0 (permissionless mode)", async function () {
       await expect(bridge.setSequencer(ethers.ZeroAddress))
-        .to.be.revertedWithCustomError(bridge, "InvalidSequencerAddress");
+        .to.emit(bridge, "SequencerUpdated")
+        .withArgs(ethers.ZeroAddress);
+      expect(await bridge.sequencer()).to.equal(ethers.ZeroAddress);
     });
   });
 

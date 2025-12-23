@@ -8,123 +8,95 @@
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.24-e6e6e6?logo=solidity&logoColor=black)](https://docs.soliditylang.org/en/v0.8.24/)
 [![Node.js](https://img.shields.io/badge/Node.js-18%20|%2020-339933?logo=nodedotjs&logoColor=white)](https://nodejs.org/)
 
-This repository contains the Solidity smart contracts for an L1 ZK Rollup Bridge, supporting both traditional Calldata Data Availability (DA) and EIP-4844 Blob DA. It includes a complete testing suite with 100% code coverage.
+This repository contains the Solidity smart contracts for an L1 ZK Rollup Bridge, supporting both traditional Calldata Data Availability (DA) and EIP-4844 Blob DA.
 
-## Features
+## 📚 Documentation
 
-- **ZKRollupBridge**: The core contract managing state roots, batch commitments, and proof verification.
-  - **Architecture**: Built using Domain-Driven Design (DDD) and SOLID principles.
-  - **Modular DA**: Uses the Strategy Pattern to support multiple DA Providers (Calldata, Blob).
-  - **Security**: Allowlisted DA providers, immutable verifier, and strict state transition boundaries.
-  - **Ownable (2-step)** for secure administration.
-  - **Sequencer Modes**: Supports a restricted mode (only `sequencer` can submit) and a permissionless dev mode (if `sequencer` is `address(0)`).
-- **RealVerifier**: A Groth16 verifier implementation (BN254 curve) for production use.
-- **Test Utilities**:
-  - `MockVerifier`: For simulating proof verification results.
-  - `TestRealVerifier`: Wraps the pairing library to verify elliptic curve operations.
-  - `TestBlobDA`: Mocks `blobhash` opcode for testing on non-Cancun environments.
+Detailed documentation is available in the `docs/` folder:
 
-## Documentation
+- **[System Architecture](docs/ARCHITECTURE.md)**: Overview of the rollup components (Sequencer, Prover, Relayer) and data flow.
+- **[API Reference](docs/API.md)**: Detailed specifications of smart contract functions and events.
+- **[Integration Guide](docs/INTEGRATION.md)**: How to communicate with the contracts using JSON-RPC and `ethers.js`.
+- **[Best Practices](BEST_PRACTICES.md)**: Architectural decisions and security standards.
 
-- **[BEST_PRACTICES.md](BEST_PRACTICES.md)**: Detailed guide on the architectural decisions, DDD boundaries, SOLID principles, and security standards used in this project.
-- **[AGENTS.md](AGENTS.md)**: Instructions and context for AI agents working on this codebase.
+## 🚀 Quick Start (Docker)
 
-## Prerequisites
+The easiest way to verify the contracts is using Docker.
 
-- Node.js (v18 or v20 LTS recommended)
+```bash
+# 1. Build the image
+docker build -t zk-rollup-contracts .
+
+# 2. Run tests inside the container
+docker run --rm zk-rollup-contracts
+```
+
+## 🛠 Local Development
+
+### Prerequisites
+- Node.js v20 (LTS)
 - npm or yarn
 
-## Installation
+### Installation
 
 ```bash
 npm install
 ```
 
-## Compilation
-
-Compile the smart contracts using Hardhat:
+### Compilation
 
 ```bash
 npx hardhat compile
 ```
 
-## Testing
+### Testing
 
-Run the full test suite:
+Run the full test suite (100% coverage):
 
 ```bash
 npx hardhat test
 ```
 
-### Coverage
-
-Generate a code coverage report (targeting 100% branch and line coverage):
-
+Generate coverage report:
 ```bash
 npx hardhat coverage
 ```
 
-## Configuration
+## 📦 Deployment
 
-The project is configured in `hardhat.config.ts`.
+### Configuration
+1. Create a `.env` file:
+   ```env
+   PRIVATE_KEY=0x...
+   SEPOLIA_RPC_URL=https://sepolia.infura.io...
+   ```
+2. Configure `hardhat.config.ts` if targeting other networks.
 
-- **Solidity Version**: 0.8.24
-- **EVM Version**: `cancun` (required for `blobhash`)
-- **Networks**:
-  - `hardhat`: Configured with `cancun` hardfork.
-  - `sepolia`: configured via `.env` (see below).
-
-### Environment Variables
-
-To deploy to a live network, create a `.env` file in the root directory:
-
-```env
-PRIVATE_KEY=your_private_key_here
-SEPOLIA_RPC_URL=https://sepolia.infura.io/v3/your_api_key
-```
-
-## Docker
-
-This project includes a Docker setup for consistent build and testing environments.
-
-### Build Image
-
+### Deploy Command
 ```bash
-docker build -t zk-rollup-contracts .
+npx hardhat run scripts/deploy.ts --network sepolia
 ```
+*(Note: You may need to create a deployment script first, as this repo focuses on contract logic/tests)*
 
-### Run Tests in Docker
+## 🧩 Features
 
-```bash
-docker run --rm zk-rollup-contracts
-```
+- **ZKRollupBridge**: 
+  - **Modular DA**: Pluggable strategies for Calldata or Blob DA.
+  - **Permissionless Mode**: Set sequencer to `address(0)` for open access during dev.
+  - **State Verification**: Groth16 proof verification on BN254.
+- **Security**:
+  - Ownable (2-step transfer).
+  - Immutable verifiers.
+  - Strict input validation (scalar field reduction).
 
-## GitHub Actions
+## 📄 Contract ABIs
 
-A CI/CD pipeline is configured in `.github/workflows/docker-publish.yml`. It automatically builds and pushes the Docker image to the GitHub Container Registry (ghcr.io) on pushes to the `main` branch.
-
-## Contract ABIs
-
-The ABIs for the core contracts are automatically generated and can be found in the `docs/abis/` directory. They can be generated locally using `npm run export-abis`.
-
-These ABIs are also automatically deployed to GitHub Pages and can be accessed at:
-`https://RollupX-FYP.github.io/contracts/abis/<ContractName>.json`
-
+Auto-generated ABIs are hosted on GitHub Pages:
 - [ZKRollupBridge.json](https://rollupx-fyp.github.io/contracts/abis/ZKRollupBridge.json)
 - [BlobDA.json](https://rollupx-fyp.github.io/contracts/abis/BlobDA.json)
-- [CalldataDA.json](https://rollupx-fyp.github.io/contracts/abis/CalldataDA.json)
 - [RealVerifier.json](https://rollupx-fyp.github.io/contracts/abis/RealVerifier.json)
 
-## Project Structure
-
-The project follows a modular structure based on DDD layers:
-
-- `contracts/`
-  - `bridge/`: **Aggregate Root** (`ZKRollupBridge.sol`) - Core settlement logic.
-  - `interfaces/`: **Abstractions** (`IVerifier.sol`, `IDAProvider.sol`) - Dependency inversion.
-  - `da/`: **Strategies** (`CalldataDA.sol`, `BlobDA.sol`) - Data Availability implementations.
-  - `verifiers/`: **Domain Services** (`RealVerifier.sol`, `MockVerifier.sol`) - Cryptographic verification.
-  - `libraries/`: **Shared Logic** (`Pairing.sol`) - Elliptic curve math.
-- `test/`: Hardhat tests (TypeScript).
-  - `ZKRollupBridge.test.ts`: Integration tests for the bridge and DA strategies.
-  - `RealVerifier.test.ts`: Unit tests for the verifier and pairing library.
+You can generate them locally via:
+```bash
+npm run export-abis
+```
