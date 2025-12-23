@@ -46,6 +46,7 @@ library Pairing {
     bool success;
 
     // solium-disable-next-line security/no-inline-assembly
+    // slither-disable-next-line assembly
     assembly {
       success := staticcall(sub(gas(), 2000), 6, input, 0x80, r, 0x40)
     }
@@ -65,6 +66,7 @@ library Pairing {
     input[2] = s;
     bool success;
     // solium-disable-next-line security/no-inline-assembly
+    // slither-disable-next-line assembly
     assembly {
       success := staticcall(sub(gas(), 2000), 7, input, 0x60, r, 0x40)
     }
@@ -106,6 +108,7 @@ library Pairing {
     bool success;
 
     // solium-disable-next-line security/no-inline-assembly
+    // slither-disable-next-line assembly
     assembly {
       success := staticcall(sub(gas(), 2000), 8, add(input, 0x20), mul(inputSize, 0x20), out, 0x20)
     }

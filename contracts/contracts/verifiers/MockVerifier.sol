@@ -17,8 +17,8 @@ contract MockVerifier is IVerifier {
         shouldVerify = newShouldVerify;
     }
 
-    function setExpectedInput(uint256[3] calldata _input) external {
-        expectedInput = _input;
+    function setExpectedInput(uint256[3] calldata newInput) external {
+        expectedInput = newInput;
         checkInput = true;
     }
 
