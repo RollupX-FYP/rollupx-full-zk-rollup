@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {Constants} from "./Constants.sol";
+
 library Pairing {
-  uint256 constant PRIME_Q = 21888242871839275222246405745257275088696311157297823662689037894645226208583;
+  error PairingAddFailed();
+  error PairingMulFailed();
+  error PairingOpcodeFailed();
 
   struct G1Point {
     uint256 X;
@@ -23,7 +27,7 @@ library Pairing {
     if (p.X == 0 && p.Y == 0) {
       return G1Point(0, 0);
     } else {
-      return G1Point(p.X, PRIME_Q - (p.Y % PRIME_Q));
+      return G1Point(p.X, Constants.PRIME_Q - (p.Y % Constants.PRIME_Q));
     }
   }
 
@@ -46,7 +50,7 @@ library Pairing {
       success := staticcall(sub(gas(), 2000), 6, input, 0x80, r, 0x40)
     }
 
-    require(success, "pairing-add-failed");
+    if (!success) revert PairingAddFailed();
   }
 
   /*
@@ -64,7 +68,7 @@ library Pairing {
     assembly {
       success := staticcall(sub(gas(), 2000), 7, input, 0x60, r, 0x40)
     }
-    require(success, "pairing-mul-failed");
+    if (!success) revert PairingMulFailed();
   }
 
   /* @return The result of computing the pairing check
@@ -106,7 +110,7 @@ library Pairing {
       success := staticcall(sub(gas(), 2000), 8, add(input, 0x20), mul(inputSize, 0x20), out, 0x20)
     }
 
-    require(success, "pairing-opcode-failed");
+    if (!success) revert PairingOpcodeFailed();
 
     return out[0] != 0;
   }

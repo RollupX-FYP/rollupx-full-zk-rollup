@@ -5,8 +5,10 @@ import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IVerifier} from "../interfaces/IVerifier.sol";
 import {IDAProvider} from "../interfaces/IDAProvider.sol";
+import {Constants} from "../libraries/Constants.sol";
 
 /// @notice L1 rollup bridge core that supports modular DA providers via strategy pattern.
+/// @dev Manages state roots and verifies validity proofs.
 contract ZKRollupBridge is Ownable2Step {
     // -------------------------
     // Errors
@@ -15,8 +17,9 @@ contract ZKRollupBridge is Ownable2Step {
     error InvalidNewRoot();
     error DAProviderNotEnabled();
     error InvalidProof();
-    error DAProviderAlreadySet(); // Optional if we want to prevent overwrites, but setDAProvider allows updates usually.
+    error DAProviderAlreadySet();
     error InvalidSequencerAddress();
+    error InvalidVerifier();
 
     // -------------------------
     // Events
@@ -60,7 +63,11 @@ contract ZKRollupBridge is Ownable2Step {
     // -------------------------
     // Constructor
     // -------------------------
+    /// @notice Initializes the bridge.
+    /// @param _verifier The address of the verifier contract.
+    /// @param _genesisRoot The initial state root.
     constructor(address _verifier, bytes32 _genesisRoot) Ownable(msg.sender) {
+        if (_verifier == address(0)) revert InvalidVerifier();
         verifier = IVerifier(_verifier);
         stateRoot = _genesisRoot;
         nextBatchId = 1;
@@ -69,13 +76,23 @@ contract ZKRollupBridge is Ownable2Step {
     // -------------------------
     // Admin
     // -------------------------
+    /// @notice Sets the sequencer address.
+    /// @param newSequencer The new sequencer address.
     function setSequencer(address newSequencer) external onlyOwner {
         if (newSequencer == address(0)) revert InvalidSequencerAddress();
         sequencer = newSequencer;
         emit SequencerUpdated(newSequencer);
     }
 
+    /// @notice Sets a DA provider.
+    /// @param daId The ID of the DA provider.
+    /// @param provider The address of the provider contract.
+    /// @param enabled Whether the provider is enabled.
     function setDAProvider(uint8 daId, address provider, bool enabled) external onlyOwner {
+        // Prevent overwriting an enabled provider with a different address
+        if (daProviders[daId] != address(0) && daEnabled[daId] && daProviders[daId] != provider) {
+            revert DAProviderAlreadySet();
+        }
         daProviders[daId] = provider;
         daEnabled[daId] = enabled;
         emit DAProviderSet(daId, provider, enabled);
@@ -89,8 +106,24 @@ contract ZKRollupBridge is Ownable2Step {
     }
 
     // -------------------------
+    // Helper
+    // -------------------------
+    /// @notice Reduces a 256-bit value to the BN254 Scalar Field.
+    /// @param val The input value (e.g., hash).
+    /// @return The value modulo the scalar field size.
+    function _toFieldElement(bytes32 val) internal pure returns (uint256) {
+        return uint256(val) % Constants.SNARK_SCALAR_FIELD;
+    }
+
+    // -------------------------
     // Commit Batch (Strategy Pattern)
     // -------------------------
+    /// @notice Commits a new batch.
+    /// @param daId The ID of the DA provider to use.
+    /// @param batchData The batch data (if calldata) or empty (if blob).
+    /// @param daMeta Metadata for the DA provider.
+    /// @param newRoot The new state root after processing the batch.
+    /// @param proof The Groth16 proof.
     function commitBatch(
         uint8 daId,
         bytes calldata batchData,
@@ -115,7 +148,12 @@ contract ZKRollupBridge is Ownable2Step {
         bytes32 oldRoot = stateRoot;
         
         // Public inputs: [DA_commitment, oldRoot, newRoot]
-        uint256[3] memory input = [uint256(daCommitment), uint256(oldRoot), uint256(newRoot)];
+        // Note: We reduce inputs to the field. Circuit must implement the same reduction.
+        uint256[3] memory input = [
+            _toFieldElement(daCommitment), 
+            _toFieldElement(oldRoot), 
+            _toFieldElement(newRoot)
+        ];
 
         bool ok = verifier.verifyProof(proof.a, proof.b, proof.c, input);
         if (!ok) revert InvalidProof();

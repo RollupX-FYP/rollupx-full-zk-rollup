@@ -20,8 +20,7 @@ describe("ZKRollupBridge", function () {
   let otherAccount: SignerWithAddress;
 
   const genesisRoot = ethers.ZeroHash;
-  const initialOwner = "0x0000000000000000000000000000000000000000"; 
-
+  
   // DA Constants
   const CALLDATA_DA_ID = 0;
   const BLOB_DA_ID = 1;
@@ -62,6 +61,12 @@ describe("ZKRollupBridge", function () {
       expect(await bridge.stateRoot()).to.equal(genesisRoot);
       expect(await bridge.nextBatchId()).to.equal(1);
     });
+    
+    it("Should revert if verifier is zero address", async function () {
+        const Bridge = await ethers.getContractFactory("ZKRollupBridge");
+        await expect(Bridge.deploy(ethers.ZeroAddress, genesisRoot))
+            .to.be.revertedWithCustomError(Bridge, "InvalidVerifier");
+    });
   });
 
   describe("Sequencer Management", function () {
@@ -94,10 +99,27 @@ describe("ZKRollupBridge", function () {
           expect(await bridge.daEnabled(2)).to.be.true;
       });
 
-       it("Should not allow non-owner to set DA provider", async function () {
+      it("Should not allow non-owner to set DA provider", async function () {
           await expect(
             bridge.connect(otherAccount).setDAProvider(2, otherAccount.address, true)
           ).to.be.revertedWithCustomError(bridge, "OwnableUnauthorizedAccount");
+      });
+
+      it("Should prevent overwriting an enabled provider with different address", async function () {
+        await bridge.setDAProvider(2, otherAccount.address, true);
+        await expect(
+            bridge.setDAProvider(2, sequencer.address, true)
+        ).to.be.revertedWithCustomError(bridge, "DAProviderAlreadySet");
+      });
+    
+      it("Should allow updating provider if disabled first (2-step)", async function () {
+        await bridge.setDAProvider(2, otherAccount.address, true);
+        // Disable (same address)
+        await bridge.setDAProvider(2, otherAccount.address, false);
+        // Update (new address)
+        await bridge.setDAProvider(2, sequencer.address, true);
+        
+        expect(await bridge.daProviders(2)).to.equal(sequencer.address);
       });
   });
 
@@ -187,8 +209,8 @@ describe("ZKRollupBridge", function () {
     };
 
     it("Should commit blob batch successfully (mock blobhash)", async function () {
-      // We must use TestBlobDA to mock the blobhash
-      // Update registry to point to testBlobDA
+      // 2-step update: disable old, set new
+      await bridge.setDAProvider(BLOB_DA_ID, blobDA.target, false);
       await bridge.setDAProvider(BLOB_DA_ID, testBlobDA.target, true);
       
       // Setup mock hash in testBlobDA
@@ -205,33 +227,18 @@ describe("ZKRollupBridge", function () {
     });
 
     it("Should revert if expectedVersionedHash is zero", async function () {
-       // Just pass a meta with 0 hash
        const zeroMeta = ethers.AbiCoder.defaultAbiCoder().encode(
             ["bytes32", "uint8"], 
             [ethers.ZeroHash, blobIndex]
         );
       
-       // Using regular blobDA (not test) which uses actual blobhash(0) -> 0
-       // It will fail, but we want to check where it fails.
-       // The BlobDA logic:
-       // computeCommitment returns 0.
-       // validateDA checks commitment != expected. If we pass 0 expected, commitment is 0.
-       // validateDA checks actual blobhash. 
-       // If actual blobhash is 0, it reverts NoBlobAttached.
-       
-       // Wait, does BlobDA check for zero commitment explicitly? No.
-       // But Bridge usually validates something? No, Bridge relies on provider.
-       
-       // Actually, if we use TestBlobDA we can control return.
+       await bridge.setDAProvider(BLOB_DA_ID, blobDA.target, false);
        await bridge.setDAProvider(BLOB_DA_ID, testBlobDA.target, true);
        await testBlobDA.setMockBlobHash(blobIndex, ethers.ZeroHash); 
        
-       // computeCommitment returns 0
-       // validateDA: actual is 0. Reverts NoBlobAttached.
-       
        await expect(
          bridge.commitBatch(BLOB_DA_ID, "0x", zeroMeta, newRoot, proof)
-       ).to.be.revertedWithCustomError(testBlobDA, "NoBlobAttached");
+       ).to.be.revertedWithCustomError(testBlobDA, "InvalidCommitment");
     });
 
      it("Should revert with NoBlobAttached if blob is missing (real opcode)", async function () {
@@ -244,32 +251,129 @@ describe("ZKRollupBridge", function () {
      });
 
     it("Should revert with BlobHashMismatch if blob hash does not match", async function () {
+        await bridge.setDAProvider(BLOB_DA_ID, blobDA.target, false);
         await bridge.setDAProvider(BLOB_DA_ID, testBlobDA.target, true);
         
         const mockHash = ethers.hexlify(ethers.randomBytes(32));
         await testBlobDA.setMockBlobHash(blobIndex, mockHash);
 
-        // expectedVersionedHash != mockHash
         await expect(
             bridge.commitBatch(BLOB_DA_ID, "0x", daMeta, newRoot, proof)
         ).to.be.revertedWithCustomError(testBlobDA, "BlobHashMismatch");
     });
     
     it("Should revert InvalidCommitment if decoded metadata doesn't match commitment (tampered)", async function () {
-         // This is a bit tricky to test via Bridge because Bridge calls computeCommitment then validateDA with same meta.
-         // computeCommitment -> extract hash X.
-         // validateDA -> extract hash X.
-         // they will always match if the code is correct.
-         
-         // To test this specific revert in BlobDA, we might need to call BlobDA directly or find a way to make them differ?
-         // They only differ if `computeCommitment` and `validateDA` decode differently.
-         // Since they use same code, it's consistent.
-         // But maybe we can pass malformed meta?
-         
-         // Actually, if we call `validateDA` directly with a mismatched commitment we can trigger it.
          await expect(
              blobDA.validateDA(ethers.ZeroHash, daMeta)
          ).to.be.revertedWithCustomError(blobDA, "InvalidCommitment");
+    });
+
+    it("Should reduce inputs to field elements before verification", async function () {
+        const bigVal = ethers.MaxUint256;
+        const scalarField = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
+        
+        await bridge.setDAProvider(BLOB_DA_ID, blobDA.target, false);
+        await bridge.setDAProvider(BLOB_DA_ID, testBlobDA.target, true);
+        const bigHash = ethers.zeroPadValue("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32);
+        
+        await testBlobDA.setMockBlobHash(blobIndex, bigHash);
+        
+        const daMeta = ethers.AbiCoder.defaultAbiCoder().encode(
+            ["bytes32", "uint8"], 
+            [bigHash, blobIndex]
+        );
+        
+        const reducedBig = bigVal % scalarField;
+        const reducedZero = 0n;
+        
+        await verifier.setExpectedInput([reducedBig, reducedZero, reducedBig]);
+        
+        await bridge.commitBatch(BLOB_DA_ID, "0x", daMeta, bigHash, proof);
+    });
+
+    it("Should revert if reduced inputs do not match expected (MockVerifier check)", async function () {
+        await bridge.setDAProvider(BLOB_DA_ID, blobDA.target, false);
+        await bridge.setDAProvider(BLOB_DA_ID, testBlobDA.target, true);
+        const bigHash = ethers.zeroPadValue("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32);
+        
+        await testBlobDA.setMockBlobHash(blobIndex, bigHash);
+        
+        const daMeta = ethers.AbiCoder.defaultAbiCoder().encode(
+            ["bytes32", "uint8"], 
+            [bigHash, blobIndex]
+        );
+        
+        // Set WRONG expected input
+        await verifier.setExpectedInput([0, 0, 0]);
+        
+        await expect(
+            bridge.commitBatch(BLOB_DA_ID, "0x", daMeta, bigHash, proof)
+        ).to.be.revertedWithCustomError(bridge, "InvalidProof");
+    });
+
+    it("Should revert if input[1] mismatch (MockVerifier branch check)", async function () {
+        await bridge.setDAProvider(BLOB_DA_ID, blobDA.target, false);
+        await bridge.setDAProvider(BLOB_DA_ID, testBlobDA.target, true);
+        const bigHash = ethers.zeroPadValue("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32);
+        const blobIndex = 0;
+        
+        await testBlobDA.setMockBlobHash(blobIndex, bigHash);
+        
+        const daMeta = ethers.AbiCoder.defaultAbiCoder().encode(
+            ["bytes32", "uint8"], 
+            [bigHash, blobIndex]
+        );
+        
+        const scalarField = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
+        const bigVal = ethers.MaxUint256;
+        const reducedBig = bigVal % scalarField;
+        
+        // Expected actual: [reducedBig, 0, reducedBig]
+        // Set mismatch at index 1
+        await verifier.setExpectedInput([reducedBig, 1n, reducedBig]);
+        
+        await expect(
+            bridge.commitBatch(BLOB_DA_ID, "0x", daMeta, bigHash, proof)
+        ).to.be.revertedWithCustomError(bridge, "InvalidProof");
+    });
+
+    it("Should revert if input[2] mismatch (MockVerifier branch check)", async function () {
+        await bridge.setDAProvider(BLOB_DA_ID, blobDA.target, false);
+        await bridge.setDAProvider(BLOB_DA_ID, testBlobDA.target, true);
+        const bigHash = ethers.zeroPadValue("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 32);
+        const blobIndex = 0;
+        
+        await testBlobDA.setMockBlobHash(blobIndex, bigHash);
+        
+        const daMeta = ethers.AbiCoder.defaultAbiCoder().encode(
+            ["bytes32", "uint8"], 
+            [bigHash, blobIndex]
+        );
+        
+        const scalarField = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
+        const bigVal = ethers.MaxUint256;
+        const reducedBig = bigVal % scalarField;
+        
+        // Expected actual: [reducedBig, 0, reducedBig]
+        // Set mismatch at index 2
+        await verifier.setExpectedInput([reducedBig, 0n, 999n]);
+        
+        await expect(
+            bridge.commitBatch(BLOB_DA_ID, "0x", daMeta, bigHash, proof)
+        ).to.be.revertedWithCustomError(bridge, "InvalidProof");
+    });
+
+    it("Should use real blobhash if mock is not set in TestBlobDA", async function () {
+        await bridge.setDAProvider(BLOB_DA_ID, blobDA.target, false);
+        await bridge.setDAProvider(BLOB_DA_ID, testBlobDA.target, true);
+        
+        // Do NOT set mock hash.
+        // It falls back to blobhash(0) -> 0.
+        // Reverts NoBlobAttached.
+        
+        await expect(
+            bridge.commitBatch(BLOB_DA_ID, "0x", daMeta, newRoot, proof)
+        ).to.be.revertedWithCustomError(testBlobDA, "NoBlobAttached");
     });
   });
 });

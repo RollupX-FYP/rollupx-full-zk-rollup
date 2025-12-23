@@ -77,8 +77,10 @@ contracts/
 
 ### Security
 - **Registry Pattern**: DA providers must be explicitly allowlisted (`daEnabled`) by the owner. Arbitrary addresses are blocked.
+- **Registry Safety**: Updating an enabled DA provider requires a 2-step process (Disable -> Update) to prevent accidental overwrites or hijacking.
 - **Immutable Verifier**: The verifier address is immutable to prevent malicious swaps after deployment. (Upgrades should use a Router pattern if needed).
 - **Strict Boundaries**: The Bridge never parses batch data; it only stores commitments.
+- **Input Sanitization**: Public inputs (commitments, roots) are reduced modulo the SNARK scalar field in the Bridge before verification. This ensures compatibility between 256-bit EVM hashes and the BN254 field.
 - **Sequencer Permissionless Mode**: If the `sequencer` is set to `address(0)`, the bridge enters a dev-only permissionless mode where any address can submit batches. This must be managed carefully.
 
 ### Testing

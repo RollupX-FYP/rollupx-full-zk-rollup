@@ -23,7 +23,6 @@ This repository contains the Solidity smart contracts for an L1 ZK Rollup Bridge
   - `MockVerifier`: For simulating proof verification results.
   - `TestRealVerifier`: Wraps the pairing library to verify elliptic curve operations.
   - `TestBlobDA`: Mocks `blobhash` opcode for testing on non-Cancun environments.
-  - `TestZKRollupBridge`: Wrapper around the bridge to expose internal functions if needed for testing.
 
 ## Documentation
 
@@ -103,6 +102,18 @@ docker run --rm zk-rollup-contracts
 ## GitHub Actions
 
 A CI/CD pipeline is configured in `.github/workflows/docker-publish.yml`. It automatically builds and pushes the Docker image to the GitHub Container Registry (ghcr.io) on pushes to the `main` branch.
+
+## Contract ABIs
+
+The ABIs for the core contracts are automatically generated and can be found in the `docs/abis/` directory. They can be generated locally using `npm run export-abis`.
+
+These ABIs are also automatically deployed to GitHub Pages and can be accessed at:
+`https://RollupX-FYP.github.io/contracts/abis/<ContractName>.json`
+
+- [ZKRollupBridge.json](docs/abis/ZKRollupBridge.json)
+- [BlobDA.json](docs/abis/BlobDA.json)
+- [CalldataDA.json](docs/abis/CalldataDA.json)
+- [RealVerifier.json](docs/abis/RealVerifier.json)
 
 ## Project Structure
 

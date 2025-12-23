@@ -20,6 +20,8 @@ contract BlobDA is IDAProvider {
     function validateDA(bytes32 commitment, bytes calldata daMeta) external view override {
         (bytes32 expectedVersionedHash, uint8 blobIndex) = abi.decode(daMeta, (bytes32, uint8));
         
+        if (expectedVersionedHash == bytes32(0)) revert InvalidCommitment();
+
         // Ensure the commitment matches the expected hash in metadata
         if (commitment != expectedVersionedHash) revert InvalidCommitment();
 

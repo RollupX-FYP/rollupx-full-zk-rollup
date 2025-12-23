@@ -3,9 +3,11 @@ pragma solidity ^0.8.24;
 
 import {Pairing} from "../libraries/Pairing.sol";
 import {IVerifier} from "../interfaces/IVerifier.sol";
+import {Constants} from "../libraries/Constants.sol";
 
 contract RealVerifier is IVerifier {
-  uint256 constant SNARK_SCALAR_FIELD = 21888242871839275222246405745257275088548364400416034343698204186575808495617;
+  error VerifierGteSnarkScalarField();
+
   using Pairing for *;
 
   struct VerifyingKey {
@@ -57,7 +59,7 @@ contract RealVerifier is IVerifier {
 
     // Ensure we don't read past IC array or input array
     for (uint256 i = 0; i < input.length && i < vk.IC.length - 1; i++) {
-      require(input[i] < SNARK_SCALAR_FIELD, "verifier-gte-snark-scalar-field");
+      if (input[i] >= Constants.SNARK_SCALAR_FIELD) revert VerifierGteSnarkScalarField();
       vk_x = Pairing.plus(vk_x, Pairing.scalarMul(vk.IC[i + 1], input[i]));
     }
 

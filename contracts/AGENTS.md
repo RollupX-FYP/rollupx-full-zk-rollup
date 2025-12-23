@@ -27,6 +27,8 @@ Before submitting any changes, you **MUST**:
 - **Verifier**:
     - Keep the verifier reference `immutable`.
     - If upgrading, use a Router pattern, not a setter.
+- **Constants**:
+    - Use `contracts/libraries/Constants.sol` for shared cryptographic constants (SNARK scalar field, Prime Q).
 
 ## 4. Testing Pattern
 - **Blobhash Mocking**:
