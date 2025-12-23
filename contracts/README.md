@@ -110,10 +110,10 @@ The ABIs for the core contracts are automatically generated and can be found in 
 These ABIs are also automatically deployed to GitHub Pages and can be accessed at:
 `https://RollupX-FYP.github.io/contracts/abis/<ContractName>.json`
 
-- [ZKRollupBridge.json](docs/abis/ZKRollupBridge.json)
-- [BlobDA.json](docs/abis/BlobDA.json)
-- [CalldataDA.json](docs/abis/CalldataDA.json)
-- [RealVerifier.json](docs/abis/RealVerifier.json)
+- [ZKRollupBridge.json](https://rollupx-fyp.github.io/contracts/abis/ZKRollupBridge.json)
+- [BlobDA.json](https://rollupx-fyp.github.io/contracts/abis/BlobDA.json)
+- [CalldataDA.json](https://rollupx-fyp.github.io/contracts/abis/CalldataDA.json)
+- [RealVerifier.json](https://rollupx-fyp.github.io/contracts/abis/RealVerifier.json)
 
 ## Project Structure
 
