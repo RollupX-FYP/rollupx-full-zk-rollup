@@ -1,1 +1,2 @@
-// Registry module
+mod database;
+pub use database::Registry;

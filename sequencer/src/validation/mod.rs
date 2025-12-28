@@ -1,1 +1,2 @@
-// Validation module
+mod validator;
+pub use validator::Validator;

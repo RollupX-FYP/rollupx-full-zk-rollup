@@ -1,6 +1,6 @@
 # Sequencer
 
-A Rust-based sequencer implementation for Layer 2 rollup systems.
+The sequencer for the zk-rollup prototype.
 
 ## Architecture
 
@@ -62,3 +62,13 @@ sequencer/
 ├── Cargo.toml                  # Dependencies
 └── README.md
 ```
+
+## Quick Start
+```bash
+cargo build
+cargo run
+```
+
+## Configuration
+
+Edit `config/default.toml` to change batch size, scheduling policy, etc.
