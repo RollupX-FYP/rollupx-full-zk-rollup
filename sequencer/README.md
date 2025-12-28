@@ -62,3 +62,13 @@ sequencer/
 ├── Cargo.toml                  # Dependencies
 └── README.md
 ```
+
+## Quick Start
+```bash
+cargo build
+cargo run
+```
+
+## Configuration
+
+Edit `config/default.toml` to change batch size, scheduling policy, etc.
