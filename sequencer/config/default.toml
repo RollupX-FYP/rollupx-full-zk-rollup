@@ -1,1 +1,19 @@
-# Configuration file
+[batch]
+max_batch_size = 100
+timeout_interval_ms = 5000
+min_batch_size = 10
+
+[scheduling]
+policy_type = "FCFS"
+
+[api]
+host = "127.0.0.1"
+port = 3000
+
+[l1]
+rpc_url = "https://sepolia.infura.io/v3/YOUR_KEY"
+bridge_address = "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+start_block = 18500000
+
+[database]
+url = "sqlite://sequencer.db"
