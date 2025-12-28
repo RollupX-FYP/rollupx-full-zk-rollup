@@ -1,1 +1,2 @@
-// State module
+mod cache;
+pub use cache::StateCache;
