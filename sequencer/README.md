@@ -4,7 +4,9 @@ A Rust-based sequencer implementation for Layer 2 rollup systems.
 
 ## Architecture
 
-<img src="./public/images/architecture.png" width="400" />
+<p align="center">
+  <img src="./public/images/architecture.png" width="600" />
+</p>
 
 ## Project Structure
 
