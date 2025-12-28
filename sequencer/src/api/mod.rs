@@ -1,1 +1,2 @@
-// API module
+mod server;
+pub use server::Server;
