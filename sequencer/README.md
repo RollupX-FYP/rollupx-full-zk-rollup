@@ -1,6 +1,6 @@
 # Sequencer
 
-A Rust-based sequencer implementation for Layer 2 rollup systems.
+The sequencer for the zk-rollup prototype.
 
 ## Architecture
 
