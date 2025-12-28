@@ -2,6 +2,10 @@
 
 A Rust-based sequencer implementation for Layer 2 rollup systems.
 
+## Architecture
+
+<img src="./public/images/architecture.png" width="400" />
+
 ## Project Structure
 
 ```
@@ -56,7 +60,3 @@ sequencer/
 ├── Cargo.toml                  # Dependencies
 └── README.md
 ```
-
-## Getting Started
-
-TODO: Add setup and running instructions
