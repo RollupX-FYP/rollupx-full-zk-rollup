@@ -1,69 +1,78 @@
 # System Architecture
 
-This document outlines the high-level architecture of the ZK Rollup system and how the L1 contracts interact with off-chain components.
+This document details the architectural design of the **ZK Rollup Bridge contracts**, focusing on the modular Strategy Pattern, Security Model, and Data Flow.
 
-## Overview
+## 1. Modular DA Strategy Pattern
 
-The system follows a typical centralized sequencer rollup architecture with decentralized settlement and data availability.
+To support research into Data Availability costs (RQ3), the Bridge delegates DA verification to external provider contracts. This allows hot-swapping between `Calldata` and `Blob` modes without modifying the core bridge logic.
 
 ```mermaid
-graph TD
-    User[User] -->|Tx| Sequencer[L2 Sequencer]
-    Sequencer -->|Block| Prover[ZK Prover]
-    Sequencer -->|Batch Data| Relayer[Relayer]
-    Prover -->|Proof| Relayer
-    Relayer -->|commitBatch| L1[L1 Bridge Contract]
-    L1 -->|Verify| Verifier[Verifier Contract]
-    L1 -->|Validate| DA[DA Provider]
+classDiagram
+    class ZKRollupBridge {
+        +commitBatch(daId, ...)
+        -daProviders: mapping(uint8 => address)
+    }
+    class IDAProvider {
+        <<interface>>
+        +computeCommitment()
+        +validateDA()
+    }
+    class CalldataDA {
+        +computeCommitment() : keccak256
+        +validateDA() : no-op
+    }
+    class BlobDA {
+        +computeCommitment() : versionedHash
+        +validateDA() : check blobhash opcode
+    }
+
+    ZKRollupBridge --> IDAProvider
+    IDAProvider <|-- CalldataDA
+    IDAProvider <|-- BlobDA
 ```
 
-## Components
+### Flow
+1.  **Sequencer** chooses a DA mode (e.g., `daId=1` for Blobs).
+2.  **Bridge** looks up the `provider` address.
+3.  **Bridge** calls `provider.computeCommitment(...)` to get the `daCommitment` used in the ZK Proof public inputs.
+4.  **Bridge** calls `provider.validateDA(...)` to ensure the data is actually available on L1 (e.g., verifying the `blobhash`).
 
-### 1. L2 Sequencer (Off-chain)
-- **Responsibility**: Order transactions, execute state transitions, and produce L2 blocks.
-- **Output**: 
-  - `Batch Data`: Compressed transaction data.
-  - `New Root`: The new Merkle state root.
+## 2. State Verification & Math
 
-### 2. ZK Prover (Off-chain)
-- **Responsibility**: Generate a Groth16 Zero-Knowledge proof attesting to the validity of the state transition from `Old Root` to `New Root`.
-- **Inputs**: 
-  - Trace data from the Sequencer.
-  - Public Inputs: `DA_Commitment`, `Old_Root`, `New_Root`.
+The system uses **Groth16** proofs on the **BN254** curve.
 
-### 3. Relayer (Off-chain)
-- **Responsibility**: Aggregate the Proof, Batch Data, and Metadata, and submit them to the L1 Bridge.
-- **Key Actions**:
-  - Encodes the transaction for `ZKRollupBridge.commitBatch`.
-  - For Blob DA: Handles the Blob transaction lifecycle (sidecar attachment).
+### Public Inputs
+The ZK Circuit must accept exactly three public inputs in this specific order:
+1.  `daCommitment`: The hash of the data (ensures the data matches the state transition).
+2.  `oldRoot`: The previous state root (ensures chain continuity).
+3.  `newRoot`: The proposed state root.
 
-### 4. L1 Contracts (On-chain)
-- **ZKRollupBridge**: The entry point. Validates the sequencer authority, checks DA availability, and triggers proof verification.
-- **DA Strategies**: 
-  - `CalldataDA`: validates data exists in calldata (implicit).
-  - `BlobDA`: validates data exists in EIP-4844 blobs (via `blobhash`).
-- **Verifier**: Verifies the Groth16 proof on-chain.
+### Scalar Field Reduction
+All `bytes32` inputs (hashes) are modulo-reduced to the BN254 Scalar Field size to be compatible with the SNARK circuit.
 
-## Data Availability Flows
+$$
+Input_{field} = Input_{bytes32} \pmod{R}
+$$
 
-### Calldata Mode
-1. **Sequencer** compresses transaction data.
-2. **Relayer** sends `commitBatch` with `batchData` populated in the transaction calldata.
-3. **Bridge** calculates `keccak256(batchData)` as the commitment.
-4. **Verifier** ensures the proof covers this commitment.
+Where $R$ is the order of the scalar field:
+`21888242871839275222246405745257275088548364400416034343698204186575808495617`
 
-### Blob Mode (EIP-4844)
-1. **Sequencer** produces a Blob containing transaction data.
-2. **Relayer** sends a Blob-carrying transaction to `commitBatch`. 
-   - `batchData` is empty.
-   - `daMeta` contains the Versioned Hash and Blob Index.
-3. **Bridge** calls `BlobDA`.
-4. **BlobDA** checks `blobhash(index) == expectedHash`.
-5. **Verifier** ensures the proof covers the `expectedHash`.
+This reduction happens inside `ZKRollupBridge._toFieldElement` before calling the Verifier.
 
-## Security Model
+## 3. Censorship Resistance
 
-- **State Correctness**: Guaranteed by ZK Proofs (Cryptographic).
-- **Data Availability**: Guaranteed by Ethereum (L1).
-- **Censorship Resistance**: Currently relies on the Sequencer (future work: forced inclusion).
-- **Admin Keys**: The `owner` of the bridge can upgrade the verifier and change the sequencer (protected by a 2-step process).
+The "Adversarial Review" identified centralized sequencing as a risk. The architecture includes an on-chain **Forced Inclusion** mechanism.
+
+### Mechanism: Time-Locked Queue
+1.  **User Request:** A user calls `forceTransaction(txHash)`.
+2.  **Timestamp:** The contract records `deadline = block.number + forcedInclusionDelay`.
+3.  **Sequencer Obligation:** The sequencer *should* include this transaction before the deadline.
+4.  **Enforcement (Active):** If the deadline passes without inclusion, the Bridge reverts any `commitBatch` attempt with `BridgeFrozenError`. This effectively freezes the sequencer until the censorship is resolved (currently requires admin intervention or upgrade to full Exodus mode).
+
+## 4. Contract Relationships
+
+*   **Ownable2Step**: The Bridge inherits from OpenZeppelin's `Ownable2Step` for secure admin key rotation.
+*   **Verifier**: An immutable reference to a `RealVerifier` (generated by SnarkJS) or `MockVerifier` (for testing).
+*   **Libraries**:
+    *   `Constants.sol`: Stores cryptographic constants (Scalar Field, Prime Q).
+    *   `Pairing.sol`: Helper for BN254 pairing checks (used by RealVerifier).

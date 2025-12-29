@@ -20,6 +20,7 @@ describe("ZKRollupBridge", function () {
   let otherAccount: SignerWithAddress;
 
   const genesisRoot = ethers.ZeroHash;
+  const forceInclusionDelay = 50;
   
   // DA Constants
   const CALLDATA_DA_ID = 0;
@@ -44,7 +45,7 @@ describe("ZKRollupBridge", function () {
 
     // Deploy Bridge
     const Bridge = await ethers.getContractFactory("ZKRollupBridge");
-    bridge = await Bridge.deploy(verifier.target, genesisRoot);
+    bridge = await Bridge.deploy(verifier.target, genesisRoot, forceInclusionDelay);
 
     // Register DA Providers
     await bridge.setDAProvider(CALLDATA_DA_ID, calldataDA.target, true);
@@ -60,13 +61,28 @@ describe("ZKRollupBridge", function () {
       expect(await bridge.verifier()).to.equal(verifier.target);
       expect(await bridge.stateRoot()).to.equal(genesisRoot);
       expect(await bridge.nextBatchId()).to.equal(1);
+      expect(await bridge.forcedInclusionDelay()).to.equal(forceInclusionDelay);
     });
     
     it("Should revert if verifier is zero address", async function () {
         const Bridge = await ethers.getContractFactory("ZKRollupBridge");
-        await expect(Bridge.deploy(ethers.ZeroAddress, genesisRoot))
+        await expect(Bridge.deploy(ethers.ZeroAddress, genesisRoot, forceInclusionDelay))
             .to.be.revertedWithCustomError(Bridge, "InvalidVerifier");
     });
+  });
+
+  describe("Censorship Resistance", function () {
+      it("Should allow user to force transaction and track deadline", async function () {
+          const txHash = ethers.hexlify(ethers.randomBytes(32));
+          const currentBlock = await ethers.provider.getBlockNumber();
+
+          await expect(bridge.connect(otherAccount).forceTransaction(txHash))
+            .to.emit(bridge, "ForcedTransactionEnqueued")
+            .withArgs(txHash, currentBlock + 1 + forceInclusionDelay); // +1 because the tx itself mines a block in Hardhat
+
+          const deadline = await bridge.forcedTxTimestamps(txHash);
+          expect(deadline).to.equal(currentBlock + 1 + forceInclusionDelay);
+      });
   });
 
   describe("Sequencer Management", function () {

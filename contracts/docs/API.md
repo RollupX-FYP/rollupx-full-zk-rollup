@@ -1,14 +1,37 @@
-# Smart Contract API Reference
+# API Reference
 
-This document provides detailed API specifications for the core smart contracts.
+This document provides a comprehensive specification of the `ZKRollupBridge` and related contracts.
 
-## ZKRollupBridge
+## 1. ZKRollupBridge
 
-The `ZKRollupBridge` is the Aggregate Root contract managing the rollup state.
+The entry point for L2 Sequencers and Users.
 
-### `commitBatch`
+### State Variables
 
-Commits a new batch of transactions to L1, updating the state root and verifying the ZK proof.
+| Type | Name | Description |
+| :--- | :--- | :--- |
+| `IVerifier` | `verifier` | Immutable address of the Groth16 Verifier contract. |
+| `bytes32` | `stateRoot` | The current Merkle Root of the L2 state. |
+| `address` | `sequencer` | The authorized sequencer. If `address(0)`, the bridge is in **Permissionless Mode**. |
+| `uint256` | `nextBatchId` | Counter for batches (starts at 1). |
+| `uint256` | `forcedInclusionDelay` | Immutable configuration (blocks) defining the censorship resistance window. |
+
+### Data Structures
+
+#### `Groth16Proof`
+Structure representing a zk-SNARK proof.
+```solidity
+struct Groth16Proof {
+    uint256[2] a;
+    uint256[2][2] b;
+    uint256[2] c;
+}
+```
+
+### Functions
+
+#### `commitBatch`
+Submits a state transition proof and Data Availability commitment.
 
 ```solidity
 function commitBatch(
@@ -20,76 +43,77 @@ function commitBatch(
 ) external
 ```
 
-**Parameters:**
+*   **Requirements:**
+    *   Caller must be the `sequencer` (unless permissionless).
+    *   `daId` must be a registered and enabled DA Provider.
+    *   `newRoot` must not be zero.
+    *   Proof verification must succeed.
+    *   DA Provider validation must succeed.
 
-- `daId` (uint8): The ID of the DA provider strategy to use.
-    - `0`: CalldataDA
-    - `1`: BlobDA
-- `batchData` (bytes):
-    - For **CalldataDA**: The raw compressed batch data.
-    - For **BlobDA**: Empty `0x`.
-- `daMeta` (bytes): Metadata required by the DA provider.
-    - For **CalldataDA**: Empty `0x`.
-    - For **BlobDA**: ABI encoded `(bytes32 expectedVersionedHash, uint8 blobIndex)`.
-- `newRoot` (bytes32): The new state root after applying the batch.
-- `proof` (Groth16Proof): The Zero-Knowledge proof verifying the transition.
-    - Struct: `struct Groth16Proof { uint256[2] a; uint256[2][2] b; uint256[2] c; }`
-
-**Access Control:**
-- If `sequencer` is set (non-zero): Only callable by `sequencer`.
-- If `sequencer` is `address(0)`: Callable by anyone (Permissionless Dev Mode).
-
-### `setSequencer`
-
-Updates the sequencer address.
+#### `forceTransaction`
+Enables the "Escape Hatch" for users being censored by the sequencer.
 
 ```solidity
-function setSequencer(address newSequencer) external onlyOwner
+function forceTransaction(bytes32 _txHash) external
 ```
 
-- `newSequencer`: The new address. Set to `address(0)` to enable permissionless mode.
+*   **Behavior:**
+    *   Calculates `deadline = block.number + forcedInclusionDelay`.
+    *   Stores `forcedTxTimestamps[_txHash] = deadline`.
+    *   Emits `ForcedTransactionEnqueued`.
 
-### `setDAProvider`
-
-Registers or updates a DA provider strategy.
+#### `setDAProvider` (Admin)
+Registers a new Data Availability strategy contract.
 
 ```solidity
 function setDAProvider(uint8 daId, address provider, bool enabled) external onlyOwner
 ```
 
-- Note: To change the address of an enabled provider, you must first disable it (2-step process).
-
 ### Events
 
-- `BatchFinalized(uint256 indexed batchId, bytes32 indexed daCommitment, bytes32 oldRoot, bytes32 newRoot, uint8 daMode)`
-- `SequencerUpdated(address indexed newSequencer)`
-- `DAProviderSet(uint8 indexed daId, address provider, bool enabled)`
+| Name | Signature | Description |
+| :--- | :--- | :--- |
+| `BatchFinalized` | `event BatchFinalized(uint256 indexed batchId, bytes32 indexed daCommitment, bytes32 oldRoot, bytes32 newRoot, uint8 daMode)` | Emitted when a batch is successfully verified and settled. |
+| `ForcedTransactionEnqueued` | `event ForcedTransactionEnqueued(bytes32 indexed txHash, uint256 deadlineBlock)` | Emitted when a user initiates a forced inclusion. |
+| `SequencerUpdated` | `event SequencerUpdated(address indexed newSequencer)` | Emitted when the sequencer address changes. |
+| `DAProviderSet` | `event DAProviderSet(uint8 indexed daId, address provider, bool enabled)` | Emitted when a DA strategy is configured. |
+
+### Errors
+
+| Name | Description |
+| :--- | :--- |
+| `NotSequencer` | Caller is not the authorized sequencer. |
+| `InvalidNewRoot` | The proposed `newRoot` is `bytes32(0)`. |
+| `DAProviderNotEnabled` | The requested `daId` points to `address(0)` or is disabled. |
+| `InvalidProof` | The Verifier contract rejected the Groth16 proof. |
+| `DAProviderAlreadySet` | Attempted to overwrite an existing enabled provider without disabling it first. |
+| `InvalidVerifier` | Constructor argument was `address(0)`. |
 
 ---
 
-## DA Strategies
+## 2. DA Providers (IDAProvider)
 
-### CalldataDA (ID: 0)
+Interface for modular Data Availability strategies.
 
-Uses Ethereum calldata for data availability.
-- **Commitment**: `keccak256(batchData)`
-- **Validation**: None (implicit).
+### `computeCommitment`
+Calculates the commitment hash for the batch data.
 
-### BlobDA (ID: 1)
+```solidity
+function computeCommitment(bytes calldata batchData, bytes calldata daMeta) external pure returns (bytes32)
+```
 
-Uses EIP-4844 Blobs for data availability.
-- **Commitment**: The KZG versioned hash of the blob.
-- **Validation**: Checks `blobhash(index)` matches the commitment.
-- **Metadata**: `abi.encode(bytes32 versionedHash, uint8 blobIndex)`
+### `validateDA`
+Verifies that the data is available according to the strategy's rules.
 
----
+```solidity
+function validateDA(bytes32 commitment, bytes calldata daMeta) external view
+```
 
-## Verifier
+### Implementations
 
-### RealVerifier
-
-Implements the Groth16 verification logic on the BN254 curve.
-- **Public Inputs**: The bridge passes public inputs in the following order:
-  1. `daCommitment` (reduced to field element)
-  2. `oldRoot` (reduced to field element)
-  3. `newRoot` (reduced to field element)
+*   **CalldataDA**:
+    *   `computeCommitment`: Returns `keccak256(batchData)`.
+    *   `validateDA`: No-op (presence in calldata is sufficient).
+*   **BlobDA** (EIP-4844):
+    *   `computeCommitment`: Extracts `versionedHash` from `daMeta`.
+    *   `validateDA`: Checks `blobhash(index) == versionedHash`. Requires `cancun` EVM.

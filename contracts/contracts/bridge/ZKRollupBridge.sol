@@ -20,11 +20,14 @@ contract ZKRollupBridge is Ownable2Step {
     error DAProviderAlreadySet();
     error InvalidSequencerAddress();
     error InvalidVerifier();
+    error BridgeFrozenError();
 
     // -------------------------
     // Events
     // -------------------------
     event SequencerUpdated(address indexed newSequencer);
+    event BridgeFrozen(string reason);
+    event BridgeUnfrozen();
     event DAProviderSet(uint8 indexed daId, address provider, bool enabled);
     event BatchFinalized(
         uint256 indexed batchId,
@@ -33,6 +36,7 @@ contract ZKRollupBridge is Ownable2Step {
         bytes32 newRoot,
         uint8 daMode
     );
+    event ForcedTransactionEnqueued(bytes32 indexed txHash, uint256 deadlineBlock);
 
     // -------------------------
     // State
@@ -51,6 +55,13 @@ contract ZKRollupBridge is Ownable2Step {
     mapping(uint8 => address) public daProviders;
     mapping(uint8 => bool) public daEnabled;
 
+    // --- NEW: Censorship Resistance Configuration ---
+    uint256 public immutable forcedInclusionDelay;
+    mapping(bytes32 => uint256) public forcedTxTimestamps;
+    bytes32[] public forcedTxQueue;
+    uint256 public forcedHead;
+    bool public isFrozen;
+
     // -------------------------
     // Types
     // -------------------------
@@ -66,11 +77,17 @@ contract ZKRollupBridge is Ownable2Step {
     /// @notice Initializes the bridge.
     /// @param _verifier The address of the verifier contract.
     /// @param _genesisRoot The initial state root.
-    constructor(address _verifier, bytes32 _genesisRoot) Ownable(msg.sender) {
+    /// @param _forcedInclusionDelay The delay (in blocks) before a forced transaction becomes valid.
+    constructor(
+        address _verifier,
+        bytes32 _genesisRoot,
+        uint256 _forcedInclusionDelay
+    ) Ownable(msg.sender) {
         if (_verifier == address(0)) revert InvalidVerifier();
         verifier = IVerifier(_verifier);
         stateRoot = _genesisRoot;
         nextBatchId = 1;
+        forcedInclusionDelay = _forcedInclusionDelay;
     }
 
     // -------------------------
@@ -99,9 +116,54 @@ contract ZKRollupBridge is Ownable2Step {
     }
 
     // -------------------------
+    // Governance / Escape Hatch
+    // -------------------------
+    /// @notice Unfreezes the bridge.
+    /// @dev Allows governance to resolve censorship situations.
+    function unfreeze() external onlyOwner {
+        if (!isFrozen) revert();
+        isFrozen = false;
+        emit BridgeUnfrozen();
+    }
+
+    /// @notice Manually freezes the bridge if a forced transaction is ignored.
+    /// @dev Callable by anyone to prove censorship and halt the system.
+    function freeze() external {
+        if (forcedTxQueue.length > forcedHead) {
+            bytes32 oldestTxHash = forcedTxQueue[forcedHead];
+            uint256 deadline = forcedTxTimestamps[oldestTxHash];
+            if (block.number > deadline) {
+                isFrozen = true;
+                emit BridgeFrozen("Censorship proven via freeze()");
+                return;
+            }
+        }
+        revert("No censorship detected");
+    }
+
+    // -------------------------
+    // Forced Inclusion Interface (The "Escape Hatch")
+    // -------------------------
+    /// @notice Allows a user to force a transaction if the sequencer is censoring them.
+    /// @dev This satisfies the "Forced Queue" component in the architecture diagram.
+    /// @param _txHash The hash of the transaction to force.
+    function forceTransaction(bytes32 _txHash) external {
+        if (isFrozen) revert BridgeFrozenError();
+
+        // Calculate when this MUST be included by
+        uint256 deadline = block.number + forcedInclusionDelay;
+
+        forcedTxTimestamps[_txHash] = deadline;
+        forcedTxQueue.push(_txHash);
+
+        emit ForcedTransactionEnqueued(_txHash, deadline);
+    }
+
+    // -------------------------
     // Internal auth helper
     // -------------------------
     function _requireSequencer() internal view {
+        if (isFrozen) revert BridgeFrozenError();
         if (sequencer != address(0) && msg.sender != sequencer) revert NotSequencer();
     }
 
@@ -132,6 +194,19 @@ contract ZKRollupBridge is Ownable2Step {
         Groth16Proof calldata proof
     ) external {
         _requireSequencer();
+
+        // Censorship Check: Freeze if oldest forced tx is expired
+        if (forcedTxQueue.length > forcedHead) {
+            bytes32 oldestTxHash = forcedTxQueue[forcedHead];
+            uint256 deadline = forcedTxTimestamps[oldestTxHash];
+
+            // Check if deadline passed
+            if (block.number > deadline) {
+                isFrozen = true;
+                emit BridgeFrozen("Forced transaction deadline missed");
+                revert BridgeFrozenError();
+            }
+        }
         
         address providerAddr = daProviders[daId];
         if (providerAddr == address(0) || !daEnabled[daId]) revert DAProviderNotEnabled();

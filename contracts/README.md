@@ -18,6 +18,7 @@ Detailed documentation is available in the `docs/` folder:
 - **[API Reference](docs/API.md)**: Detailed specifications of smart contract functions and events.
 - **[Integration Guide](docs/INTEGRATION.md)**: How to communicate with the contracts using JSON-RPC and `ethers.js`.
 - **[Best Practices](BEST_PRACTICES.md)**: Architectural decisions and security standards.
+- **[Local Testing](../LOCAL_TESTING.md)**: Guide to running the full pipeline locally.
 
 ## 🚀 Quick Start (Docker)
 
@@ -61,6 +62,30 @@ Generate coverage report:
 ```bash
 npx hardhat coverage
 ```
+
+## 🛠 Local Simulation & Integration
+
+We provide scripts to simulate the full L2-to-L1 pipeline locally. This involves deploying a test network, mocking the L2 executor output, and validating the state transitions.
+
+1.  **Deploy Test Network:**
+    ```bash
+    npx hardhat run scripts/deploy-test-net.ts --network localhost
+    ```
+    Deploys `ZKRollupBridge`, `MockVerifier`, and `TestBlobDA` (for mocking EIP-4844 blobs locally).
+
+2.  **Generate Mock Batch:**
+    ```bash
+    npx hardhat run scripts/generate-mock-batch.ts --network localhost
+    ```
+    Generates a valid batch and configures the Rust Submitter.
+
+3.  **Verify State:**
+    ```bash
+    npx hardhat run scripts/verify-state.ts --network localhost
+    ```
+    Asserts that the Bridge contract state matches the submitted batch.
+
+See `../LOCAL_TESTING.md` for the complete end-to-end guide.
 
 ## 📦 Deployment
 

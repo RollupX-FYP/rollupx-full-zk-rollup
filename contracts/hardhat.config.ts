@@ -1,26 +1,35 @@
 import { HardhatUserConfig } from "hardhat/config";
 import "@nomicfoundation/hardhat-toolbox";
-import "dotenv/config";
+import * as dotenv from "dotenv";
 
-const PRIVATE_KEY = process.env.PRIVATE_KEY || "";
-const SEPOLIA_RPC_URL = process.env.SEPOLIA_RPC_URL || "";
+dotenv.config();
 
 const config: HardhatUserConfig = {
   solidity: {
     version: "0.8.24",
     settings: {
-      optimizer: { enabled: true, runs: 200 },
-      evmVersion: "cancun",
+      optimizer: {
+        enabled: true,
+        runs: 200,
+      },
+      evmVersion: "cancun", // Required for blobhash opcode
     },
   },
   networks: {
     hardhat: {
-      // Local dev (blob opcode not available in hardhat EVM; we keep blob mode as "mock" locally)
-      hardfork: "cancun",
+      chainId: 31337,
+      mining: {
+        auto: true,
+        interval: 0
+      }
+    },
+    host_docker: {
+      url: "http://l1-node:8545",
+      chainId: 31337,
     },
     sepolia: {
-      url: SEPOLIA_RPC_URL,
-      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : [],
+      url: process.env.SEPOLIA_RPC_URL || "",
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
     },
   },
 };
