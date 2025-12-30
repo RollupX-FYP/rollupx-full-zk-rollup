@@ -1,6 +1,7 @@
 use sequencer::{
     api::Server,
     config::Config,
+    state::StateCache,
 };
 use tracing::info;
 
@@ -13,8 +14,11 @@ async fn main() -> anyhow::Result<()> {
     let config = Config::load("config/default.toml")?;
     info!("Sequencer starting with config: {:?}", config);
     
+    // Initialize state cache
+    let state_cache = StateCache::new();
+    
     // Start API server
-    let server = Server::new(config);
+    let server = Server::new(config, state_cache);
     server.start().await?;
     
     Ok(())

@@ -26,6 +26,36 @@ impl StateCache {
         accounts.get(address).map(|acc| acc.nonce)
     }
     
+    /// Get account state or initialize with defaults if not found
+    pub async fn get_or_init_account(&self, address: &Address) -> AccountState {
+        let accounts = self.accounts.read().await;
+        if let Some(account) = accounts.get(address) {
+            account.clone()
+        } else {
+            drop(accounts); // Release read lock before acquiring write lock
+            AccountState {
+                address: *address,
+                balance: U256::zero(),
+                nonce: 0,
+            }
+        }
+    }
+    
+    /// Increment nonce for an account
+    pub async fn increment_nonce(&self, address: &Address) {
+        let mut accounts = self.accounts.write().await;
+        if let Some(account) = accounts.get_mut(address) {
+            account.nonce += 1;
+        } else {
+            // Initialize account if not exists
+            accounts.insert(*address, AccountState {
+                address: *address,
+                balance: U256::zero(),
+                nonce: 1,
+            });
+        }
+    }
+    
     pub async fn update(&self, state: AccountState) {
         let mut accounts = self.accounts.write().await;
         accounts.insert(state.address, state);
