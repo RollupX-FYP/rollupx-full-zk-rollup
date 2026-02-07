@@ -50,16 +50,19 @@ impl Server {
     /// # Arguments
     /// * `config` - Server configuration (host, port, etc.)
     /// * `state_cache` - The state cache for account data
+    /// * `tx_pool` - The transaction pool for pending normal transactions
     /// * `forced_queue` - The forced transaction queue from L1
     /// 
     /// # Returns
     /// A new `Server` instance with initialized components
-    pub fn new(config: Config, state_cache: StateCache, forced_queue: Arc<ForcedQueue>) -> Self {
+    pub fn new(
+        config: Config,
+        state_cache: StateCache,
+        tx_pool: Arc<TransactionPool>,
+        forced_queue: Arc<ForcedQueue>,
+    ) -> Self {
         // Initialize the transaction validator with access to state
         let validator = Arc::new(Validator::new(state_cache.clone()));
-        
-        // Create a new transaction pool to store pending transactions
-        let tx_pool = Arc::new(TransactionPool::new());
         
         // Bundle all shared state into AppState
         let state = AppState {
