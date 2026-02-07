@@ -50,8 +50,8 @@ async fn main() -> anyhow::Result<()> {
     info!("L1 event listener started");
     
     // Create a new API server instance.
-    // Pass all shared resources so the server can validate and store transactions.
-    let server = Server::new(config, state_cache, tx_pool, forced_queue);
+    // Pass shared resources needed for handling user transactions.
+    let server = Server::new(config, state_cache, tx_pool);
     // Start the API server. This will typically bind to a port and begin
     // listening for incoming requests. The `?` operator propagates any
     // errors that occur during server startup.

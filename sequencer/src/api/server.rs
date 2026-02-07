@@ -7,7 +7,7 @@
 use crate::{
     config::Config,
     validation::Validator,
-    pool::{TransactionPool, ForcedQueue},
+    pool::TransactionPool,
     state::StateCache,
     UserTransaction,
     SoftConfirmation,
@@ -25,13 +25,11 @@ use tracing::{info, warn, error};
 /// across multiple concurrent requests:
 /// - `validator`: Validates incoming transactions
 /// - `tx_pool`: Stores pending transactions waiting to be batched
-/// - `forced_queue`: Queue for forced transactions from L1
 /// - `state_cache`: Maintains account state (balances, nonces)
 #[derive(Clone)]
 pub struct AppState {
     validator: Arc<Validator>,
     tx_pool: Arc<TransactionPool>,
-    forced_queue: Arc<ForcedQueue>,
     state_cache: StateCache,
 }
 
@@ -51,7 +49,6 @@ impl Server {
     /// * `config` - Server configuration (host, port, etc.)
     /// * `state_cache` - The state cache for account data
     /// * `tx_pool` - The transaction pool for pending normal transactions
-    /// * `forced_queue` - The forced transaction queue from L1
     /// 
     /// # Returns
     /// A new `Server` instance with initialized components
@@ -59,7 +56,6 @@ impl Server {
         config: Config,
         state_cache: StateCache,
         tx_pool: Arc<TransactionPool>,
-        forced_queue: Arc<ForcedQueue>,
     ) -> Self {
         // Initialize the transaction validator with access to state
         let validator = Arc::new(Validator::new(state_cache.clone()));
@@ -68,7 +64,6 @@ impl Server {
         let state = AppState {
             validator,
             tx_pool,
-            forced_queue,
             state_cache,
         };
         
