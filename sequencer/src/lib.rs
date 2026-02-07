@@ -16,3 +16,4 @@ pub mod config; // Defines and loads system configuration.
 // Re-export commonly used types and configurations for easier access.
 pub use types::*;
 pub use config::Config;
+pub use batch::BatchOrchestrator;
