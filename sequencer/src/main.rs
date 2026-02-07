@@ -49,6 +49,24 @@ async fn main() -> anyhow::Result<()> {
     });
     info!("L1 event listener started");
     
+    // Create and start the batch orchestrator
+    // This component coordinates batch production by pulling transactions from pools,
+    // scheduling them, and creating sealed batches
+    let orchestrator = sequencer::BatchOrchestrator::new(
+        forced_queue.clone(),
+        tx_pool.clone(),
+        config.batch.clone(),
+        config.scheduling.policy_type.clone(),
+    );
+    
+    // Start the orchestrator in the background
+    tokio::spawn(async move {
+        if let Err(e) = orchestrator.start().await {
+            tracing::error!("Batch orchestrator error: {:?}", e);
+        }
+    });
+    info!("Batch orchestrator started");
+    
     // Create a new API server instance.
     // Pass shared resources needed for handling user transactions.
     let server = Server::new(config, state_cache, tx_pool);
