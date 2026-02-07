@@ -6,5 +6,7 @@
 
 mod engine;
 mod trigger;
+pub mod orchestrator;
 
 pub use engine::BatchEngine;
+pub use orchestrator::BatchOrchestrator;

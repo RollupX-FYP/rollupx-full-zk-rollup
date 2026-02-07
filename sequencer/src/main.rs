@@ -2,13 +2,17 @@ use sequencer::{
     api::Server,
     config::Config,
     state::StateCache,
+    pool::{ForcedQueue, TransactionPool},
+    l1::L1Listener,
 };
+use std::sync::Arc;
 use tracing::info;
 
 /// The main entry point for the sequencer application.
 ///
 /// This function initializes logging, loads the application configuration,
-/// sets up the state cache, and starts the API server.
+/// sets up shared resources (state cache, transaction pools), starts the L1
+/// event listener in the background, and starts the API server.
 #[tokio::main] // Marks the async main function to be run by the Tokio runtime.
 async fn main() -> anyhow::Result<()> {
     // Initialize logging using tracing_subscriber.
@@ -21,13 +25,51 @@ async fn main() -> anyhow::Result<()> {
     // Log the loaded configuration for debugging and informational purposes.
     info!("Sequencer starting with config: {:?}", config);
     
-    // Initialize the state cache.
-    // This cache is used to store and retrieve application state efficiently.
+    // Initialize shared resources
+    // All shared state is created here and passed to components that need it
+    
+    // State cache: stores account balances and nonces for validation
     let state_cache = StateCache::new();
     
+    // Transaction pool: stores normal pending transactions from users
+    let tx_pool = Arc::new(TransactionPool::new());
+    
+    // Forced queue: stores priority transactions from L1 (deposits, forced exits)
+    let forced_queue = Arc::new(ForcedQueue::new());
+    
+    // Create the L1 event listener
+    let l1_listener = L1Listener::new(config.l1.clone(), forced_queue.clone());
+    
+    // Start the L1 listener in the background
+    // This spawns a new async task that monitors L1 for forced transactions
+    tokio::spawn(async move {
+        if let Err(e) = l1_listener.start().await {
+            tracing::error!("L1 listener error: {:?}", e);
+        }
+    });
+    info!("L1 event listener started");
+    
+    // Create and start the batch orchestrator
+    // This component coordinates batch production by pulling transactions from pools,
+    // scheduling them, and creating sealed batches
+    let orchestrator = sequencer::BatchOrchestrator::new(
+        forced_queue.clone(),
+        tx_pool.clone(),
+        config.batch.clone(),
+        config.scheduling.policy_type.clone(),
+    );
+    
+    // Start the orchestrator in the background
+    tokio::spawn(async move {
+        if let Err(e) = orchestrator.start().await {
+            tracing::error!("Batch orchestrator error: {:?}", e);
+        }
+    });
+    info!("Batch orchestrator started");
+    
     // Create a new API server instance.
-    // It takes the loaded configuration and the initialized state cache.
-    let server = Server::new(config, state_cache);
+    // Pass shared resources needed for handling user transactions.
+    let server = Server::new(config, state_cache, tx_pool);
     // Start the API server. This will typically bind to a port and begin
     // listening for incoming requests. The `?` operator propagates any
     // errors that occur during server startup.
