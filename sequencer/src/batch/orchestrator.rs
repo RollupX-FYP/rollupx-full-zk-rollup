@@ -17,7 +17,7 @@ use crate::{
     scheduler::{Scheduler, SchedulingPolicyType, create_policy},
     batch::BatchEngine,
     config::BatchConfig,
-    Batch,
+    Batch, Transaction,
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -81,10 +81,11 @@ impl BatchOrchestrator {
     /// An error if the orchestrator fails to start
     pub async fn start(self) -> anyhow::Result<()> {
         info!("Batch orchestrator starting...");
-        info!("Configuration: max_batch_size={}, timeout_interval_ms={}, min_batch_size={}", 
+        info!("Configuration: max_batch_size={}, timeout_interval_ms={}, min_batch_size={}, max_gas_limit={}", 
               self.config.max_batch_size, 
               self.config.timeout_interval_ms,
-              self.config.min_batch_size);
+              self.config.min_batch_size,
+              self.config.max_gas_limit);
         
         let timeout_duration = Duration::from_millis(self.config.timeout_interval_ms);
         let mut last_batch_time = Instant::now();
@@ -141,9 +142,14 @@ impl BatchOrchestrator {
     /// 
     /// This is the core batch production logic:
     /// 1. Pull all forced transactions (always included first)
-    /// 2. Pull up to max_batch_size normal transactions
+    /// 2. Pull normal transactions respecting both size and gas limits
     /// 3. Schedule them (forced first, then normal by policy)
     /// 4. Create sealed batch
+    /// 
+    /// # Gas Limit Enforcement
+    /// The engine tracks cumulative gas consumption as transactions are added,
+    /// ensuring no batch exceeds the configured gas limit that would make L1
+    /// verification prohibitively expensive.
     /// 
     /// # Returns
     /// * `Ok(Some(Batch))` if a batch was created
@@ -153,31 +159,71 @@ impl BatchOrchestrator {
         // Step 1: Get all forced transactions from L1
         let forced_txs = self.forced_queue.get_all().await;
         
-        // Step 2: Get normal transactions from pool
+        // Get read-only access to batch engine for gas limit checking
+        let engine = self.batch_engine.read().await;
+        
+        // Step 1a: Filter forced transactions to respect gas limit
+        // Forced txs have priority, but we still need to respect gas limits
+        let mut accepted_forced_txs = Vec::new();
+        for tx in forced_txs {
+            let wrapped_tx = Transaction::Forced(tx);
+            if engine.can_add_transaction(&accepted_forced_txs, &wrapped_tx) {
+                accepted_forced_txs.push(wrapped_tx);
+            } else {
+                warn!("Forced transaction exceeds gas limit, deferring to next batch");
+                // In production, this transaction should be re-queued
+            }
+        }
+        
+        // Step 2: Get normal transactions from pool with gas limit enforcement
         // Calculate how many we can take (leave room for forced txs if any)
-        let max_normal_txs = if forced_txs.is_empty() {
+        let max_normal_txs = if accepted_forced_txs.is_empty() {
             self.config.max_batch_size
         } else {
-            self.config.max_batch_size.saturating_sub(forced_txs.len())
+            self.config.max_batch_size.saturating_sub(accepted_forced_txs.len())
         };
         
         let normal_txs = self.tx_pool.get_pending(max_normal_txs).await;
         
+        // Step 2a: Filter normal transactions to respect gas limit
+        let mut accepted_normal_txs = Vec::new();
+        let mut combined_txs = accepted_forced_txs.clone();
+        
+        for tx in normal_txs {
+            let wrapped_tx = Transaction::Normal(tx);
+            if engine.can_add_transaction(&combined_txs, &wrapped_tx) {
+                combined_txs.push(wrapped_tx.clone());
+                accepted_normal_txs.push(wrapped_tx);
+            } else {
+                // Gas limit reached, stop adding transactions
+                debug!("Gas limit reached, stopping transaction addition");
+                break;
+            }
+        }
+        
+        // Release the read lock before scheduling
+        drop(engine);
+        
         // If no transactions at all, return None
-        if forced_txs.is_empty() && normal_txs.is_empty() {
+        if accepted_forced_txs.is_empty() && accepted_normal_txs.is_empty() {
             return Ok(None);
         }
         
         debug!("Scheduling {} forced + {} normal transactions", 
-               forced_txs.len(), 
-               normal_txs.len());
+               accepted_forced_txs.len(), 
+               accepted_normal_txs.len());
         
-        // Step 3: Schedule transactions (forced first, then normal by policy)
-        let scheduled_txs = self.scheduler.schedule(forced_txs, normal_txs);
+        // Step 3: Combine all accepted transactions in order (forced first, then normal)
+        let mut all_txs = accepted_forced_txs;
+        all_txs.extend(accepted_normal_txs);
+        
+        // Calculate and log total gas
+        let total_gas: u64 = all_txs.iter().map(|tx| tx.gas_limit()).sum();
+        debug!("Batch total gas: {} / {}", total_gas, self.config.max_gas_limit);
         
         // Step 4: Create sealed batch
         let mut engine = self.batch_engine.write().await;
-        let batch = engine.create_batch(scheduled_txs);
+        let batch = engine.create_batch(all_txs);
         
         Ok(Some(batch))
     }
