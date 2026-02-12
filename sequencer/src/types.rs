@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 /// - `value`: Amount to transfer (in wei)
 /// - `nonce`: Transaction sequence number (prevents replay attacks)
 /// - `gas_price`: Price per unit of gas (determines transaction fee)
+/// - `gas_limit`: Maximum gas units this transaction can consume
 /// - `signature`: ECDSA signature proving transaction authenticity
 /// - `timestamp`: When the transaction was created
 /// - `boost_bid`: Optional premium bid for Time-Boost scheduling policy
@@ -32,6 +33,7 @@ pub struct UserTransaction {
     pub value: U256,
     pub nonce: u64,
     pub gas_price: U256,
+    pub gas_limit: u64,
     pub signature: Signature,
     pub timestamp: u64,
     /// Optional premium bid for Time-Boost policy (faster confirmation)
@@ -109,6 +111,7 @@ impl UserTransaction {
 /// - `to`: Recipient's address
 /// - `value`: Amount to transfer
 /// - `nonce`: Transaction sequence number
+/// - `gas_limit`: Maximum gas units this transaction can consume
 /// - `l1_tx_hash`: Hash of the originating L1 transaction
 /// - `l1_block_number`: L1 block where the event was emitted
 /// - `event_type`: Type of forced transaction (Deposit or ForcedExit)
@@ -120,6 +123,7 @@ pub struct ForcedTransaction {
     pub to: Address,
     pub value: U256,
     pub nonce: u64,
+    pub gas_limit: u64,
     pub l1_tx_hash: H256,
     pub l1_block_number: u64,
     pub event_type: ForcedEventType,
@@ -152,6 +156,19 @@ pub enum Transaction {
     Normal(UserTransaction),
     /// Forced transaction from L1 (deposit or forced exit)
     Forced(ForcedTransaction),
+}
+
+impl Transaction {
+    /// Get the gas limit for this transaction
+    /// 
+    /// Returns the gas limit regardless of whether this is a normal or forced transaction.
+    /// Used for cumulative gas tracking in batch creation.
+    pub fn gas_limit(&self) -> u64 {
+        match self {
+            Transaction::Normal(tx) => tx.gas_limit,
+            Transaction::Forced(tx) => tx.gas_limit,
+        }
+    }
 }
 
 /// Account state
