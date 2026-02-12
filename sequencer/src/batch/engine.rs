@@ -52,4 +52,21 @@ impl BatchEngine {
         self.next_batch_id += 1;
         batch
     }
+    
+    /// Check if adding a transaction would exceed the gas limit
+    /// 
+    /// Used by the orchestrator to enforce gas limits when building batches.
+    /// 
+    /// # Arguments
+    /// * `current_txs` - Transactions already in the batch
+    /// * `new_tx` - Transaction being considered for addition
+    /// 
+    /// # Returns
+    /// `true` if adding the new transaction would keep total gas under the limit,
+    /// `false` if it would exceed the configured `max_gas_limit`
+    pub fn can_add_transaction(&self, current_txs: &[Transaction], new_tx: &Transaction) -> bool {
+        let current_gas: u64 = current_txs.iter().map(|tx| tx.gas_limit()).sum();
+        let total_gas = current_gas.saturating_add(new_tx.gas_limit());
+        total_gas <= self.config.max_gas_limit
+    }
 }

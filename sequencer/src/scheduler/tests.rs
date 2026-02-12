@@ -17,6 +17,7 @@ mod tests {
     fn create_test_tx(
         nonce: u64,
         gas_price: u64,
+        gas_limit: u64,
         timestamp: u64,
         boost_bid: Option<u64>,
     ) -> UserTransaction {
@@ -26,6 +27,7 @@ mod tests {
             value: U256::from(1000),
             nonce,
             gas_price: U256::from(gas_price),
+            gas_limit,
             signature: Signature::default(),
             timestamp,
             boost_bid: boost_bid.map(U256::from),
@@ -33,13 +35,14 @@ mod tests {
     }
 
     /// Helper function to create a test forced transaction
-    fn create_forced_tx(nonce: u64) -> ForcedTransaction {
+    fn create_forced_tx(nonce: u64, gas_limit: u64) -> ForcedTransaction {
         ForcedTransaction {
             tx_hash: H256::zero(),
             from: Address::zero(),
             to: Address::zero(),
             value: U256::from(1000),
             nonce,
+            gas_limit,
             l1_tx_hash: H256::zero(),
             l1_block_number: 1,
             event_type: ForcedEventType::Deposit,
@@ -53,9 +56,9 @@ mod tests {
         
         // Create transactions with different gas prices but sequential timestamps
         let txs = vec![
-            create_test_tx(1, 100, 1000, None),
-            create_test_tx(2, 500, 2000, None),  // Higher gas price
-            create_test_tx(3, 50, 3000, None),   // Lower gas price
+            create_test_tx(1, 100, 21000, 1000, None),
+            create_test_tx(2, 500, 21000, 2000, None),  // Higher gas price
+            create_test_tx(3, 50, 21000, 3000, None),   // Lower gas price
         ];
         
         let ordered = policy.order_transactions(txs.clone());
@@ -73,10 +76,10 @@ mod tests {
         
         // Create transactions with different gas prices
         let txs = vec![
-            create_test_tx(1, 100, 1000, None),
-            create_test_tx(2, 500, 2000, None),  // Highest gas price
-            create_test_tx(3, 50, 3000, None),   // Lowest gas price
-            create_test_tx(4, 300, 4000, None),  // Medium gas price
+            create_test_tx(1, 100, 21000, 1000, None),
+            create_test_tx(2, 500, 21000, 2000, None),  // Highest gas price
+            create_test_tx(3, 50, 21000, 3000, None),   // Lowest gas price
+            create_test_tx(4, 300, 21000, 4000, None),  // Medium gas price
         ];
         
         let ordered = policy.order_transactions(txs);
@@ -97,10 +100,10 @@ mod tests {
         
         // Create transactions in different time windows
         let txs = vec![
-            create_test_tx(1, 100, 1000, None),  // Window 0 (0-4999ms)
-            create_test_tx(2, 200, 6000, None),  // Window 1 (5000-9999ms)
-            create_test_tx(3, 300, 12000, None), // Window 2 (10000-14999ms)
-            create_test_tx(4, 150, 2000, None),  // Window 0 (0-4999ms)
+            create_test_tx(1, 100, 21000, 1000, None),  // Window 0 (0-4999ms)
+            create_test_tx(2, 200, 21000, 6000, None),  // Window 1 (5000-9999ms)
+            create_test_tx(3, 300, 21000, 12000, None), // Window 2 (10000-14999ms)
+            create_test_tx(4, 150, 21000, 2000, None),  // Window 0 (0-4999ms)
         ];
         
         let ordered = policy.order_transactions(txs);
@@ -121,10 +124,10 @@ mod tests {
         
         // Create transactions in same time window with different boost bids
         let txs = vec![
-            create_test_tx(1, 100, 1000, None),       // No boost
-            create_test_tx(2, 100, 2000, Some(500)),  // High boost
-            create_test_tx(3, 100, 3000, Some(200)),  // Medium boost
-            create_test_tx(4, 100, 4000, Some(800)),  // Highest boost
+            create_test_tx(1, 100, 21000, 1000, None),       // No boost
+            create_test_tx(2, 100, 21000, 2000, Some(500)),  // High boost
+            create_test_tx(3, 100, 21000, 3000, Some(200)),  // Medium boost
+            create_test_tx(4, 100, 21000, 4000, Some(800)),  // Highest boost
         ];
         
         let ordered = policy.order_transactions(txs);
@@ -146,9 +149,9 @@ mod tests {
         
         // Create transactions with same boost bid but different gas prices
         let txs = vec![
-            create_test_tx(1, 100, 1000, Some(500)),
-            create_test_tx(2, 300, 2000, Some(500)), // Same boost, higher gas
-            create_test_tx(3, 200, 3000, Some(500)), // Same boost, medium gas
+            create_test_tx(1, 100, 21000, 1000, Some(500)),
+            create_test_tx(2, 300, 21000, 2000, Some(500)), // Same boost, higher gas
+            create_test_tx(3, 200, 21000, 3000, Some(500)), // Same boost, medium gas
         ];
         
         let ordered = policy.order_transactions(txs);
@@ -166,9 +169,9 @@ mod tests {
         
         // Create transactions with different timestamps
         let txs = vec![
-            create_test_tx(1, 500, 5000, None),  // Later timestamp
-            create_test_tx(2, 100, 1000, None),  // Earliest
-            create_test_tx(3, 300, 3000, None),  // Middle
+            create_test_tx(1, 500, 21000, 5000, None),  // Later timestamp
+            create_test_tx(2, 100, 21000, 1000, None),  // Earliest
+            create_test_tx(3, 300, 21000, 3000, None),  // Middle
         ];
         
         let ordered = policy.order_transactions(txs);
@@ -187,13 +190,13 @@ mod tests {
         
         // Create forced and normal transactions
         let forced = vec![
-            create_forced_tx(100),
-            create_forced_tx(101),
+            create_forced_tx(100, 21000),
+            create_forced_tx(101, 21000),
         ];
         
         let normal = vec![
-            create_test_tx(1, 1000, 1000, None), // Very high gas price
-            create_test_tx(2, 500, 2000, None),
+            create_test_tx(1, 1000, 21000, 1000, None), // Very high gas price
+            create_test_tx(2, 500, 21000, 2000, None),
         ];
         
         let ordered = scheduler.schedule(forced, normal);
@@ -243,9 +246,9 @@ mod tests {
     fn test_policy_switching() {
         // Create transactions
         let txs = vec![
-            create_test_tx(1, 100, 1000, None),
-            create_test_tx(2, 500, 2000, None),
-            create_test_tx(3, 50, 3000, None),
+            create_test_tx(1, 100, 21000, 1000, None),
+            create_test_tx(2, 500, 21000, 2000, None),
+            create_test_tx(3, 50, 21000, 3000, None),
         ];
         
         // Test with FCFS policy
@@ -275,7 +278,7 @@ mod tests {
     #[test]
     fn test_single_transaction() {
         let policy = TimeBoostPolicy { time_window_ms: 5000 };
-        let txs = vec![create_test_tx(1, 100, 1000, None)];
+        let txs = vec![create_test_tx(1, 100, 21000, 1000, None)];
         let ordered = policy.order_transactions(txs);
         assert_eq!(ordered.len(), 1);
         assert_eq!(ordered[0].nonce, 1);
