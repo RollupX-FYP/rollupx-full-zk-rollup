@@ -81,12 +81,6 @@ fn default_time_window() -> u64 {
 
 impl SchedulingConfig {
     /// Parse the configuration into a SchedulingPolicyType enum
-    /// 
-    /// # Returns
-    /// The corresponding policy type enum value
-    /// 
-    /// # Panics
-    /// If policy_type is not recognized (should be validated at config load time)
     pub fn to_policy_type(&self) -> crate::scheduler::SchedulingPolicyType {
         use crate::scheduler::SchedulingPolicyType;
         
