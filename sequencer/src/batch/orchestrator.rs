@@ -14,7 +14,7 @@
 
 use crate::{
     pool::{ForcedQueue, TransactionPool},
-    scheduler::Scheduler,
+    scheduler::{Scheduler, SchedulingPolicyType, create_policy},
     batch::BatchEngine,
     config::BatchConfig,
     Batch,
@@ -49,17 +49,20 @@ impl BatchOrchestrator {
     /// * `forced_queue` - Shared reference to the forced transaction queue
     /// * `tx_pool` - Shared reference to the normal transaction pool
     /// * `batch_config` - Batch configuration settings
-    /// * `scheduling_policy` - Scheduling policy ("FCFS" or "FeePriority")
+    /// * `scheduling_policy` - Scheduling policy type (FCFS, FeePriority, TimeBoost, or FairBFT)
     pub fn new(
         forced_queue: Arc<ForcedQueue>,
         tx_pool: Arc<TransactionPool>,
         batch_config: BatchConfig,
-        scheduling_policy: String,
+        scheduling_policy: SchedulingPolicyType,
     ) -> Self {
+        // Create policy instance using factory function
+        let policy = create_policy(scheduling_policy);
+        
         Self {
             forced_queue,
             tx_pool,
-            scheduler: Scheduler::new(scheduling_policy.clone()),
+            scheduler: Scheduler::new(policy),
             batch_engine: RwLock::new(BatchEngine::new(batch_config.clone())),
             config: batch_config,
         }

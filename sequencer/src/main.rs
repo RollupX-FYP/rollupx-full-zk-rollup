@@ -56,7 +56,7 @@ async fn main() -> anyhow::Result<()> {
         forced_queue.clone(),
         tx_pool.clone(),
         config.batch.clone(),
-        config.scheduling.policy_type.clone(),
+        config.scheduling.to_policy_type(),
     );
     
     // Start the orchestrator in the background

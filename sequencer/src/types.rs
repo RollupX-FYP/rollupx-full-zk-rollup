@@ -24,6 +24,7 @@ use serde::{Deserialize, Serialize};
 /// - `gas_price`: Price per unit of gas (determines transaction fee)
 /// - `signature`: ECDSA signature proving transaction authenticity
 /// - `timestamp`: When the transaction was created
+/// - `boost_bid`: Optional premium bid for Time-Boost scheduling policy
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserTransaction {
     pub from: Address,
@@ -33,6 +34,9 @@ pub struct UserTransaction {
     pub gas_price: U256,
     pub signature: Signature,
     pub timestamp: u64,
+    /// Optional premium bid for Time-Boost policy (faster confirmation)
+    #[serde(default)]
+    pub boost_bid: Option<U256>,
 }
 
 impl UserTransaction {
@@ -76,6 +80,13 @@ impl UserTransaction {
         
         // Add timestamp as big-endian bytes (8 bytes)
         data.extend_from_slice(&self.timestamp.to_be_bytes());
+        
+        // Add boost_bid if present (32 bytes, or zeros if None)
+        let mut boost_bid_bytes = [0u8; 32];
+        if let Some(boost_bid) = self.boost_bid {
+            boost_bid.to_big_endian(&mut boost_bid_bytes);
+        }
+        data.extend_from_slice(&boost_bid_bytes);
         
         // Apply Keccak256 hash and return as H256
         H256::from_slice(&keccak256(data))

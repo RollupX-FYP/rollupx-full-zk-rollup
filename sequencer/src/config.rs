@@ -56,10 +56,50 @@ pub struct BatchConfig {
 /// # Supported Policies
 /// - `"FCFS"`: First-Come-First-Served (transactions ordered by arrival time)
 /// - `"FeePriority"`: Fee-based priority (highest gas price first)
+/// - `"TimeBoost"`: Time-windowed ordering with premium bids
+/// - `"FairBFT"`: Fair Byzantine Fault Tolerant ordering (timestamp-based)
+/// 
+/// # TimeBoost Configuration
+/// For TimeBoost policy, you can specify the time window:
+/// ```toml
+/// [scheduling]
+/// policy_type = "TimeBoost"
+/// time_window_ms = 5000  # 5-second time windows
+/// ```
 #[derive(Debug, Clone, Deserialize)]
 pub struct SchedulingConfig {
-    /// Policy type: "FCFS" or "FeePriority"
-    pub policy_type: String,
+    /// Policy type: "FCFS", "FeePriority", "TimeBoost", or "FairBFT"
+    policy_type: String,
+    /// Time window in milliseconds (only used for TimeBoost policy)
+    #[serde(default = "default_time_window")]
+    time_window_ms: u64,
+}
+
+fn default_time_window() -> u64 {
+    5000 // Default to 5-second windows
+}
+
+impl SchedulingConfig {
+    /// Parse the configuration into a SchedulingPolicyType enum
+    /// 
+    /// # Returns
+    /// The corresponding policy type enum value
+    /// 
+    /// # Panics
+    /// If policy_type is not recognized (should be validated at config load time)
+    pub fn to_policy_type(&self) -> crate::scheduler::SchedulingPolicyType {
+        use crate::scheduler::SchedulingPolicyType;
+        
+        match self.policy_type.as_str() {
+            "FCFS" => SchedulingPolicyType::Fcfs,
+            "FeePriority" => SchedulingPolicyType::FeePriority,
+            "TimeBoost" => SchedulingPolicyType::TimeBoost {
+                time_window_ms: self.time_window_ms,
+            },
+            "FairBFT" => SchedulingPolicyType::FairBft,
+            _ => panic!("Invalid scheduling policy type: {}. Must be one of: FCFS, FeePriority, TimeBoost, FairBFT", self.policy_type),
+        }
+    }
 }
 
 /// API server configuration
