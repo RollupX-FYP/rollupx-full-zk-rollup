@@ -42,11 +42,13 @@ pub struct Config {
 /// - `max_batch_size`: Maximum number of transactions per batch
 /// - `timeout_interval_ms`: How long to wait before sealing a partial batch (in milliseconds)
 /// - `min_batch_size`: Minimum transactions before considering a timeout seal
+/// - `max_gas_limit`: Maximum cumulative gas consumption per batch (prevents expensive L1 verification)
 #[derive(Debug, Clone, Deserialize)]
 pub struct BatchConfig {
     pub max_batch_size: usize,
     pub timeout_interval_ms: u64,
     pub min_batch_size: usize,
+    pub max_gas_limit: u64,
 }
 
 /// Transaction scheduling configuration
