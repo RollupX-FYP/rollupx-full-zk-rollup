@@ -11,13 +11,13 @@ contract MockVerifier is IVerifier {
     
     // Add input assertion
     bool public checkInput;
-    uint256[3] public expectedInput;
+    uint256[4] public expectedInput;
 
     function setShouldVerify(bool newShouldVerify) external {
         shouldVerify = newShouldVerify;
     }
 
-    function setExpectedInput(uint256[3] calldata newInput) external {
+    function setExpectedInput(uint256[4] calldata newInput) external {
         expectedInput = newInput;
         checkInput = true;
     }
@@ -26,13 +26,13 @@ contract MockVerifier is IVerifier {
         uint256[2] calldata,
         uint256[2][2] calldata,
         uint256[2] calldata,
-        uint256[3] calldata input
+        uint256[4] calldata input
     ) external view override returns (bool) {
         if (!shouldVerify) return false;
         
         if (checkInput) {
-             if (input[0] != expectedInput[0] || input[1] != expectedInput[1] || input[2] != expectedInput[2]) {
-                 return false;
+             for (uint i = 0; i < 4; i++) {
+                 if (input[i] != expectedInput[i]) return false;
              }
         }
         

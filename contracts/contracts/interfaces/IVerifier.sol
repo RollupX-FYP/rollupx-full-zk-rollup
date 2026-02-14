@@ -6,6 +6,6 @@ interface IVerifier {
         uint256[2] calldata a,
         uint256[2][2] calldata b,
         uint256[2] calldata c,
-        uint256[3] calldata input
+        uint256[4] calldata input
     ) external view returns (bool);
 }

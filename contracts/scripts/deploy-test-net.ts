@@ -14,12 +14,36 @@ async function main() {
   console.log(` - Genesis Root: ${genesisRoot}`);
   console.log(` - Force Inclusion Delay: ${forceInclusionDelay} blocks`);
 
-  // 1. Deploy MockVerifier
-  const MockVerifier = await ethers.getContractFactory("MockVerifier");
-  const mockVerifier = await MockVerifier.deploy();
-  await mockVerifier.waitForDeployment();
-  const verifierAddr = await mockVerifier.getAddress();
-  console.log("MockVerifier deployed to:", verifierAddr);
+  // 1. Deploy Verifier (Real or Mock)
+  let verifierAddr;
+  if (process.env.USE_MOCK_VERIFIER === "true") {
+      console.log("Using MockVerifier for simulation...");
+      const MockVerifier = await ethers.getContractFactory("MockVerifier");
+      const mockVerifier = await MockVerifier.deploy();
+      await mockVerifier.waitForDeployment();
+      verifierAddr = await mockVerifier.getAddress();
+      console.log("MockVerifier deployed to:", verifierAddr);
+  } else {
+      const Groth16Verifier = await ethers.getContractFactory("Groth16Verifier");
+      const realVerifier = await Groth16Verifier.deploy();
+      await realVerifier.waitForDeployment();
+      verifierAddr = await realVerifier.getAddress();
+      console.log("Groth16Verifier deployed to:", verifierAddr);
+  }
+
+  // Deploy Plonky2 Stub
+  const Plonky2Verifier = await ethers.getContractFactory("Plonky2Verifier");
+  const plonky2Verifier = await Plonky2Verifier.deploy();
+  await plonky2Verifier.waitForDeployment();
+  const plonky2Addr = await plonky2Verifier.getAddress();
+  console.log("Plonky2Verifier deployed to:", plonky2Addr);
+
+  // Deploy Halo2 Stub
+  const Halo2Verifier = await ethers.getContractFactory("Halo2Verifier");
+  const halo2Verifier = await Halo2Verifier.deploy();
+  await halo2Verifier.waitForDeployment();
+  const halo2Addr = await halo2Verifier.getAddress();
+  console.log("Halo2Verifier deployed to:", halo2Addr);
 
   // 2. Deploy DA Providers
   const CalldataDA = await ethers.getContractFactory("CalldataDA");
@@ -48,9 +72,22 @@ async function main() {
   const bridgeAddr = await bridge.getAddress();
   console.log("ZKRollupBridge deployed to:", bridgeAddr);
 
-  // 4. Register DA Providers
+  // 4. Register DA Providers & Verifiers
+
+  // Register Verifiers
+  // ID 0: Groth16 (Set in constructor, but good to be explicit or if we want to change)
+  // ID 1: Plonky2
+  let tx = await bridge.setVerifier(1, plonky2Addr);
+  await tx.wait();
+  console.log("Registered Plonky2Verifier (ID 1)");
+
+  // ID 2: Halo2
+  tx = await bridge.setVerifier(2, halo2Addr);
+  await tx.wait();
+  console.log("Registered Halo2Verifier (ID 2)");
+
   // ID 0: Calldata
-  let tx = await bridge.setDAProvider(0, calldataAddr, true);
+  tx = await bridge.setDAProvider(0, calldataAddr, true);
   await tx.wait();
   console.log("Registered CalldataDA (ID 0)");
 
@@ -62,7 +99,7 @@ async function main() {
 
   // Save deployments to file
   const deployments = {
-    MockVerifier: verifierAddr,
+    RealVerifier: verifierAddr,
     CalldataDA: calldataAddr,
     BlobDA: blobAddr,
     TestBlobDA: testBlobAddr,

@@ -3,12 +3,11 @@ pragma solidity ^0.8.24;
 
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IVerifier} from "../interfaces/IVerifier.sol";
 import {IDAProvider} from "../interfaces/IDAProvider.sol";
-import {Constants} from "../libraries/Constants.sol";
+import {IVerifier} from "../interfaces/IVerifier.sol";
 
-/// @notice L1 rollup bridge core that supports modular DA providers via strategy pattern.
-/// @dev Manages state roots and verifies validity proofs.
+/// @notice Minimal L1 rollup bridge for Gap Analysis fixes.
+/// @dev Uses Strategy Pattern for Verifiers (Groth16, Plonky2, Halo2).
 contract ZKRollupBridge is Ownable2Step {
     // -------------------------
     // Errors
@@ -16,11 +15,10 @@ contract ZKRollupBridge is Ownable2Step {
     error NotSequencer();
     error InvalidNewRoot();
     error DAProviderNotEnabled();
-    error InvalidProof();
     error DAProviderAlreadySet();
-    error InvalidSequencerAddress();
-    error InvalidVerifier();
     error BridgeFrozenError();
+    error InvalidProof();
+    error UnknownVerifier(uint8 verifierId);
 
     // -------------------------
     // Events
@@ -29,20 +27,26 @@ contract ZKRollupBridge is Ownable2Step {
     event BridgeFrozen(string reason);
     event BridgeUnfrozen();
     event DAProviderSet(uint8 indexed daId, address provider, bool enabled);
-    event BatchFinalized(
+    event VerifierSet(uint8 indexed verifierId, address verifierAddress);
+
+    event BatchCommitted(
         uint256 indexed batchId,
-        bytes32 indexed daCommitment,
+        uint8 daId,
+        uint8 verifierId,
+        bytes32 daCommitment,
         bytes32 oldRoot,
-        bytes32 newRoot,
-        uint8 daMode
+        bytes32 newRoot
     );
+
+    event BatchDataPointer(uint256 indexed batchId, bytes daMeta);
+
     event ForcedTransactionEnqueued(bytes32 indexed txHash, uint256 deadlineBlock);
 
     // -------------------------
     // State
     // -------------------------
-    IVerifier public immutable verifier;
-    bytes32 public stateRoot;
+    bytes32 public latestStateRoot;
+    mapping(uint8 => IVerifier) public verifiers;
 
     /// @notice If sequencer == address(0), anyone can submit (permissionless dev mode).
     address public sequencer;
@@ -55,7 +59,7 @@ contract ZKRollupBridge is Ownable2Step {
     mapping(uint8 => address) public daProviders;
     mapping(uint8 => bool) public daEnabled;
 
-    // --- NEW: Censorship Resistance Configuration ---
+    // --- Censorship Resistance Configuration ---
     uint256 public immutable forcedInclusionDelay;
     mapping(bytes32 => uint256) public forcedTxTimestamps;
     bytes32[] public forcedTxQueue;
@@ -63,29 +67,16 @@ contract ZKRollupBridge is Ownable2Step {
     bool public isFrozen;
 
     // -------------------------
-    // Types
-    // -------------------------
-    struct Groth16Proof {
-        uint256[2] a;
-        uint256[2][2] b;
-        uint256[2] c;
-    }
-
-    // -------------------------
     // Constructor
     // -------------------------
-    /// @notice Initializes the bridge.
-    /// @param _verifier The address of the verifier contract.
-    /// @param _genesisRoot The initial state root.
-    /// @param _forcedInclusionDelay The delay (in blocks) before a forced transaction becomes valid.
     constructor(
         address _verifier,
         bytes32 _genesisRoot,
         uint256 _forcedInclusionDelay
     ) Ownable(msg.sender) {
-        if (_verifier == address(0)) revert InvalidVerifier();
-        verifier = IVerifier(_verifier);
-        stateRoot = _genesisRoot;
+        // Default Groth16 verifier at index 0
+        verifiers[0] = IVerifier(_verifier);
+        latestStateRoot = _genesisRoot;
         nextBatchId = 1;
         forcedInclusionDelay = _forcedInclusionDelay;
     }
@@ -93,20 +84,12 @@ contract ZKRollupBridge is Ownable2Step {
     // -------------------------
     // Admin
     // -------------------------
-    /// @notice Sets the sequencer address.
-    /// @param newSequencer The new sequencer address.
     function setSequencer(address newSequencer) external onlyOwner {
-        // address(0) enables permissionless mode
         sequencer = newSequencer;
         emit SequencerUpdated(newSequencer);
     }
 
-    /// @notice Sets a DA provider.
-    /// @param daId The ID of the DA provider.
-    /// @param provider The address of the provider contract.
-    /// @param enabled Whether the provider is enabled.
     function setDAProvider(uint8 daId, address provider, bool enabled) external onlyOwner {
-        // Prevent overwriting an enabled provider with a different address
         if (daProviders[daId] != address(0) && daEnabled[daId] && daProviders[daId] != provider) {
             revert DAProviderAlreadySet();
         }
@@ -115,19 +98,20 @@ contract ZKRollupBridge is Ownable2Step {
         emit DAProviderSet(daId, provider, enabled);
     }
 
+    function setVerifier(uint8 verifierId, address verifierAddress) external onlyOwner {
+        verifiers[verifierId] = IVerifier(verifierAddress);
+        emit VerifierSet(verifierId, verifierAddress);
+    }
+
     // -------------------------
-    // Governance / Escape Hatch
+    // Governance
     // -------------------------
-    /// @notice Unfreezes the bridge.
-    /// @dev Allows governance to resolve censorship situations.
     function unfreeze() external onlyOwner {
         if (!isFrozen) revert();
         isFrozen = false;
         emit BridgeUnfrozen();
     }
 
-    /// @notice Manually freezes the bridge if a forced transaction is ignored.
-    /// @dev Callable by anyone to prove censorship and halt the system.
     function freeze() external {
         if (forcedTxQueue.length > forcedHead) {
             bytes32 oldestTxHash = forcedTxQueue[forcedHead];
@@ -142,65 +126,39 @@ contract ZKRollupBridge is Ownable2Step {
     }
 
     // -------------------------
-    // Forced Inclusion Interface (The "Escape Hatch")
+    // Forced Inclusion
     // -------------------------
-    /// @notice Allows a user to force a transaction if the sequencer is censoring them.
-    /// @dev This satisfies the "Forced Queue" component in the architecture diagram.
-    /// @param _txHash The hash of the transaction to force.
     function forceTransaction(bytes32 _txHash) external {
         if (isFrozen) revert BridgeFrozenError();
-
-        // Calculate when this MUST be included by
         uint256 deadline = block.number + forcedInclusionDelay;
-
         forcedTxTimestamps[_txHash] = deadline;
         forcedTxQueue.push(_txHash);
-
         emit ForcedTransactionEnqueued(_txHash, deadline);
     }
 
-    // -------------------------
-    // Internal auth helper
-    // -------------------------
     function _requireSequencer() internal view {
         if (isFrozen) revert BridgeFrozenError();
         if (sequencer != address(0) && msg.sender != sequencer) revert NotSequencer();
     }
 
     // -------------------------
-    // Helper
-    // -------------------------
-    /// @notice Reduces a 256-bit value to the BN254 Scalar Field.
-    /// @param val The input value (e.g., hash).
-    /// @return The value modulo the scalar field size.
-    function _toFieldElement(bytes32 val) internal pure returns (uint256) {
-        return uint256(val) % Constants.SNARK_SCALAR_FIELD;
-    }
-
-    // -------------------------
-    // Commit Batch (Strategy Pattern)
+    // Commit Batch
     // -------------------------
     /// @notice Commits a new batch.
-    /// @param daId The ID of the DA provider to use.
-    /// @param batchData The batch data (if calldata) or empty (if blob).
-    /// @param daMeta Metadata for the DA provider.
-    /// @param newRoot The new state root after processing the batch.
-    /// @param proof The Groth16 proof.
     function commitBatch(
         uint8 daId,
+        uint8 verifierId,
         bytes calldata batchData,
         bytes calldata daMeta,
         bytes32 newRoot,
-        Groth16Proof calldata proof
+        bytes calldata proof
     ) external {
         _requireSequencer();
 
-        // Censorship Check: Freeze if oldest forced tx is expired
+        // Censorship Check
         if (forcedTxQueue.length > forcedHead) {
             bytes32 oldestTxHash = forcedTxQueue[forcedHead];
             uint256 deadline = forcedTxTimestamps[oldestTxHash];
-
-            // Check if deadline passed
             if (block.number > deadline) {
                 isFrozen = true;
                 emit BridgeFrozen("Forced transaction deadline missed");
@@ -213,47 +171,86 @@ contract ZKRollupBridge is Ownable2Step {
 
         IDAProvider provider = IDAProvider(providerAddr);
 
-        // 1. Compute Commitment (Strategy)
+        // 1. Compute Commitment
         bytes32 daCommitment = provider.computeCommitment(batchData, daMeta);
 
-        // 2. Validate DA (Strategy)
+        // 2. Validate DA
         provider.validateDA(daCommitment, daMeta);
 
         // 3. Verify Proof
-        bytes32 oldRoot = stateRoot;
+        bytes32 oldRoot = latestStateRoot;
         
-        // Public inputs: [DA_commitment, oldRoot, newRoot]
-        // Note: We reduce inputs to the field. Circuit must implement the same reduction.
-        uint256[3] memory input = [
-            _toFieldElement(daCommitment), 
-            _toFieldElement(oldRoot), 
-            _toFieldElement(newRoot)
-        ];
+        // Construct Inputs
+        uint256[4] memory inputs;
+        // Roots fit in scalar field (Poseidon)
+        inputs[0] = uint256(oldRoot); 
+        inputs[1] = uint256(newRoot);
+        // DA Commitment is Keccak (256 bits), needs split
+        inputs[2] = uint256(daCommitment) & type(uint128).max;
+        inputs[3] = uint256(daCommitment) >> 128;
 
-        bool ok = verifier.verifyProof(proof.a, proof.b, proof.c, input);
-        if (!ok) revert InvalidProof();
+        IVerifier selectedVerifier = verifiers[verifierId];
+        if (address(selectedVerifier) == address(0)) revert UnknownVerifier(verifierId);
+
+        // Decode Proof (A, B, C)
+        uint256[2] memory a;
+        uint256[2][2] memory b;
+        uint256[2] memory c;
+
+        if (verifierId == 0) {
+            // Groth16 Logic (BN254)
+            require(proof.length == 256, "Invalid proof length");
+            
+            // Manually extract 32-byte chunks from bytes calldata
+            a[0] = uint256(bytes32(proof[0:32]));
+            a[1] = uint256(bytes32(proof[32:64]));
+            
+            // B: X0, X1, Y0, Y1 (flat from Rust)
+            // Rust Arkworks serializes Fp2 as (c0, c1) -> (real, imaginary).
+            // Ethereum precompile expects (c1, c0) -> (imaginary, real).
+            // So we must swap the chunks for G2 points.
+            
+            // X (c0, c1) -> Want (c1, c0)
+            b[0][1] = uint256(bytes32(proof[64:96]));  // c0 -> X[1]
+            b[0][0] = uint256(bytes32(proof[96:128])); // c1 -> X[0]
+            
+            // Y (c0, c1) -> Want (c1, c0)
+            b[1][1] = uint256(bytes32(proof[128:160])); // c0 -> Y[1]
+            b[1][0] = uint256(bytes32(proof[160:192])); // c1 -> Y[0]
+
+            c[0] = uint256(bytes32(proof[192:224]));
+            c[1] = uint256(bytes32(proof[224:256]));
+        } else {
+            // Plonky2 / Halo2 / Mock
+            // Pass zeroed A/B/C or handle decoding differently if needed.
+            // The stubs ignore inputs anyway.
+        }
+
+        if (!selectedVerifier.verifyProof(a, b, c, inputs)) {
+            revert InvalidProof();
+        }
 
         // 4. Finalize
-        _finalizeBatch(oldRoot, newRoot, daCommitment, provider.mode());
+        _finalizeBatch(oldRoot, newRoot, daCommitment, provider.mode(), verifierId, daMeta);
     }
 
-    // -------------------------
-    // Internal State Transition
-    // -------------------------
     function _finalizeBatch(
         bytes32 oldRoot,
         bytes32 newRoot,
         bytes32 daCommitment,
-        uint8 daMode
+        uint8 daMode,
+        uint8 verifierId,
+        bytes calldata daMeta
     ) internal {
         if (newRoot == bytes32(0)) revert InvalidNewRoot();
         
-        stateRoot = newRoot;
+        latestStateRoot = newRoot;
 
         uint256 batchId = nextBatchId++;
         batchCommitment[batchId] = daCommitment;
         batchNewRoot[batchId] = newRoot;
 
-        emit BatchFinalized(batchId, daCommitment, oldRoot, newRoot, daMode);
+        emit BatchDataPointer(batchId, daMeta);
+        emit BatchCommitted(batchId, daMode, verifierId, daCommitment, oldRoot, newRoot);
     }
 }
