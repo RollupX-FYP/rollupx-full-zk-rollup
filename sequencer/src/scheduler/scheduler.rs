@@ -1,33 +1,49 @@
 //! Transaction Scheduler Module
 //! 
-//! This module implements transaction scheduling policies that determine
-//! the order of transactions within a batch.
+//! This module implements transaction scheduling using the Strategy design pattern.
+//! The scheduler delegates transaction ordering to pluggable policy implementations.
 //! 
 //! # Supported Policies
 //! - **FCFS** (First-Come-First-Served): Transactions ordered by arrival time
 //! - **FeePriority**: Transactions ordered by gas price (highest first)
+//! - **TimeBoost**: Time-windowed ordering with premium bids
+//! - **FairBFT**: Timestamp-based fair ordering (Byzantine Fault Tolerant)
 //! 
 //! # Important Rule
 //! Forced transactions from L1 ALWAYS come first, regardless of policy.
 //! Only normal transactions are reordered based on the selected policy.
 
 use crate::{UserTransaction, ForcedTransaction, Transaction};
+use super::policies::SchedulingPolicy;
 
 /// Transaction scheduler
 /// 
-/// Determines the order of transactions within a batch based on a configured policy.
-/// Forced transactions always have priority regardless of the policy.
+/// Determines the order of transactions within a batch based on a pluggable
+/// scheduling policy. Forced transactions always have priority regardless of the policy.
+/// 
+/// # Strategy Pattern
+/// The scheduler uses the Strategy design pattern by holding a trait object
+/// (`Box<dyn SchedulingPolicy>`) that implements transaction ordering logic.
+/// This allows runtime policy selection and easy addition of new policies.
 pub struct Scheduler {
-    /// Scheduling policy: "FCFS" or "FeePriority"
-    policy: String,
+    /// Scheduling policy implementation (trait object for runtime polymorphism)
+    policy: Box<dyn SchedulingPolicy>,
 }
 
 impl Scheduler {
     /// Creates a new scheduler with the specified policy
     /// 
     /// # Arguments
-    /// * `policy` - Scheduling policy ("FCFS" or "FeePriority")
-    pub fn new(policy: String) -> Self {
+    /// * `policy` - Boxed trait object implementing `SchedulingPolicy`
+    /// 
+    /// # Example
+    /// ```
+    /// use sequencer::scheduler::{Scheduler, create_policy, SchedulingPolicyType};
+    /// 
+    /// let policy = create_policy(SchedulingPolicyType::FeePriority);
+    /// let scheduler = Scheduler::new(policy);
+    /// ```
+    pub fn new(policy: Box<dyn SchedulingPolicy>) -> Self {
         Self { policy }
     }
     
@@ -37,9 +53,7 @@ impl Scheduler {
     /// 
     /// # Ordering Rules
     /// 1. ALL forced transactions come first (maintain L1 order)
-    /// 2. Normal transactions follow, ordered by the selected policy:
-    ///    - **FCFS**: Maintain arrival order (no sorting)
-    ///    - **FeePriority**: Sort by gas_price (highest to lowest)
+    /// 2. Normal transactions follow, ordered by the selected policy
     /// 
     /// # Arguments
     /// * `forced` - Forced transactions from L1
@@ -60,20 +74,22 @@ impl Scheduler {
             result.push(Transaction::Forced(tx));
         }
         
-        // Step 2: Add normal transactions according to the policy
-        let mut sorted = normal;
-        if self.policy == "FeePriority" {
-            // Sort by gas price in descending order (highest fee first)
-            // This incentivizes users to pay higher fees for faster inclusion
-            sorted.sort_by(|a, b| b.gas_price.cmp(&a.gas_price));
-        }
-        // If policy is "FCFS", we keep the original order (no sorting needed)
+        // Step 2: Delegate normal transaction ordering to the policy
+        let ordered_normal = self.policy.order_transactions(normal);
         
-        // Add all normal transactions to the result
-        for tx in sorted {
+        // Add all ordered normal transactions to the result
+        for tx in ordered_normal {
             result.push(Transaction::Normal(tx));
         }
         
         result
+    }
+    
+    /// Get the name of the current scheduling policy
+    /// 
+    /// # Returns
+    /// Policy name string for logging and metadata
+    pub fn policy_name(&self) -> &str {
+        self.policy.name()
     }
 }

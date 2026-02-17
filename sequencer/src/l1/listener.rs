@@ -178,6 +178,7 @@ impl L1Listener {
             to: event.to,
             value: event.value,
             nonce: 0, // Nonce will be assigned during batch creation based on current state
+            gas_limit: 21000, // Standard gas limit for L1 transfers (deposits)
             l1_tx_hash: log.transaction_hash.unwrap_or_default(),
             l1_block_number: log.block_number.unwrap_or_default().as_u64(),
             event_type: ForcedEventType::Deposit,
@@ -215,6 +216,7 @@ impl L1Listener {
             to: event.to,
             value: event.value,
             nonce: 0, // Nonce will be assigned during batch creation based on current state
+            gas_limit: 21000, // Standard gas limit for L1 transfers (forced exits)
             l1_tx_hash: log.transaction_hash.unwrap_or_default(),
             l1_block_number: log.block_number.unwrap_or_default().as_u64(),
             event_type: ForcedEventType::ForcedExit,

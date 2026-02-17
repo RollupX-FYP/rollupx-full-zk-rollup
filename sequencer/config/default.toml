@@ -2,6 +2,7 @@
 max_batch_size = 100
 timeout_interval_ms = 5000
 min_batch_size = 10
+max_gas_limit = 30000000  # 30 million gas limit for L1 verification
 
 [scheduling]
 policy_type = "FCFS"
