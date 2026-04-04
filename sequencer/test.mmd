@@ -1,0 +1,38 @@
+graph TD
+    subgraph L1: Ethereum
+        L1_Contracts(ZKsync Era L1 Contracts)
+        L1_EthWatch(L1 Event Watching)
+    end
+
+    subgraph L2: ZKsync Era Rollup
+        direction LR
+        API_Server(Web3 API Server)
+        StateKeeper(State Keeper)
+        EthSender(EthSender)
+        Prover(ZK Proof Generation)
+        MetadataCalculator(Metadata Calculator)
+        DADispatcher(Data Availability Dispatcher)
+        CommitmentGenerator(Commitment Generator)
+
+        API_Server -- Submits Transactions --> StateKeeper
+        StateKeeper -- Produces L2 Blocks & L1 Batches --> MetadataCalculator
+        StateKeeper -- Sends L1 Batch Data --> EthSender
+        StateKeeper -- Sends L1 Batch Data --> CommitmentGenerator
+        StateKeeper -- Sends L1 Batch Data --> DADispatcher
+
+        MetadataCalculator -- Updates Merkle Tree & State Roots --> EthSender
+        MetadataCalculator -- Provides Tree Data --> Prover
+
+        EthSender -- Submits Batches & Proofs --> L1_Contracts
+        L1_EthWatch -- Monitors Events --> EthSender
+        L1_EthWatch -- Monitors Events --> StateKeeper
+
+        CommitmentGenerator -- Generates L1 Batch Commitments --> EthSender
+        DADispatcher -- Dispatches Data Blobs --> L1_Contracts
+
+        Prover -- Generates ZK Proofs --> EthSender
+    end
+
+    API_Server -- Serves API Requests --> User
+    User[User/Developer] --> API_Server
+
