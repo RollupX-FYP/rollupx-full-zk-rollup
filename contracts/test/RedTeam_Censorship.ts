@@ -42,11 +42,11 @@ describe("Red Team: Censorship Resistance Bypass", function () {
     expect(await ethers.provider.getBlockNumber()).to.be.gt(deadline);
 
     // 3. Submit Batch -> Should REVERT with BridgeFrozenError
-    const proof = { a: [0, 0], b: [[0, 0], [0, 0]], c: [0, 0] };
+    const proof = "0x" + "00".repeat(256);
     const newRoot = ethers.keccak256(ethers.toUtf8Bytes("new root"));
 
     await expect(
-        bridge.connect(sequencer).commitBatch(0, "0x1234", "0x", newRoot, proof)
+        bridge.connect(sequencer).commitBatch(0, 0, "0x1234", "0x", newRoot, proof)
     ).to.be.revertedWithCustomError(bridge, "BridgeFrozenError");
 
     console.log("SUCCESS: Sequencer was correctly blocked from committing due to censorship check.");

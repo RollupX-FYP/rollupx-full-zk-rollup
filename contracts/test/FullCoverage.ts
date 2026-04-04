@@ -60,9 +60,9 @@ describe("Full Coverage: Edge Cases", function () {
     });
 
     it("Should revert commitBatch when frozen (via _requireSequencer)", async function () {
-        const proof = { a: [0, 0], b: [[0, 0], [0, 0]], c: [0, 0] };
+        const proof = "0x" + "00".repeat(256);
         await expect(
-            bridge.connect(sequencer).commitBatch(0, "0x", "0x", ethers.ZeroHash, proof)
+            bridge.connect(sequencer).commitBatch(0, 0, "0x", "0x", ethers.ZeroHash, proof)
         ).to.be.revertedWithCustomError(bridge, "BridgeFrozenError");
     });
   });

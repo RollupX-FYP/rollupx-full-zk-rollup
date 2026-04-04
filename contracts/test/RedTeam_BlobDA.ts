@@ -37,12 +37,12 @@ describe("Red Team: Blob DA Failure", function () {
         [dummyHash, blobIndex]
     );
 
-    const proof = { a: [0, 0], b: [[0, 0], [0, 0]], c: [0, 0] };
+    const proof = "0x" + "00".repeat(256);
 
     // Should revert because blobhash(0) == 0 (since tx has no blobs)
     // We verify it reverts with ANY reason to be robust against "NoBlobAttached" vs "BlobHashMismatch"
     await expect(
-        bridge.connect(sequencer).commitBatch(1, "0x", daMeta, newRoot, proof)
+        bridge.connect(sequencer).commitBatch(1, 0, "0x", daMeta, newRoot, proof)
     ).to.be.reverted;
 
     console.log("CRITICAL: Confirmed that the Submitter's transaction structure fails on the Real BlobDA contract.");

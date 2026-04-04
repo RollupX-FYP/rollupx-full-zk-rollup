@@ -3,15 +3,25 @@ pragma solidity ^0.8.24;
 
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IDAProvider} from "../interfaces/IDAProvider.sol";
 import {IVerifier} from "../interfaces/IVerifier.sol";
 
 /// @notice Minimal L1 rollup bridge for Gap Analysis fixes.
 /// @dev Uses Strategy Pattern for Verifiers (Groth16, Plonky2, Halo2).
-contract ZKRollupBridge is Ownable2Step {
+contract ZKRollupBridge is Ownable2Step, ReentrancyGuard {
+    using SafeERC20 for IERC20;
+
     // -------------------------
     // Errors
     // -------------------------
+    error ZeroDepositAmount();
+    error TransferFailed();
+    error AlreadyWithdrawn();
+    error InvalidMerkleProof();
     error NotSequencer();
     error InvalidNewRoot();
     error DAProviderNotEnabled();
@@ -23,6 +33,10 @@ contract ZKRollupBridge is Ownable2Step {
     // -------------------------
     // Events
     // -------------------------
+    event Deposit(address indexed from, address indexed to, uint256 amount);
+    event DepositERC20(address indexed token, address indexed from, address indexed to, uint256 amount);
+    event Withdrawal(address indexed to, uint256 amount, bytes32 indexed withdrawalId);
+
     event SequencerUpdated(address indexed newSequencer);
     event BridgeFrozen(string reason);
     event BridgeUnfrozen();
@@ -59,12 +73,65 @@ contract ZKRollupBridge is Ownable2Step {
     mapping(uint8 => address) public daProviders;
     mapping(uint8 => bool) public daEnabled;
 
+    // Double-spend prevention for withdrawals
+    mapping(bytes32 => bool) public nullifiers;
+
     // --- Censorship Resistance Configuration ---
     uint256 public immutable forcedInclusionDelay;
     mapping(bytes32 => uint256) public forcedTxTimestamps;
     bytes32[] public forcedTxQueue;
     uint256 public forcedHead;
     bool public isFrozen;
+
+    // --- Optimistic Fallback State ---
+    bool public optimisticMode;
+    uint256 public challengePeriod = 7 days;
+    bytes32 public pendingStateRoot;
+    uint256 public pendingTimestamp;
+
+    // -------------------------
+    // Bridging (Deposit & Withdraw)
+    // -------------------------
+
+    /// @notice Lock ETH on L1 to mint on L2
+    function deposit(address to) external payable {
+        if (msg.value == 0) revert ZeroDepositAmount();
+        emit Deposit(msg.sender, to, msg.value);
+    }
+
+    /// @notice Lock ERC20 on L1 to mint on L2
+    function depositERC20(address token, address to, uint256 amount) external {
+        if (amount == 0) revert ZeroDepositAmount();
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+        emit DepositERC20(token, msg.sender, to, amount);
+    }
+
+    /// @notice Withdraw ETH using a Merkle proof of inclusion in the L2 state
+    function withdraw(
+        bytes32[] calldata merkleProof,
+        address to,
+        uint256 amount,
+        bytes32 withdrawalId
+    ) external nonReentrant {
+        if (nullifiers[withdrawalId]) revert AlreadyWithdrawn();
+
+        // 1. Recreate the leaf node (e.g. hash of withdrawal params)
+        bytes32 leaf = keccak256(abi.encodePacked(to, amount, withdrawalId));
+
+        // 2. Verify proof against latest L1 state root
+        if (!MerkleProof.verify(merkleProof, latestStateRoot, leaf)) {
+            revert InvalidMerkleProof();
+        }
+
+        // 3. Mark as withdrawn BEFORE transfer (CEI pattern)
+        nullifiers[withdrawalId] = true;
+
+        // 4. Transfer ETH
+        (bool success, ) = to.call{value: amount}("");
+        if (!success) revert TransferFailed();
+
+        emit Withdrawal(to, amount, withdrawalId);
+    }
 
     // -------------------------
     // Constructor
@@ -84,6 +151,15 @@ contract ZKRollupBridge is Ownable2Step {
     // -------------------------
     // Admin
     // -------------------------
+
+    function setOptimisticMode(bool _mode) external onlyOwner {
+        optimisticMode = _mode;
+    }
+
+    function setChallengePeriod(uint256 _period) external onlyOwner {
+        challengePeriod = _period;
+    }
+
     function setSequencer(address newSequencer) external onlyOwner {
         sequencer = newSequencer;
         emit SequencerUpdated(newSequencer);
@@ -226,12 +302,49 @@ contract ZKRollupBridge is Ownable2Step {
             // The stubs ignore inputs anyway.
         }
 
-        if (!selectedVerifier.verifyProof(a, b, c, inputs)) {
-            revert InvalidProof();
-        }
+        if (!optimisticMode) {
+            if (!selectedVerifier.verifyProof(a, b, c, inputs)) {
+                revert InvalidProof();
+            }
+            // 4. Finalize directly
+            _finalizeBatch(oldRoot, newRoot, daCommitment, provider.mode(), verifierId, daMeta);
+        } else {
+            // Optimistic Mode
+            if (newRoot == bytes32(0)) revert InvalidNewRoot();
+            
+            pendingStateRoot = newRoot;
+            pendingTimestamp = block.timestamp;
+            
+            uint256 batchId = nextBatchId++;
+            batchCommitment[batchId] = daCommitment;
+            batchNewRoot[batchId] = newRoot;
 
-        // 4. Finalize
-        _finalizeBatch(oldRoot, newRoot, daCommitment, provider.mode(), verifierId, daMeta);
+            emit BatchDataPointer(batchId, daMeta);
+            // We still emit BatchCommitted for DA tracking
+            emit BatchCommitted(batchId, provider.mode(), verifierId, daCommitment, oldRoot, newRoot);
+        }
+    }
+
+    // -------------------------
+    // Optimistic Fallback (Fraud Proof Stub)
+    // -------------------------
+
+    function verifyFraudProof(bytes calldata /*proof*/) external pure {
+        // TODO: integrate ZK fault proof or interactive bisection protocol
+        revert("FraudProofNotImplemented");
+    }
+
+    event OptimisticRootFinalized(bytes32 root);
+
+    function finalizeOptimisticRoot() external {
+        require(optimisticMode, "Not in optimistic mode");
+        require(pendingStateRoot != bytes32(0), "No pending root");
+        require(block.timestamp >= pendingTimestamp + challengePeriod, "Challenge period not elapsed");
+
+        latestStateRoot = pendingStateRoot;
+        pendingStateRoot = bytes32(0); // clear it
+        
+        emit OptimisticRootFinalized(latestStateRoot);
     }
 
     function _finalizeBatch(

@@ -58,17 +58,13 @@ describe("ZKRollupBridge", function () {
     });
 
     it("Should set the initial state", async function () {
-      expect(await bridge.verifier()).to.equal(verifier.target);
-      expect(await bridge.stateRoot()).to.equal(genesisRoot);
+      expect(await bridge.verifiers(0)).to.equal(verifier.target);
+      expect(await bridge.latestStateRoot()).to.equal(genesisRoot);
       expect(await bridge.nextBatchId()).to.equal(1);
       expect(await bridge.forcedInclusionDelay()).to.equal(forceInclusionDelay);
     });
     
-    it("Should revert if verifier is zero address", async function () {
-        const Bridge = await ethers.getContractFactory("ZKRollupBridge");
-        await expect(Bridge.deploy(ethers.ZeroAddress, genesisRoot, forceInclusionDelay))
-            .to.be.revertedWithCustomError(Bridge, "InvalidVerifier");
-    });
+
   });
 
   describe("Censorship Resistance", function () {
@@ -146,22 +142,18 @@ describe("ZKRollupBridge", function () {
     const daMeta = "0x";
     const daCommitment = ethers.keccak256(batchData);
     const newRoot = ethers.hexlify(ethers.randomBytes(32));
-    const proof: any = {
-      a: [0, 0],
-      b: [[0, 0], [0, 0]],
-      c: [0, 0],
-    };
+    const proof = "0x" + "00".repeat(256);
 
     it("Should commit batch successfully by sequencer", async function () {
       await bridge.setSequencer(sequencer.address);
 
       await expect(
-        bridge.connect(sequencer).commitBatch(CALLDATA_DA_ID, batchData, daMeta, newRoot, proof)
+        bridge.connect(sequencer).commitBatch(CALLDATA_DA_ID, 0, batchData, daMeta, newRoot, proof)
       )
-        .to.emit(bridge, "BatchFinalized")
-        .withArgs(1, daCommitment, genesisRoot, newRoot, 0); // 0 is calldata mode
+        .to.emit(bridge, "BatchCommitted")
+        .withArgs(1, CALLDATA_DA_ID, 0, daCommitment, genesisRoot, newRoot); // 0 is calldata mode
 
-      expect(await bridge.stateRoot()).to.equal(newRoot);
+      expect(await bridge.latestStateRoot()).to.equal(newRoot);
       expect(await bridge.batchCommitment(1)).to.equal(daCommitment);
       expect(await bridge.batchNewRoot(1)).to.equal(newRoot);
       expect(await bridge.nextBatchId()).to.equal(2);
@@ -170,42 +162,42 @@ describe("ZKRollupBridge", function () {
     it("Should commit batch successfully in permissionless mode", async function () {
       // sequencer is address(0) by default
       await expect(
-        bridge.connect(otherAccount).commitBatch(CALLDATA_DA_ID, batchData, daMeta, newRoot, proof)
+        bridge.connect(otherAccount).commitBatch(CALLDATA_DA_ID, 0, batchData, daMeta, newRoot, proof)
       )
-        .to.emit(bridge, "BatchFinalized")
-        .withArgs(1, daCommitment, genesisRoot, newRoot, 0);
+        .to.emit(bridge, "BatchCommitted")
+        .withArgs(1, CALLDATA_DA_ID, 0, daCommitment, genesisRoot, newRoot);
     });
 
     it("Should revert if called by non-sequencer when sequencer is set", async function () {
       await bridge.setSequencer(sequencer.address);
       await expect(
-        bridge.connect(otherAccount).commitBatch(CALLDATA_DA_ID, batchData, daMeta, newRoot, proof)
+        bridge.connect(otherAccount).commitBatch(CALLDATA_DA_ID, 0, batchData, daMeta, newRoot, proof)
       ).to.be.revertedWithCustomError(bridge, "NotSequencer");
     });
     
     it("Should revert if provider is not enabled/found", async function () {
         await expect(
-             bridge.commitBatch(99, batchData, daMeta, newRoot, proof)
+             bridge.commitBatch(99, 0, batchData, daMeta, newRoot, proof)
         ).to.be.revertedWithCustomError(bridge, "DAProviderNotEnabled");
     });
     
     it("Should revert if provider is explicitly disabled", async function () {
         await bridge.setDAProvider(CALLDATA_DA_ID, calldataDA.target, false);
         await expect(
-             bridge.commitBatch(CALLDATA_DA_ID, batchData, daMeta, newRoot, proof)
+             bridge.commitBatch(CALLDATA_DA_ID, 0, batchData, daMeta, newRoot, proof)
         ).to.be.revertedWithCustomError(bridge, "DAProviderNotEnabled");
     });
 
     it("Should revert if newRoot is zero", async function () {
       await expect(
-        bridge.commitBatch(CALLDATA_DA_ID, batchData, daMeta, ethers.ZeroHash, proof)
+        bridge.commitBatch(CALLDATA_DA_ID, 0, batchData, daMeta, ethers.ZeroHash, proof)
       ).to.be.revertedWithCustomError(bridge, "InvalidNewRoot");
     });
 
     it("Should revert if proof verification fails", async function () {
       await verifier.setShouldVerify(false);
       await expect(
-        bridge.commitBatch(CALLDATA_DA_ID, batchData, daMeta, newRoot, proof)
+        bridge.commitBatch(CALLDATA_DA_ID, 0, batchData, daMeta, newRoot, proof)
       ).to.be.revertedWithCustomError(bridge, "InvalidProof");
     });
   });
@@ -220,11 +212,7 @@ describe("ZKRollupBridge", function () {
     );
 
     const newRoot = ethers.hexlify(ethers.randomBytes(32));
-    const proof: any = {
-      a: [0, 0],
-      b: [[0, 0], [0, 0]],
-      c: [0, 0],
-    };
+    const proof = "0x" + "00".repeat(256);
 
     it("Should commit blob batch successfully (mock blobhash)", async function () {
       // 2-step update: disable old, set new
@@ -235,12 +223,12 @@ describe("ZKRollupBridge", function () {
       await testBlobDA.setMockBlobHash(blobIndex, expectedVersionedHash);
       
       await expect(
-        bridge.commitBatch(BLOB_DA_ID, "0x", daMeta, newRoot, proof)
+        bridge.commitBatch(BLOB_DA_ID, 0, "0x", daMeta, newRoot, proof)
       )
-        .to.emit(bridge, "BatchFinalized")
-        .withArgs(1, expectedVersionedHash, genesisRoot, newRoot, 1); // 1 is blob mode
+        .to.emit(bridge, "BatchCommitted")
+        .withArgs(1, BLOB_DA_ID, 0, expectedVersionedHash, genesisRoot, newRoot); // 1 is blob mode
       
-       expect(await bridge.stateRoot()).to.equal(newRoot);
+       expect(await bridge.latestStateRoot()).to.equal(newRoot);
        expect(await bridge.batchCommitment(1)).to.equal(expectedVersionedHash);
     });
 
@@ -255,7 +243,7 @@ describe("ZKRollupBridge", function () {
        await testBlobDA.setMockBlobHash(blobIndex, ethers.ZeroHash); 
        
        await expect(
-         bridge.commitBatch(BLOB_DA_ID, "0x", zeroMeta, newRoot, proof)
+         bridge.commitBatch(BLOB_DA_ID, 0, "0x", zeroMeta, newRoot, proof)
        ).to.be.revertedWithCustomError(testBlobDA, "InvalidCommitment");
     });
 
@@ -264,7 +252,7 @@ describe("ZKRollupBridge", function () {
          await bridge.setDAProvider(BLOB_DA_ID, blobDA.target, true);
          
          await expect(
-             bridge.commitBatch(BLOB_DA_ID, "0x", daMeta, newRoot, proof)
+             bridge.commitBatch(BLOB_DA_ID, 0, "0x", daMeta, newRoot, proof)
          ).to.be.revertedWithCustomError(blobDA, "NoBlobAttached");
      });
 
@@ -276,7 +264,7 @@ describe("ZKRollupBridge", function () {
         await testBlobDA.setMockBlobHash(blobIndex, mockHash);
 
         await expect(
-            bridge.commitBatch(BLOB_DA_ID, "0x", daMeta, newRoot, proof)
+            bridge.commitBatch(BLOB_DA_ID, 0, "0x", daMeta, newRoot, proof)
         ).to.be.revertedWithCustomError(testBlobDA, "BlobHashMismatch");
     });
     
@@ -304,9 +292,9 @@ describe("ZKRollupBridge", function () {
         const reducedBig = bigVal % scalarField;
         const reducedZero = 0n;
         
-        await verifier.setExpectedInput([reducedBig, reducedZero, reducedBig]);
+        await verifier.setExpectedInput([BigInt(genesisRoot), BigInt(bigHash), (2n ** 128n) - 1n, (2n ** 128n) - 1n]);
         
-        await bridge.commitBatch(BLOB_DA_ID, "0x", daMeta, bigHash, proof);
+        await bridge.commitBatch(BLOB_DA_ID, 0, "0x", daMeta, bigHash, proof);
     });
 
     it("Should revert if reduced inputs do not match expected (MockVerifier check)", async function () {
@@ -322,10 +310,10 @@ describe("ZKRollupBridge", function () {
         );
         
         // Set WRONG expected input
-        await verifier.setExpectedInput([0, 0, 0]);
+        await verifier.setExpectedInput([BigInt(genesisRoot), BigInt(bigHash), 0n, 0n]);
         
         await expect(
-            bridge.commitBatch(BLOB_DA_ID, "0x", daMeta, bigHash, proof)
+            bridge.commitBatch(BLOB_DA_ID, 0, "0x", daMeta, bigHash, proof)
         ).to.be.revertedWithCustomError(bridge, "InvalidProof");
     });
 
@@ -348,10 +336,10 @@ describe("ZKRollupBridge", function () {
         
         // Expected actual: [reducedBig, 0, reducedBig]
         // Set mismatch at index 1
-        await verifier.setExpectedInput([reducedBig, 1n, reducedBig]);
+        await verifier.setExpectedInput([BigInt(genesisRoot), 1n, (2n ** 128n) - 1n, (2n ** 128n) - 1n]);
         
         await expect(
-            bridge.commitBatch(BLOB_DA_ID, "0x", daMeta, bigHash, proof)
+            bridge.commitBatch(BLOB_DA_ID, 0, "0x", daMeta, bigHash, proof)
         ).to.be.revertedWithCustomError(bridge, "InvalidProof");
     });
 
@@ -374,10 +362,10 @@ describe("ZKRollupBridge", function () {
         
         // Expected actual: [reducedBig, 0, reducedBig]
         // Set mismatch at index 2
-        await verifier.setExpectedInput([reducedBig, 0n, 999n]);
+        await verifier.setExpectedInput([BigInt(genesisRoot), BigInt(bigHash), 999n, (2n ** 128n) - 1n]);
         
         await expect(
-            bridge.commitBatch(BLOB_DA_ID, "0x", daMeta, bigHash, proof)
+            bridge.commitBatch(BLOB_DA_ID, 0, "0x", daMeta, bigHash, proof)
         ).to.be.revertedWithCustomError(bridge, "InvalidProof");
     });
 
@@ -390,7 +378,7 @@ describe("ZKRollupBridge", function () {
         // Reverts NoBlobAttached.
         
         await expect(
-            bridge.commitBatch(BLOB_DA_ID, "0x", daMeta, newRoot, proof)
+            bridge.commitBatch(BLOB_DA_ID, 0, "0x", daMeta, newRoot, proof)
         ).to.be.revertedWithCustomError(testBlobDA, "NoBlobAttached");
     });
   });

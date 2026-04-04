@@ -42,9 +42,9 @@ describe("Exodus Mode: Governance Unfreeze", function () {
     expect(await bridge.isFrozen()).to.equal(true);
 
     // 2. Commit should fail
-    const proof = { a: [0, 0], b: [[0, 0], [0, 0]], c: [0, 0] };
+    const proof = "0x" + "00".repeat(256);
     await expect(
-        bridge.connect(sequencer).commitBatch(0, "0x", "0x", ethers.ZeroHash, proof)
+        bridge.connect(sequencer).commitBatch(0, 0, "0x", "0x", ethers.ZeroHash, proof)
     ).to.be.revertedWithCustomError(bridge, "BridgeFrozenError");
 
     // 3. Unfreeze
