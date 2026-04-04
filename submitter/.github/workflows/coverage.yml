@@ -1,0 +1,83 @@
+name: Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      submitter_dir: ${{ steps.set.outputs.submitter_dir }}
+      has_submitter: ${{ steps.set.outputs.has_submitter }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: set
+        shell: bash
+        run: |
+          if [ -f "submitter/Cargo.toml" ]; then echo "submitter_dir=submitter" >> $GITHUB_OUTPUT; echo "has_submitter=true" >> $GITHUB_OUTPUT;
+          elif [ -f "Cargo.toml" ]; then echo "submitter_dir=." >> $GITHUB_OUTPUT; echo "has_submitter=true" >> $GITHUB_OUTPUT;
+          else echo "submitter_dir=" >> $GITHUB_OUTPUT; echo "has_submitter=false" >> $GITHUB_OUTPUT; fi
+
+  rust_cov:
+    name: Rust coverage
+    needs: detect
+    if: needs.detect.outputs.has_submitter == 'true'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: submitter
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: ${{ needs.detect.outputs.submitter_dir }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Install llvm-cov
+        run: cargo install cargo-llvm-cov --locked
+
+      - name: Generate lcov
+        run: cargo llvm-cov --all-features --fail-under-lines 100 --lcov --output-path lcov.info
+        env:
+          DATABASE_URL: postgres://postgres:password@localhost:5432/submitter
+
+      - name: Upload lcov artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: rust-lcov
+          path: ${{ needs.detect.outputs.submitter_dir }}/lcov.info
+
+  codecov:
+    name: Upload to Codecov (free for public repos)
+    needs: [rust_cov]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          path: coverage
+
+      - name: Upload Rust coverage
+        uses: codecov/codecov-action@v5
+        with:
+          files: coverage/rust-lcov/lcov.info
+          flags: rust
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    name: Detect project layout
+    runs-on: ubuntu-latest
+    outputs:
+      submitter_dir: ${{ steps.set.outputs.submitter_dir }}
+      has_submitter: ${{ steps.set.outputs.has_submitter }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: set
+        shell: bash
+        run: |
+          # submitter dir detection
+          if [ -f "submitter/Cargo.toml" ]; then
+            echo "submitter_dir=submitter" >> $GITHUB_OUTPUT
+            echo "has_submitter=true" >> $GITHUB_OUTPUT
+          elif [ -f "Cargo.toml" ]; then
+            echo "submitter_dir=." >> $GITHUB_OUTPUT
+            echo "has_submitter=true" >> $GITHUB_OUTPUT
+          else
+            echo "submitter_dir=" >> $GITHUB_OUTPUT
+            echo "has_submitter=false" >> $GITHUB_OUTPUT
+          fi
+
+  submitter:
+    name: Submitter (Rust)
+    needs: detect
+    if: needs.detect.outputs.has_submitter == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ needs.detect.outputs.submitter_dir }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Format check
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Tests
+        run: cargo test --all --all-features
