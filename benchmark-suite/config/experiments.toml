@@ -1,0 +1,77 @@
+[baseline]
+batch_size    = 50
+timeout_ms    = 5000
+policy        = "FCFS"
+da_mode       = "calldata"
+prover        = "groth16"
+rate_tps      = 10
+duration_s    = 120
+warmup_s      = 15
+tx_mix        = "balanced"
+repeats       = 5
+seeds         = [42, 43, 44, 45, 46]
+
+# ── F1: Batch Size ────────────────────────────────────────────────────────────
+[[experiments]]
+factor = "batch_size"; id = "bs_010"; batch_size = 10
+
+[[experiments]]
+factor = "batch_size"; id = "bs_025"; batch_size = 25
+
+[[experiments]]
+factor = "batch_size"; id = "bs_100"; batch_size = 100
+
+[[experiments]]
+factor = "batch_size"; id = "bs_200"; batch_size = 200
+
+# ── F2: Timeout ───────────────────────────────────────────────────────────────
+[[experiments]]
+factor = "timeout"; id = "to_0500"; timeout_ms = 500
+
+[[experiments]]
+factor = "timeout"; id = "to_1000"; timeout_ms = 1000
+
+[[experiments]]
+factor = "timeout"; id = "to_2500"; timeout_ms = 2500
+
+[[experiments]]
+factor = "timeout"; id = "to_10000"; timeout_ms = 10000
+
+# ── F3: Scheduling Policy ─────────────────────────────────────────────────────
+[[experiments]]
+factor = "policy"; id = "pol_fee"; policy = "FeePriority"
+
+[[experiments]]
+factor = "policy"; id = "pol_timeboost"; policy = "TimeBoost"
+
+[[experiments]]
+factor = "policy"; id = "pol_fairbft"; policy = "FairBFT"
+
+# ── F4: DA Mode ───────────────────────────────────────────────────────────────
+[[experiments]]
+factor = "da_mode"; id = "da_blob"; da_mode = "blob"
+
+[[experiments]]
+factor = "da_mode"; id = "da_offchain"; da_mode = "offchain"
+
+# ── F5: Proof Backend ─────────────────────────────────────────────────────────
+[[experiments]]
+factor = "prover"; id = "pv_plonk"; prover = "plonk"
+# halo2 deferred — not yet integrated in prover pipeline
+
+# ── F6: Input Rate ────────────────────────────────────────────────────────────
+[[experiments]]
+factor = "rate"; id = "tps_005"; rate_tps = 5
+
+[[experiments]]
+factor = "rate"; id = "tps_020"; rate_tps = 20
+
+[[experiments]]
+factor = "rate"; id = "tps_050"; rate_tps = 50
+
+# ── F7: Tx Heterogeneity ──────────────────────────────────────────────────────
+[[experiments]]
+factor = "tx_mix"; id = "mix_light"; tx_mix = "light"
+
+[[experiments]]
+factor = "tx_mix"; id = "mix_heavy"; tx_mix = "heavy"
