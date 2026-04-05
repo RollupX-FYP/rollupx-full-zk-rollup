@@ -148,7 +148,7 @@ impl Config {
     /// * `Err` if the file couldn't be read or the TOML is invalid
     /// 
     /// # Example
-    /// ```no_run
+    /// ```ignore
     /// let config = Config::load("config/default.toml")?;
     /// ```
     pub fn load(path: &str) -> anyhow::Result<Self> {

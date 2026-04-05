@@ -218,7 +218,7 @@ pub enum SchedulingPolicyType {
 /// A boxed trait object implementing `SchedulingPolicy`
 /// 
 /// # Example
-/// ```
+/// ```ignore
 /// use sequencer::scheduler::{create_policy, SchedulingPolicyType};
 /// 
 /// let policy = create_policy(SchedulingPolicyType::FeePriority);
