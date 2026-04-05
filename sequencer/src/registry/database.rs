@@ -20,7 +20,8 @@
 //! ```
 
 use crate::BatchMetadata;
-use sqlx::sqlite::{SqlitePool, SqlitePoolOptions};
+use sqlx::sqlite::{SqliteConnectOptions, SqlitePool, SqlitePoolOptions};
+use std::str::FromStr;
 use tracing::info;
 
 /// Batch metadata registry backed by SQLite
@@ -58,12 +59,16 @@ impl Registry {
     pub async fn new(database_url: &str) -> anyhow::Result<Self> {
         info!("Initializing batch registry at {}", database_url);
 
+        // Configure options to create the database file if it doesn't exist
+        let options = SqliteConnectOptions::from_str(database_url)?
+            .create_if_missing(true);
+
         // Create a connection pool with sensible defaults for a sequencer
         // - max_connections: 5 is sufficient since we have a single writer
         //   (the orchestrator) and occasional readers (API queries)
         let pool = SqlitePoolOptions::new()
             .max_connections(5)
-            .connect(database_url)
+            .connect_with(options)
             .await?;
 
         // Run the schema migration to create the batches table
