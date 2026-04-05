@@ -1,0 +1,98 @@
+flowchart TB
+
+    %% ─── STYLING ────────────────────────────────────────────────────────
+    classDef default font-size:16px,font-family:Arial,stroke-width:2px,font-weight:900;
+    linkStyle default font-size:15px,font-weight:bold,fill:none,stroke-width:2px;
+
+    classDef primaryProcess fill:#e1f5ff,stroke:#0066cc,stroke-width:3px;
+    classDef urgent fill:#ffcccc,stroke:#cc0000,stroke-width:3px,color:#550000;
+    classDef storageNode fill:#fff3cd,stroke:#856404,stroke-width:2px;
+    classDef configNode fill:#f4f4f4,stroke:#666,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef externalNode fill:#ffe6e6,stroke:#cc0000,stroke-width:4px,font-size:18px;
+    classDef contractNode fill:#fff4e6,stroke:#ff9900,stroke-width:3px;
+    classDef orchestratorNode fill:#e8f5e9,stroke:#2e7d32,stroke-width:3px;
+
+    %% ─── EXTERNAL ACTORS ────────────────────────────────────────────────
+    u1((USER)):::externalNode
+
+    subgraph L1[" ETHEREUM L1 "]
+        direction TB
+        bridge["RollupBridge Contract"]:::contractNode
+    end
+
+    subgraph Executor_Component[" EXECUTOR COMPONENT "]
+        executor["State Transition Engine"]:::primaryProcess
+        state_manager["State Manager - Sparse Merkle Tree"]:::storageNode
+        executor --> state_manager
+    end
+
+    %% ─── SEQUENCER COMPONENT ────────────────────────────────────────────
+    subgraph Component1_Sequencer[" SEQUENCER COMPONENT "]
+        direction TB
+
+        %% API Layer
+        seq_api["Sequencer API - JSON-RPC Endpoint"]:::primaryProcess
+
+        %% Validation Layer
+        validator["Validity Checker - Sig/Nonce/Balance"]
+
+        %% State Layer
+        local_state[("Local State Cache - Pessimistic Tracking")]:::storageNode
+
+        %% Pool Layer
+        tx_pool["Transaction Pool - Normal Pending"]:::storageNode
+        forced_queue["Forced Tx Queue - UNSKIPPABLE"]:::urgent
+
+        %% L1 Listener
+        L1_listener["L1 Event Listener"]
+
+        %% Orchestration Layer
+        orchestrator["Batch Orchestrator"]:::orchestratorNode
+        batch_trigger{"Batch Trigger - Size/Timeout"}
+        sched["Scheduler - Policy Engine"]:::primaryProcess
+        batch_eng["Batch Engine - Bundler"]:::primaryProcess
+
+        %% Configuration
+        batch_config["Batch Config - Limits/Intervals"]:::configNode
+        note_policy["Scheduling Policies - FCFS/Priority"]:::configNode
+
+        %% Persistent Storage
+        batch_registry[("Batch Registry - SQLite Store")]:::storageNode
+
+        %% Internal Flow
+        seq_api -->|"1. Deserialize"| validator
+        validator <-->|"Read State"| local_state
+        validator -->|"Valid Tx"| seq_api
+        seq_api -->|"2. State Update"| local_state
+        seq_api -->|"3. Add to Pool"| tx_pool
+
+        L1_listener -->|"Priority Ops"| forced_queue
+
+        batch_trigger -->|"Trigger Signal"| orchestrator
+        forced_queue -->|"Priority Path"| orchestrator
+        tx_pool -->|"Normal Txs"| orchestrator
+
+        orchestrator -->|"Ordered Txs"| sched
+        note_policy -.->|"Policy Selection"| sched
+        sched -->|"Ordered Sequence"| batch_eng
+        batch_config -.->|"Params"| batch_eng
+        batch_config -.->|"Limits"| batch_trigger
+
+        batch_eng -->|"Sealed Batch"| orchestrator
+        orchestrator -->|"Store Metadata"| batch_registry
+
+        tx_pool -.->|"Count"| batch_trigger
+        forced_queue -.->|"Count"| batch_trigger
+    end
+
+    %% ─── EXTERNAL CONNECTIONS ───────────────────────────────────────────
+    u1 -->|"Submit Tx"| seq_api
+    validator -.->|"Soft Confirmation"| u1
+    bridge -.->|"Deposits"| L1_listener
+    orchestrator -->|"Sealed Batch"| executor
+    state_manager -.->|"Sync Updates"| local_state
+
+    %% ─── SUBGRAPH STYLING ───────────────────────────────────────────────
+    style Component1_Sequencer fill:#f0f8ff,stroke:#0066cc,stroke-width:3px
+    style L1 fill:#fffaf0,stroke:#ff9900,stroke-width:2px
+    style Executor_Component fill:#e8fbe8,stroke:#28a745,stroke-width:2px

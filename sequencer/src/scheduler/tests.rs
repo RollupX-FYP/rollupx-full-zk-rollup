@@ -28,7 +28,9 @@ mod tests {
             nonce,
             gas_price: U256::from(gas_price),
             gas_limit,
-            signature: Signature::default(),
+            // Construct a dummy signature for testing (all zeros).
+            // Not cryptographically valid, but sufficient for ordering tests.
+            signature: Signature { r: U256::zero(), s: U256::zero(), v: 0 },
             timestamp,
             boost_bid: boost_bid.map(U256::from),
         }
