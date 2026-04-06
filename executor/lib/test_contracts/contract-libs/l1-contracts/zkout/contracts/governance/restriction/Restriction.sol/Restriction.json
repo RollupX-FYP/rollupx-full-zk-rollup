@@ -1,0 +1,60 @@
+{
+  "_format": "hh-zksolc-artifact-1",
+  "contractName": "Restriction",
+  "sourceName": "contracts/governance/restriction/Restriction.sol",
+  "abi": [
+    {
+      "inputs": [],
+      "name": "getSupportsRestrictionMagic",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "target",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "internalType": "struct Call",
+          "name": "_call",
+          "type": "tuple"
+        },
+        {
+          "internalType": "address",
+          "name": "_invoker",
+          "type": "address"
+        }
+      ],
+      "name": "validateCall",
+      "outputs": [],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {},
+  "factoryDeps": {}
+}

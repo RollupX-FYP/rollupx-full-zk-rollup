@@ -1,0 +1,181 @@
+{
+  "_format": "hh-zksolc-artifact-1",
+  "contractName": "IChainAdminOwnable",
+  "sourceName": "contracts/governance/IChainAdminOwnable.sol",
+  "abi": [
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "target",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "indexed": false,
+          "internalType": "struct IChainAdminOwnable.Call",
+          "name": "_call",
+          "type": "tuple"
+        },
+        {
+          "indexed": false,
+          "internalType": "bool",
+          "name": "_success",
+          "type": "bool"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes",
+          "name": "_returnData",
+          "type": "bytes"
+        }
+      ],
+      "name": "CallExecuted",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "_oldTokenMultiplierSetter",
+          "type": "address"
+        },
+        {
+          "indexed": false,
+          "internalType": "address",
+          "name": "_newTokenMultiplierSetter",
+          "type": "address"
+        }
+      ],
+      "name": "NewTokenMultiplierSetter",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "_protocolVersion",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "_upgradeTimestamp",
+          "type": "uint256"
+        }
+      ],
+      "name": "UpdateUpgradeTimestamp",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "address",
+              "name": "target",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "value",
+              "type": "uint256"
+            },
+            {
+              "internalType": "bytes",
+              "name": "data",
+              "type": "bytes"
+            }
+          ],
+          "internalType": "struct IChainAdminOwnable.Call[]",
+          "name": "_calls",
+          "type": "tuple[]"
+        },
+        {
+          "internalType": "bool",
+          "name": "_requireSuccess",
+          "type": "bool"
+        }
+      ],
+      "name": "multicall",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "contract IAdmin",
+          "name": "_chainContract",
+          "type": "address"
+        },
+        {
+          "internalType": "uint128",
+          "name": "_nominator",
+          "type": "uint128"
+        },
+        {
+          "internalType": "uint128",
+          "name": "_denominator",
+          "type": "uint128"
+        }
+      ],
+      "name": "setTokenMultiplier",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_tokenMultiplierSetter",
+          "type": "address"
+        }
+      ],
+      "name": "setTokenMultiplierSetter",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_protocolVersion",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_upgradeTimestamp",
+          "type": "uint256"
+        }
+      ],
+      "name": "setUpgradeTimestamp",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {},
+  "factoryDeps": {}
+}
