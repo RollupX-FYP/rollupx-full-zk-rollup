@@ -313,3 +313,7 @@ zksync_gateway_migrator = { version = "29.15.0-non-semver-compat", path = "node/
 
 [patch.crates-io]
 sqlx-postgres = { git = "https://github.com/matter-labs/sqlx-postgres.git", rev = "f4bf3674ecc2e96f4b8fb48b4a0bc08b85e0f6f3" }
+# Patched to enable let_chains nightly feature and drop rust-version=1.89 requirement,
+# so the crate compiles with nightly-2025-03-19 (rustc 1.87).
+svm-rs = { path = "patches/svm-rs" }
+svm-rs-builds = { path = "patches/svm-rs-builds" }
