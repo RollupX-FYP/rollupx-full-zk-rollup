@@ -5,7 +5,7 @@ The sequencer component of the RollupX zk-rollup system. It receives user transa
 ## Architecture
 
 <p align="center">
-  <img src="./public/images/architecture.png" width="600" />
+  <img src="./public/images/architecture.svg" width="600" />
 </p>
 
 > The full Mermaid source is in [`architecture.mmd`](./architecture.mmd).
