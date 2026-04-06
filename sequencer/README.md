@@ -5,7 +5,7 @@ The sequencer component of the RollupX zk-rollup system. It receives user transa
 ## Architecture
 
 <p align="center">
-  <img src="./public/images/architecture.png" width="600" />
+  <img src="./public/images/architecture.svg" width="600" />
 </p>
 
 > The full Mermaid source is in [`architecture.mmd`](./architecture.mmd).
@@ -14,26 +14,26 @@ The sequencer component of the RollupX zk-rollup system. It receives user transa
 
 ```
 User ──► API Server ──► Validator ──► State Cache (deduct balance, increment nonce)
-                                          │
-                                          ▼
-                                    Transaction Pool
-                                          │
-L1 Bridge ──► L1 Listener ──► Forced Queue │
-                                    │      │
-                                    ▼      ▼
-                              Batch Orchestrator
-                                    │
-             ┌──────────────────────┼──────────────────────┐
-             ▼                      ▼                      ▼
-        Batch Trigger          Scheduler              Batch Engine
-        (when to seal)     (how to order)          (creates batch)
-                                                       │
-                                                       ▼
-                                                 Batch Registry
-                                                 (SQLite metadata)
-                                                       │
-                                                       ▼
-                                              [Executor Component]
+                                             │
+                                             ▼
+                                        Transaction Pool
+                                             │
+L1 Bridge ──► L1 Listener ──► Forced Queue   │
+                                   │         │
+                                   ▼         ▼
+                                Batch Orchestrator
+                                       │
+                ┌──────────────────────┼──────────────────────┐
+                ▼                      ▼                      ▼
+            Batch Trigger          Scheduler             Batch Engine
+            (when to seal)       (how to order)         (creates batch)
+                                                              │
+                                                              ▼
+                                                        Batch Registry
+                                                       (SQLite metadata)
+                                                              │
+                                                              ▼
+                                                      [Executor Component]
 ```
 
 ### Component Overview
