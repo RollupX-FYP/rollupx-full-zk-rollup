@@ -11,8 +11,8 @@ static WORKSPACE: OnceCell<Option<PathBuf>> = OnceCell::new();
 /// Represents Cargo workspaces available in the repository.
 #[derive(Debug, Clone, Copy)]
 pub enum Workspace<'a> {
-    /// Root folder.
-    Root,
+    /// Root folder (standalone workspace - path points to workspace root directly).
+    Root(&'a Path),
     /// `core` folder.
     Core(&'a Path),
     /// `prover` folder.
@@ -40,7 +40,17 @@ impl Workspace<'static> {
                 result.ok()
             })
             .as_deref();
-        path.map_or(Self::Root, Self::from)
+        // Fallback: use current directory as workspace root when locate fails
+        match path {
+            Some(p) => Self::from(p),
+            None => {
+                static FALLBACK: OnceCell<PathBuf> = OnceCell::new();
+                let fb: &'static Path = FALLBACK
+                    .get_or_init(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+                    .as_path();
+                Self::Root(fb)
+            }
+        }
     }
 }
 
@@ -52,7 +62,7 @@ impl<'a> Workspace<'a> {
     /// Returns the path of the repository root.
     pub fn root(self) -> PathBuf {
         match self {
-            Self::Root => PathBuf::from("."),
+            Self::Root(path) => path.into(),
             Self::Core(path) | Self::Prover(path) | Self::ZkStackCli(path) => {
                 path.parent().unwrap().into()
             }
@@ -93,7 +103,7 @@ impl<'a> From<&'a Path> for Workspace<'a> {
         } else if path.ends_with(Self::CORE_DIRECTORY_NAME) {
             Self::Core(path)
         } else {
-            Self::Root
+            Self::Root(path)
         }
     }
 }
