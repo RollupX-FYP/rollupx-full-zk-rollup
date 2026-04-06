@@ -1,0 +1,56 @@
+{
+  "_format": "hh-zksolc-artifact-1",
+  "contractName": "ITransactionFilterer",
+  "sourceName": "contracts/state-transition/chain-interfaces/ITransactionFilterer.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "sender",
+          "type": "address"
+        },
+        {
+          "internalType": "address",
+          "name": "contractL2",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "mintValue",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "l2Value",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes",
+          "name": "l2Calldata",
+          "type": "bytes"
+        },
+        {
+          "internalType": "address",
+          "name": "refundRecipient",
+          "type": "address"
+        }
+      ],
+      "name": "isTransactionAllowed",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {},
+  "factoryDeps": {}
+}

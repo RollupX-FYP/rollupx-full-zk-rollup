@@ -1,0 +1,11 @@
+{
+  "_format": "hh-zksolc-artifact-1",
+  "contractName": "CalldataDAGateway",
+  "sourceName": "contracts/state-transition/data-availability/CalldataDAGateway.sol",
+  "abi": [],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {},
+  "factoryDeps": {}
+}

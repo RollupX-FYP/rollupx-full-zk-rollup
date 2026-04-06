@@ -1,0 +1,157 @@
+{
+  "_format": "hh-zksolc-artifact-1",
+  "contractName": "IDiamondInit",
+  "sourceName": "contracts/state-transition/chain-interfaces/IDiamondInit.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "components": [
+            {
+              "internalType": "uint256",
+              "name": "chainId",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "bridgehub",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "chainTypeManager",
+              "type": "address"
+            },
+            {
+              "internalType": "uint256",
+              "name": "protocolVersion",
+              "type": "uint256"
+            },
+            {
+              "internalType": "address",
+              "name": "admin",
+              "type": "address"
+            },
+            {
+              "internalType": "address",
+              "name": "validatorTimelock",
+              "type": "address"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "baseTokenAssetId",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "storedBatchZero",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "contract IVerifier",
+              "name": "verifier",
+              "type": "address"
+            },
+            {
+              "components": [
+                {
+                  "internalType": "bytes32",
+                  "name": "recursionNodeLevelVkHash",
+                  "type": "bytes32"
+                },
+                {
+                  "internalType": "bytes32",
+                  "name": "recursionLeafLevelVkHash",
+                  "type": "bytes32"
+                },
+                {
+                  "internalType": "bytes32",
+                  "name": "recursionCircuitsSetVksHash",
+                  "type": "bytes32"
+                }
+              ],
+              "internalType": "struct VerifierParams",
+              "name": "verifierParams",
+              "type": "tuple"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "l2BootloaderBytecodeHash",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "l2DefaultAccountBytecodeHash",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes32",
+              "name": "l2EvmEmulatorBytecodeHash",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "uint256",
+              "name": "priorityTxMaxGasLimit",
+              "type": "uint256"
+            },
+            {
+              "components": [
+                {
+                  "internalType": "enum PubdataPricingMode",
+                  "name": "pubdataPricingMode",
+                  "type": "uint8"
+                },
+                {
+                  "internalType": "uint32",
+                  "name": "batchOverheadL1Gas",
+                  "type": "uint32"
+                },
+                {
+                  "internalType": "uint32",
+                  "name": "maxPubdataPerBatch",
+                  "type": "uint32"
+                },
+                {
+                  "internalType": "uint32",
+                  "name": "maxL2GasPerBatch",
+                  "type": "uint32"
+                },
+                {
+                  "internalType": "uint32",
+                  "name": "priorityTxMaxPubdata",
+                  "type": "uint32"
+                },
+                {
+                  "internalType": "uint64",
+                  "name": "minimalL2GasPrice",
+                  "type": "uint64"
+                }
+              ],
+              "internalType": "struct FeeParams",
+              "name": "feeParams",
+              "type": "tuple"
+            }
+          ],
+          "internalType": "struct InitializeData",
+          "name": "_initData",
+          "type": "tuple"
+        }
+      ],
+      "name": "initialize",
+      "outputs": [
+        {
+          "internalType": "bytes32",
+          "name": "",
+          "type": "bytes32"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {},
+  "factoryDeps": {}
+}

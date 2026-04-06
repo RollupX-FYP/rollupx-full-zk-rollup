@@ -1,0 +1,37 @@
+[package]
+name = "zksync_config"
+description = "ZKsync core configuration"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+zksync_basic_types.workspace = true
+zksync_crypto_primitives.workspace = true
+zksync_concurrency.workspace = true
+
+# Observability exensions
+zksync_vlog = { workspace = true, optional = true }
+vise = { workspace = true, optional = true }
+
+# CLI extensions
+clap = { workspace = true, optional = true }
+smart-config-commands = { workspace = true, optional = true }
+
+anyhow.workspace = true
+smart-config = { workspace = true, features = ["primitive-types"] }
+secrecy.workspace = true
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+serde_yaml.workspace = true
+tracing.workspace = true
+
+[features]
+default = []
+observability_ext = ["dep:zksync_vlog", "dep:vise"]
+cli = ["observability_ext", "dep:clap", "dep:smart-config-commands"]
