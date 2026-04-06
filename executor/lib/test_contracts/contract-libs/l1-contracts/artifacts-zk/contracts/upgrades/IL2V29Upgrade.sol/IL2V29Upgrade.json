@@ -1,0 +1,30 @@
+{
+  "_format": "hh-zksolc-artifact-1",
+  "contractName": "IL2V29Upgrade",
+  "sourceName": "contracts/upgrades/IL2V29Upgrade.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_aliasedGovernance",
+          "type": "address"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_bridgedEthAssetId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "upgrade",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {},
+  "factoryDeps": {}
+}

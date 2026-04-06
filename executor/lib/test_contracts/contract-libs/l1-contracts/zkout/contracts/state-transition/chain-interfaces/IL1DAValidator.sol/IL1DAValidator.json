@@ -1,0 +1,68 @@
+{
+  "_format": "hh-zksolc-artifact-1",
+  "contractName": "IL1DAValidator",
+  "sourceName": "contracts/state-transition/chain-interfaces/IL1DAValidator.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "_chainId",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_batchNumber",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes32",
+          "name": "_l2DAValidatorOutputHash",
+          "type": "bytes32"
+        },
+        {
+          "internalType": "bytes",
+          "name": "_operatorDAInput",
+          "type": "bytes"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_maxBlobsSupported",
+          "type": "uint256"
+        }
+      ],
+      "name": "checkDA",
+      "outputs": [
+        {
+          "components": [
+            {
+              "internalType": "bytes32",
+              "name": "stateDiffHash",
+              "type": "bytes32"
+            },
+            {
+              "internalType": "bytes32[]",
+              "name": "blobsLinearHashes",
+              "type": "bytes32[]"
+            },
+            {
+              "internalType": "bytes32[]",
+              "name": "blobsOpeningCommitments",
+              "type": "bytes32[]"
+            }
+          ],
+          "internalType": "struct L1DAValidatorOutput",
+          "name": "output",
+          "type": "tuple"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {},
+  "factoryDeps": {}
+}

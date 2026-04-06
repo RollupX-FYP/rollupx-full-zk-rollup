@@ -1,0 +1,31 @@
+{
+  "_format": "hh-zksolc-artifact-1",
+  "contractName": "IL1BaseTokenAssetHandler",
+  "sourceName": "contracts/bridge/interfaces/IL1BaseTokenAssetHandler.sol",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "bytes32",
+          "name": "_assetId",
+          "type": "bytes32"
+        }
+      ],
+      "name": "tokenAddress",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {},
+  "factoryDeps": {}
+}

@@ -1,0 +1,269 @@
+{
+  "_format": "hh-zksolc-artifact-1",
+  "contractName": "IExecutor",
+  "sourceName": "contracts/state-transition/chain-interfaces/IExecutor.sol",
+  "abi": [
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "batchNumber",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "untrustedLastL2BlockNumberHint",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "bytes32",
+          "name": "precommitment",
+          "type": "bytes32"
+        }
+      ],
+      "name": "BatchPrecommitmentSet",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "batchNumber",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "batchHash",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "commitment",
+          "type": "bytes32"
+        }
+      ],
+      "name": "BlockCommit",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "batchNumber",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "batchHash",
+          "type": "bytes32"
+        },
+        {
+          "indexed": true,
+          "internalType": "bytes32",
+          "name": "commitment",
+          "type": "bytes32"
+        }
+      ],
+      "name": "BlockExecution",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "totalBatchesCommitted",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "totalBatchesVerified",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "totalBatchesExecuted",
+          "type": "uint256"
+        }
+      ],
+      "name": "BlocksRevert",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "previousLastVerifiedBatch",
+          "type": "uint256"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "currentLastVerifiedBatch",
+          "type": "uint256"
+        }
+      ],
+      "name": "BlocksVerification",
+      "type": "event"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_chainAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_processFrom",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_processTo",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes",
+          "name": "_commitData",
+          "type": "bytes"
+        }
+      ],
+      "name": "commitBatchesSharedBridge",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_chainAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_processFrom",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_processTo",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes",
+          "name": "_executeData",
+          "type": "bytes"
+        }
+      ],
+      "name": "executeBatchesSharedBridge",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getName",
+      "outputs": [
+        {
+          "internalType": "string",
+          "name": "",
+          "type": "string"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_chainAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_batchNumber",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes",
+          "name": "_precommitData",
+          "type": "bytes"
+        }
+      ],
+      "name": "precommitSharedBridge",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_chainAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_processBatchFrom",
+          "type": "uint256"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_processBatchTo",
+          "type": "uint256"
+        },
+        {
+          "internalType": "bytes",
+          "name": "_proofData",
+          "type": "bytes"
+        }
+      ],
+      "name": "proveBatchesSharedBridge",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "_chainAddress",
+          "type": "address"
+        },
+        {
+          "internalType": "uint256",
+          "name": "_newLastBatch",
+          "type": "uint256"
+        }
+      ],
+      "name": "revertBatchesSharedBridge",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "bytecode": "0x",
+  "deployedBytecode": "0x",
+  "linkReferences": {},
+  "deployedLinkReferences": {},
+  "factoryDeps": {}
+}
