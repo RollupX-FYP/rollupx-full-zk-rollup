@@ -13,7 +13,7 @@ port = 3000
 
 [l1]
 rpc_url = "ws://127.0.0.1:8545/"
-bridge_address = "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"
+bridge_address = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
 start_block = 18500000
 
 [database]
