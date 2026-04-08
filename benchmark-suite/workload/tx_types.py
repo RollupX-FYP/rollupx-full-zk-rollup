@@ -121,7 +121,7 @@ class TxFactory:
             "value":     hex(value),
             "nonce":     nonce,
             "gas_price": hex(TYPE_GAS_PRICE[tx_type]),
-            "gas_limit": hex(TYPE_GAS_LIMIT[tx_type]),
+            "gas_limit": TYPE_GAS_LIMIT[tx_type],
             "signature": sig,
             "timestamp": int(time.time()),
             "tx_type":   tx_type,

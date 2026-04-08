@@ -9,7 +9,8 @@
 
 use ethers::types::{Address, U256, Signature, H256};
 use ethers::utils::keccak256;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use std::str::FromStr;
 
 /// User transaction submitted to L2
 /// 
@@ -34,11 +35,20 @@ pub struct UserTransaction {
     pub nonce: u64,
     pub gas_price: U256,
     pub gas_limit: u64,
+    #[serde(deserialize_with = "deserialize_signature")]
     pub signature: Signature,
     pub timestamp: u64,
     /// Optional premium bid for Time-Boost policy (faster confirmation)
     #[serde(default)]
     pub boost_bid: Option<U256>,
+}
+
+fn deserialize_signature<'de, D>(deserializer: D) -> Result<Signature, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s: String = Deserialize::deserialize(deserializer)?;
+    Signature::from_str(&s).map_err(serde::de::Error::custom)
 }
 
 impl UserTransaction {
