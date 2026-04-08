@@ -101,9 +101,10 @@ impl Server {
     /// # Returns
     /// `Ok(())` if the server starts successfully, or an error if binding fails
     pub async fn start(self) -> anyhow::Result<()> {
-        // Create the router with a single POST endpoint that handles JSON-RPC requests
+        // Create the router with separate JSON-RPC and REST endpoints
         let app = Router::new()
             .route("/", post(handle_rpc))
+            .route("/tx", post(handle_rest_tx))
             .with_state(self.state);
 
         // Format the listening address from config
@@ -317,6 +318,53 @@ async fn handle_send_transaction(
                 result: Some(serde_json::to_value(confirmation).unwrap()),
                 error: None,
                 id: request.id,
+            })
+        }
+    }
+}
+
+/// Handles REST transaction submissions (used by benchmark suite)
+///
+/// Unlike the JSON-RPC handler, this takes the `UserTransaction` directly
+/// from the request body.
+async fn handle_rest_tx(
+    State(state): State<AppState>,
+    Json(tx): Json<UserTransaction>,
+) -> Json<SoftConfirmation> {
+    let tx_hash = tx.hash();
+    info!("Processing REST transaction {:?} from {:?}", tx_hash, tx.from);
+
+    match state.validator.validate(&tx).await {
+        Ok(()) => {
+            info!("Transaction {:?} validated successfully", tx_hash);
+            
+            let gas_cost = tx.gas_price * U256::from(tx.gas_limit);
+            let total_cost = tx.value + gas_cost;
+            state.state_cache.deduct_balance(&tx.from, total_cost).await;
+            state.state_cache.increment_nonce(&tx.from).await;
+            
+            state.tx_pool.add(tx.clone()).await;
+            
+            Json(SoftConfirmation {
+                tx_hash,
+                status: ConfirmationStatus::Accepted,
+                timestamp: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
+            })
+        }
+        Err(validation_error) => {
+            warn!("Transaction {:?} validation failed: {}", tx_hash, validation_error);
+            Json(SoftConfirmation {
+                tx_hash,
+                status: ConfirmationStatus::Rejected {
+                    reason: validation_error.to_string(),
+                },
+                timestamp: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
             })
         }
     }

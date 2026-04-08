@@ -74,6 +74,7 @@ class PoissonWorkloadGenerator:
                     "value": hex(value),
                     "nonce": tx_count,
                     "gas_price": "0x3b9aca00", # 1 gwei
+                    "gas_limit": 21000,
                     "signature": signature_flat,
                     "timestamp": int(time.time())
                 }
