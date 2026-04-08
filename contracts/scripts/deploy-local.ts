@@ -9,7 +9,7 @@ async function main() {
   await mockVerifier.waitForDeployment();
 
   const Bridge = await ethers.getContractFactory("ZKRollupBridge");
-  const bridge = await Bridge.deploy(await mockVerifier.getAddress(), genesisRoot);
+  const bridge = await Bridge.deploy(await mockVerifier.getAddress(), genesisRoot, 0);
   await bridge.waitForDeployment();
 
   console.log("MockVerifier:", await mockVerifier.getAddress());
