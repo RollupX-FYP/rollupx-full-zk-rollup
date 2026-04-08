@@ -1,0 +1,33 @@
+{
+  "experiment_id": "exp_1775638092",
+  "run_id": "exp_1775638092_r00",
+  "source": "workload",
+  "prover_backend": "groth16",
+  "da_mode": "n/a",
+  "seed": null,
+  "tx_mix": {
+    "A": 0.7,
+    "B": 0.2,
+    "C": 0.1
+  },
+  "latency_metrics": {
+    "user_action_latency_ms": 2022.8178172275939,
+    "l2_l1_latency_ms": 0
+  },
+  "witness_info": {
+    "constraints": 0,
+    "witness_size_bytes": 0
+  },
+  "details": {
+    "total_txs": 29,
+    "successful_txs": 29,
+    "failed_txs": 0,
+    "duration": 60,
+    "rate": 20.0,
+    "type_counts": {
+      "A": 16,
+      "B": 8,
+      "C": 5
+    }
+  }
+}
