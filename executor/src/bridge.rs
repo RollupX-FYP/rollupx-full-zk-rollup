@@ -34,6 +34,7 @@ use zksync_vm_interface::{L2BlockEnv, TxExecutionMode};
 
 use crate::{BatchInput, executor::{BatchProcessor, ExecutionSemantics}};
 
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct SequencerLegacyBatchOutput {
     batch_number: u64,
@@ -48,6 +49,7 @@ struct SequencerLegacyBatchOutput {
     experiment_id: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize)]
 struct ExecutorLegacyBatchOutput {
     batch_number: u64,
@@ -74,6 +76,13 @@ struct ExecutorProverOutput {
 
 fn h256_to_hex(value: H256) -> String {
     format!("{:#066x}", value)
+}
+
+fn ensure_odd_words(mut bytecode: Vec<u8>) -> Vec<u8> {
+    if (bytecode.len() / 32) % 2 == 0 {
+        bytecode.extend_from_slice(&[0u8; 32]);
+    }
+    bytecode
 }
 
 fn decode_hex_field(value: &str) -> Result<Vec<u8>> {
@@ -152,7 +161,7 @@ fn create_base_contracts() -> Result<BaseSystemContracts> {
         .find(|candidate| candidate.exists())
         .cloned()
         .context("unable to locate proved batch bootloader artifact")?;
-    let bootloader_code = std::fs::read(&bootloader_path).context("read bootloader")?;
+    let bootloader_code = ensure_odd_words(std::fs::read(&bootloader_path).context("read bootloader")?);
     let bootloader_hash = BytecodeHash::for_bytecode(&bootloader_code).value();
 
     let default_aa_candidates = [
@@ -178,8 +187,10 @@ fn create_base_contracts() -> Result<BaseSystemContracts> {
             .context("missing DefaultAccount bytecode")?
             .to_string()
     };
-    let default_aa_code = hex::decode(bytecode_str.trim_start_matches("0x"))
-        .context("decode DefaultAccount bytecode")?;
+    let default_aa_code = ensure_odd_words(
+        hex::decode(bytecode_str.trim_start_matches("0x"))
+            .context("decode DefaultAccount bytecode")?,
+    );
     let default_aa_hash = BytecodeHash::for_bytecode(&default_aa_code).value();
 
     Ok(BaseSystemContracts {
