@@ -28,6 +28,7 @@ use crate::{
     scheduler::{Scheduler, SchedulingPolicyType, create_policy},
     batch::{BatchEngine, trigger::BatchTrigger},
     registry::Registry,
+    proto::rollup::{BatchPayload, PublishBatchResponse, rollup_service_client::RollupServiceClient},
     config::BatchConfig,
     Batch, BatchMetadata, Transaction,
 };
@@ -64,6 +65,8 @@ pub struct BatchOrchestrator {
     registry: Arc<Registry>,
     /// Batch configuration (size limits, timeout, etc.)
     config: BatchConfig,
+    /// Executor gRPC endpoint used for publishing sealed batches.
+    executor_grpc_url: String,
 }
 
 impl BatchOrchestrator {
@@ -81,6 +84,7 @@ impl BatchOrchestrator {
         batch_config: BatchConfig,
         scheduling_policy: SchedulingPolicyType,
         registry: Arc<Registry>,
+        executor_grpc_url: String,
     ) -> Self {
         // Create policy instance using factory function
         let policy = create_policy(scheduling_policy);
@@ -100,7 +104,35 @@ impl BatchOrchestrator {
             trigger,
             registry,
             config: batch_config,
+            executor_grpc_url,
         }
+    }
+
+    async fn publish_batch_to_executor(&self, batch: &Batch) -> anyhow::Result<PublishBatchResponse> {
+        let batch_data = serde_json::to_vec(&batch.transactions)
+            .map_err(|e| anyhow::anyhow!("serialize batch transactions for gRPC: {e}"))?;
+
+        let payload = BatchPayload {
+            batch_id: batch.batch_id.to_string(),
+            batch_data,
+            pre_state_root: batch.prev_state_root.as_bytes().to_vec(),
+            // Sequencer does not compute post-state root; executor fills downstream semantics.
+            post_state_root: batch.prev_state_root.as_bytes().to_vec(),
+            da_commitment: Vec::new(),
+            proof: Vec::new(),
+            experiment_id: std::env::var("EXPERIMENT_ID").unwrap_or_default(),
+        };
+
+        let mut client = RollupServiceClient::connect(self.executor_grpc_url.clone())
+            .await
+            .map_err(|e| anyhow::anyhow!("connect executor gRPC {}: {e}", self.executor_grpc_url))?;
+
+        let response = client
+            .publish_batch(tonic::Request::new(payload))
+            .await
+            .map_err(|e| anyhow::anyhow!("publish_batch RPC failed: {e}"))?;
+
+        Ok(response.into_inner())
     }
 
     /// Start the batch orchestrator background loop
@@ -180,9 +212,30 @@ impl BatchOrchestrator {
                         // Continue processing — metadata storage failure is non-fatal
                     }
 
-                    // TODO: Send batch to executor component
-                    // In the full system, this would be:
-                    // executor_channel.send(batch).await?;
+                    match self.publish_batch_to_executor(&batch).await {
+                        Ok(response) if response.accepted => {
+                            info!(
+                                "Published batch #{} to executor over gRPC ({})",
+                                batch.batch_id,
+                                self.executor_grpc_url
+                            );
+                        }
+                        Ok(response) => {
+                            warn!(
+                                "Executor rejected batch #{} over gRPC: {}",
+                                batch.batch_id,
+                                response.message
+                            );
+                        }
+                        Err(e) => {
+                            warn!(
+                                "Failed to publish batch #{} to executor gRPC {}: {:?}",
+                                batch.batch_id,
+                                self.executor_grpc_url,
+                                e
+                            );
+                        }
+                    }
 
                     // Reset timer after successful batch creation
                     self.trigger.reset(&mut last_batch_time);

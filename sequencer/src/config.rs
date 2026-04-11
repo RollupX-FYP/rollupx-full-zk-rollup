@@ -32,6 +32,26 @@ pub struct Config {
     pub api: ApiConfig,
     pub l1: L1Config,
     pub database: DatabaseConfig,
+    #[serde(default)]
+    pub executor: ExecutorConfig,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ExecutorConfig {
+    #[serde(default = "default_executor_grpc_url")]
+    pub grpc_url: String,
+}
+
+fn default_executor_grpc_url() -> String {
+    "http://127.0.0.1:50051".to_string()
+}
+
+impl Default for ExecutorConfig {
+    fn default() -> Self {
+        Self {
+            grpc_url: default_executor_grpc_url(),
+        }
+    }
 }
 
 /// Batch creation configuration

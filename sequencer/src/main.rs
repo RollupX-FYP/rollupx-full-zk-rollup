@@ -88,6 +88,7 @@ async fn main() -> anyhow::Result<()> {
         config.batch.clone(),
         config.scheduling.to_policy_type(),
         registry.clone(),
+        config.executor.grpc_url.clone(),
     );
 
     tokio::spawn(async move {
