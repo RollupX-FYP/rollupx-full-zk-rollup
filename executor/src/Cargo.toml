@@ -23,6 +23,11 @@ hex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio = { workspace = true, features = ["full"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+tonic = { workspace = true, features = ["transport", "codegen", "prost"] }
+prost.workspace = true
+futures-util.workspace = true
+tracing.workspace = true
 
 zksync_contracts.workspace = true
 zksync_crypto_primitives.workspace = true
@@ -35,3 +40,7 @@ zksync_vm_interface.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+
+[build-dependencies]
+tonic-build = "0.11.0"
+protoc-bin-vendored = "3"

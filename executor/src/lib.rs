@@ -5,6 +5,8 @@ use zksync_prover_interface::inputs::WitnessInputMerklePaths;
 
 pub mod bridge;
 pub mod executor;
+pub mod grpc;
+pub mod proto;
 
 /// Structured input for processing a full batch.
 pub struct BatchInput {
