@@ -386,6 +386,7 @@ mod tests {
     };
     use zksync_types::H256;
 
+    #[cfg(feature = "artifact-contracts")]
     fn ensure_odd_words(mut bytecode: Vec<u8>) -> Vec<u8> {
         if (bytecode.len() / 32) % 2 == 0 {
             bytecode.extend_from_slice(&[0u8; 32]);
@@ -393,6 +394,7 @@ mod tests {
         bytecode
     }
 
+    #[cfg(feature = "artifact-contracts")]
     fn load_test_artifacts() -> BaseSystemContracts {
         let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
         let repo_root = manifest_dir.parent().unwrap_or(manifest_dir);
@@ -457,6 +459,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "artifact-contracts")]
     fn setup_test_storage(chain_id: L2ChainId, _system_contracts_hashes: BaseSystemContractsHashes) -> InMemoryStorage {
         let repo_root = Path::new(env!("CARGO_MANIFEST_DIR"))
             .parent()
@@ -499,6 +502,7 @@ mod tests {
         storage
     }
 
+    #[cfg(feature = "artifact-contracts")]
     fn create_test_tx(nonce: Nonce) -> Transaction {
         let mut key_bytes = [0u8; 32];
         key_bytes[31] = 1;
@@ -526,6 +530,7 @@ mod tests {
         Transaction::from(tx)
     }
 
+    #[cfg(feature = "artifact-contracts")]
     fn build_envs(base_contracts: BaseSystemContracts, chain_id: L2ChainId) -> (L1BatchEnv, SystemEnv) {
         let l1_batch_env = L1BatchEnv {
             previous_batch_hash: None,
@@ -558,6 +563,7 @@ mod tests {
         (l1_batch_env, system_env)
     }
 
+    #[cfg(feature = "artifact-contracts")]
     #[tokio::test]
     async fn test_batch_processing_flow() {
         let dir = tempdir().unwrap();
@@ -604,6 +610,7 @@ mod tests {
         assert_ne!(output.root_hash, H256::zero(), "Merkle root should be non-zero after transaction");
     }
 
+    #[cfg(feature = "artifact-contracts")]
     #[tokio::test]
     async fn test_strict_semantics_fail_fast() {
         let dir = tempdir().unwrap();
@@ -632,6 +639,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "artifact-contracts")]
     #[tokio::test]
     async fn test_transaction_outputs_are_returned() {
         let dir = tempdir().unwrap();

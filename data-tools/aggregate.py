@@ -104,7 +104,16 @@ def _load_run(run_dir: str) -> dict | None:
         row["tps_accepted"] = details.get("successful_txs", 0) / max(duration, 1)
 
     # ── executor metrics ──────────────────────────────────────────────────────
+    # Search for executor metrics file in run_dir, then exp_dir, then metrics_root
+    exp_dir = os.path.dirname(run_dir)
+    metrics_root = os.path.dirname(exp_dir)
+    
     ex_files = glob.glob(os.path.join(run_dir, f"executor_{exp_id}.json"))
+    if not ex_files:
+        ex_files = glob.glob(os.path.join(exp_dir, f"executor_{exp_id}.json"))
+    if not ex_files:
+        ex_files = glob.glob(os.path.join(metrics_root, f"executor_{exp_id}.json"))
+
     if ex_files:
         ex = _load_json(ex_files[0])
         prove_times = ex.get("proof_generation_times_ms", [])

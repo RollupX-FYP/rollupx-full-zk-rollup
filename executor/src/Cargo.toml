@@ -44,3 +44,6 @@ tempfile.workspace = true
 [build-dependencies]
 tonic-build = "0.11.0"
 protoc-bin-vendored = "3"
+
+[features]
+artifact-contracts = []

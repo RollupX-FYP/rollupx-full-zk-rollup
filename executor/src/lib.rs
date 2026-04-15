@@ -3,7 +3,15 @@ use zksync_multivm::interface::{L1BatchEnv, SystemEnv, FinishedL1Batch};
 use std::path::PathBuf;
 use zksync_prover_interface::inputs::WitnessInputMerklePaths;
 
+#[cfg(feature = "artifact-contracts")]
 pub mod bridge;
+
+#[cfg(not(feature = "artifact-contracts"))]
+pub mod bridge {
+    pub async fn run_from_env() -> anyhow::Result<()> {
+        anyhow::bail!("bridge mode requires the 'artifact-contracts' feature")
+    }
+}
 pub mod executor;
 pub mod grpc;
 pub mod proto;
