@@ -15,7 +15,8 @@ import time
 
 try:
     from eth_account import Account
-    from eth_account.messages import encode_defunct
+    import eth_utils
+    import eth_keys
 except ImportError:
     raise ImportError("Run: pip install eth-account")
 
@@ -59,13 +60,30 @@ _DEFAULT_PRIVATE_KEY = (
 )
 
 
-def _sign_dummy(acct, nonce: int) -> str:
-    """Return a flat 65-byte ECDSA signature hex for a dummy message."""
-    msg = encode_defunct(text=f"rollupx_tx_{nonce}")
-    signed = acct.sign_message(msg)
-    r = hex(signed.r)[2:].zfill(64)
-    s = hex(signed.s)[2:].zfill(64)
-    v = hex(signed.v)[2:].zfill(2)
+def hash_tx(from_addr, to_addr, value, nonce, gas_price, timestamp, boost_bid=None):
+    data = bytearray()
+    data.extend(eth_utils.to_bytes(hexstr=from_addr))
+    data.extend(eth_utils.to_bytes(hexstr=to_addr))
+    data.extend(value.to_bytes(32, 'big'))
+    data.extend(nonce.to_bytes(8, 'big'))
+    data.extend(gas_price.to_bytes(32, 'big'))
+    data.extend(timestamp.to_bytes(8, 'big'))
+    
+    if boost_bid is not None:
+        data.extend(boost_bid.to_bytes(32, 'big'))
+    else:
+        data.extend(b'\x00' * 32)
+        
+    return eth_utils.keccak(data)
+
+def _sign_tx(private_key_hex: str, from_addr: str, to_addr: str, value: int, nonce: int, gas_price: int, timestamp: int) -> str:
+    """Return a flat 65-byte ECDSA signature for the exact transaction byte packing."""
+    h = hash_tx(from_addr, to_addr, value, nonce, gas_price, timestamp)
+    pk_obj = eth_keys.keys.PrivateKey(eth_utils.to_bytes(hexstr=private_key_hex))
+    signature = pk_obj.sign_msg_hash(h)
+    r = hex(signature.r)[2:].zfill(64)
+    s = hex(signature.s)[2:].zfill(64)
+    v = hex(signature.v + 27)[2:].zfill(2)
     return "0x" + r + s + v
 
 
@@ -91,6 +109,7 @@ class TxFactory:
         private_key: str = _DEFAULT_PRIVATE_KEY,
         seed: int | None = None,
     ):
+        self.private_key = private_key
         self.acct = Account.from_key(private_key)
         self.from_addr = self.acct.address
         self._rng = random.Random(seed)  # private, only used for value amounts
@@ -113,17 +132,21 @@ class TxFactory:
             raise ValueError(f"Unknown tx_type '{tx_type}'. Choose A, B, or C.")
 
         value = self._rng.randint(1, 1000)
-        sig   = _sign_dummy(self.acct, nonce)
+        timestamp = int(time.time())
+        gas_price = TYPE_GAS_PRICE[tx_type]
+        to_addr = TYPE_TO_ADDR[tx_type]
+        
+        sig = _sign_tx(self.private_key, self.from_addr, to_addr, value, nonce, gas_price, timestamp)
 
         return {
             "from":      self.from_addr,
-            "to":        TYPE_TO_ADDR[tx_type],
+            "to":        to_addr,
             "value":     hex(value),
             "nonce":     nonce,
-            "gas_price": hex(TYPE_GAS_PRICE[tx_type]),
+            "gas_price": hex(gas_price),
             "gas_limit": TYPE_GAS_LIMIT[tx_type],
             "signature": sig,
-            "timestamp": int(time.time()),
+            "timestamp": timestamp,
             "tx_type":   tx_type,
             # calldata simulates realistic payload size for proving/DA stress
             "calldata":  _extra_data(TYPE_CALLDATA_EXTRA[tx_type]),
