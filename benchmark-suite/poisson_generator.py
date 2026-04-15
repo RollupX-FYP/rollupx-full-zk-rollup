@@ -10,11 +10,27 @@ import urllib.error
 from datetime import datetime
 try:
     from eth_account import Account
-    from eth_account.messages import encode_defunct
     import eth_utils
+    import eth_keys
 except ImportError:
     print("Error: eth-account is not installed. Please run `pip install eth-account`")
     sys.exit(1)
+
+def hash_tx(from_addr, to_addr, value, nonce, gas_price, timestamp, boost_bid=None):
+    data = bytearray()
+    data.extend(eth_utils.to_bytes(hexstr=from_addr))
+    data.extend(eth_utils.to_bytes(hexstr=to_addr))
+    data.extend(value.to_bytes(32, 'big'))
+    data.extend(nonce.to_bytes(8, 'big'))
+    data.extend(gas_price.to_bytes(32, 'big'))
+    data.extend(timestamp.to_bytes(8, 'big'))
+    
+    if boost_bid is not None:
+        data.extend(boost_bid.to_bytes(32, 'big'))
+    else:
+        data.extend(b'\x00' * 32)
+        
+    return eth_utils.keccak(data)
 
 class PoissonWorkloadGenerator:
     def __init__(self, rate, duration, seed, experiment_id, prover_backend, host='localhost', port=3000):
@@ -37,7 +53,28 @@ class PoissonWorkloadGenerator:
         start_time = time.time()
         end_time = start_time + self.duration
         
-        tx_count = 0
+        private_key = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+        acct = Account.from_key(private_key)
+        from_addr = acct.address
+
+        try:
+            req = urllib.request.Request(
+                self.base_url,
+                data=json.dumps({
+                    "jsonrpc": "2.0",
+                    "method": "eth_getTransactionCount",
+                    "params": [from_addr, "latest"],
+                    "id": 1
+                }).encode("utf-8"),
+                headers={"Content-Type": "application/json"}
+            )
+            with urllib.request.urlopen(req) as response:
+                res_data = json.loads(response.read().decode('utf-8'))
+                tx_count = int(res_data["result"], 16)
+                print(f"Fetched starting nonce: {tx_count}")
+        except Exception as e:
+            print(f"Failed to fetch nonce, falling back to 0: {e}")
+            tx_count = 0
         
         try:
             while time.time() < end_time:
@@ -48,24 +85,19 @@ class PoissonWorkloadGenerator:
                     break
                 
                 # Create a transaction
-                # Use Hardhat default account #0 to pass dev_mode whitelist
-                private_key = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-                acct = Account.from_key(private_key)
-                from_addr = acct.address
                 to_addr = "0x" + "02" * 20
                 value = random.randint(1, 1000)
                 
-                # We need to sign a representation of the tx. The Rust Sequencer's UserTransaction::hash() expects 
-                # a specific serialization, but since dev_mode bypasses signature content verification as long as the 
-                # signature structure is valid, we can provide a syntactically valid ECDSA signature.
-                # Here we just sign a dummy message to get valid r, s, v values.
-                msg = encode_defunct(text=f"Dummy signature for tx {tx_count}")
-                signed_message = acct.sign_message(msg)
+                timestamp = int(time.time())
+                gas_price = int("0x3b9aca00", 16)
+                h = hash_tx(from_addr, to_addr, value, tx_count, gas_price, timestamp)
+                
+                pk_obj = eth_keys.keys.PrivateKey(eth_utils.to_bytes(hexstr=private_key))
+                signature = pk_obj.sign_msg_hash(h)
 
-                # Flatten the signature to a single 65-byte hex string (r ++ s ++ v)
-                r_hex = hex(signed_message.r)[2:].zfill(64)
-                s_hex = hex(signed_message.s)[2:].zfill(64)
-                v_hex = hex(signed_message.v)[2:].zfill(2)
+                r_hex = hex(signature.r)[2:].zfill(64)
+                s_hex = hex(signature.s)[2:].zfill(64)
+                v_hex = hex(signature.v + 27)[2:].zfill(2)
                 signature_flat = "0x" + r_hex + s_hex + v_hex
 
                 tx = {
@@ -76,7 +108,7 @@ class PoissonWorkloadGenerator:
                     "gas_price": "0x3b9aca00", # 1 gwei
                     "gas_limit": 21000,
                     "signature": signature_flat,
-                    "timestamp": int(time.time())
+                    "timestamp": timestamp
                 }
                 
                 send_time = datetime.now().isoformat()

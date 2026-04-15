@@ -6,6 +6,7 @@ use async_trait::async_trait;
 
 use crate::{file::FileBackedObjectStore, raw::ObjectStore, Bucket, ObjectStoreError};
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub(crate) struct MirroringObjectStore<S> {
     inner: S,
@@ -13,6 +14,7 @@ pub(crate) struct MirroringObjectStore<S> {
 }
 
 impl<S: ObjectStore> MirroringObjectStore<S> {
+    #[allow(dead_code)]
     pub async fn new(inner: S, mirror_path: PathBuf) -> Result<Self, ObjectStoreError> {
         tracing::info!(
             "Initializing mirroring for store {inner:?} at `{}`",

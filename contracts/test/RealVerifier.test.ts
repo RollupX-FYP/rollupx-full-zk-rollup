@@ -95,7 +95,7 @@ describe("RealVerifier", function () {
           const a = [0, 0];
           const b = [[0, 0], [0, 0]];
           const c = [0, 0];
-          const input = [0, 0, 0];
+          const input = [0, 0, 0, 0];
           
           const ret = await verifier.verifyProof(a, b, c, input);
           expect(ret).to.be.false;
@@ -106,7 +106,7 @@ describe("RealVerifier", function () {
           const a = [0, 0];
           const b = [[0, 0], [0, 0]];
           const c = [0, 0];
-          const input = [scalarField, 0, 0];
+          const input = [scalarField, 0, 0, 0];
           
           await expect(verifier.verifyProof(a, b, c, input)).to.be.revertedWithCustomError(verifier, "VerifierGteSnarkScalarField");
       });
@@ -116,7 +116,7 @@ describe("RealVerifier", function () {
            const a: [any, any] = [primeQ, 0];
            const b: [[any, any], [any, any]] = [[0, 0], [0, 0]];
            const c: [any, any] = [0, 0];
-           const input: [any, any, any] = [0, 0, 0];
+           const input: [any, any, any, any] = [0, 0, 0, 0];
            
            await expect(verifier.verifyProof(a, b, c, input)).to.be.revertedWithCustomError(verifier, "PairingOpcodeFailed");
       });

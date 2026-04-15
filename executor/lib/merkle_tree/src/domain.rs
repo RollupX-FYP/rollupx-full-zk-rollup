@@ -189,7 +189,7 @@ impl ZkSyncTree {
         };
         self.tree
             .root(version)
-            .is_none_or(|root| matches!(root, Root::Empty))
+            .map_or(true, |root| matches!(root, Root::Empty))
     }
 
     /// Returns the next L1 batch number that should be processed by the tree.
