@@ -1,0 +1,30 @@
+batch:
+  max_batch_size: 100
+  timeout_interval_ms: 5000
+  min_batch_size: 10
+  max_gas_limit: 30000000
+
+scheduling:
+  policy_type: "FCFS"
+  time_window_ms: 5000
+
+api:
+  host: "0.0.0.0"
+  port: 3000
+
+l1:
+  rpc_url: "ws://l1-node:8545/"
+  bridge_address: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9"
+  start_block: 0
+
+database:
+  url: "sqlite://sequencer.db"
+
+executor:
+  grpc_url: "http://executor:50051"
+
+prover:
+  backend: "groth16"
+
+da:
+  mode: "calldata"

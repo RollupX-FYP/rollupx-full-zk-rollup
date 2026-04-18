@@ -39,9 +39,11 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
     // ── Step 2: Load Configuration ─────────────────────────────────────
-    // Parse the TOML configuration file into structured config types.
-    let config = Config::load("config/default.toml")?;
-    info!("Sequencer starting with config: {:?}", config);
+    // Parse the YAML configuration file into structured config types.
+    let config_path = std::env::var("SEQUENCER_CONFIG")
+        .unwrap_or_else(|_| "sequencer.yaml".to_string());
+    let config = Config::load(&config_path)?;
+    info!("Sequencer starting with config from {}: {:?}", config_path, config);
 
     // ── Step 3: Initialize Shared Resources ────────────────────────────
     // All shared state is created here and passed to components that need it.

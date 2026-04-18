@@ -1,5 +1,5 @@
 network:
-  rpc_url: "http://127.0.0.1:8545" # default localhost for manual run
+  rpc_url: "http://l1-node:8545"
   chain_id: 31337
 
 contracts:
@@ -38,3 +38,6 @@ aggregator:
 simulation:
   mock_proving_time_ms: 200
   gas_price_fluctuation: 1.0
+
+prover:
+  url: "http://executor:50051"
