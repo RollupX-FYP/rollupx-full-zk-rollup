@@ -13,5 +13,6 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y ca-certificates openssl gettext-base && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/submitter/target/release/submitter /usr/local/bin/submitter
+COPY submitter/submitter.docker.yaml /app/submitter.yaml
 
-CMD ["submitter"]
+CMD ["submitter", "--config", "/app/submitter.yaml"]

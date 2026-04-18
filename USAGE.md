@@ -14,7 +14,22 @@ Welcome to the RollupX system. This guide provides comprehensive, step-by-step i
 
 ## 1. Starting the System Components
 
-RollupX relies on several microservices running in tandem: an L1 node, a Sequencer, an Executor, and a Submitter. Here’s the manual way to spin them up.
+RollupX relies on several microservices running in tandem: an L1 node, a Sequencer, an Executor, and a Submitter.
+
+### Recommended: Docker Compose
+You can run the entire system via Docker Compose:
+```bash
+docker compose up --build
+```
+This handles starting the L1 node, deploying contracts, and launching the sequencer, executor, and submitter with their configured YAML files.
+
+### Manual Startup
+Here’s the manual way to spin them up.
+
+> **⚠️ Known Issue (Local Executor Compilation):**
+> Local cargo compilation of the `executor` is currently blocked by a pre-existing upstream toolchain inconsistency. The executor's `rust-toolchain.toml` is pinned to `nightly-2024-08-01`, but its committed `Cargo.lock` resolves to newer dependencies requiring Rust 2024 features.
+>
+> Until this lockfile/toolchain incompatibility is resolved in a separate task, the recommended way to run the executor locally is strictly via Docker Compose (`docker compose up --build`).
 
 ### Step 1: Start the Local Ethereum (L1) Node
 We use Hardhat to simulate an Ethereum L1 locally.
@@ -37,30 +52,25 @@ npx hardhat run scripts/deploy-local.ts --network localhost
 The executor processes batches from the Sequencer. In the default configuration (`grpc` mode), it acts as a pass-through layer that bridges directly to the Submitter.
 ```bash
 cd executor
-export EXECUTOR_MODE="grpc"
-export EXECUTOR_GRPC_ADDR="127.0.0.1:50051"
-cargo run --release
+export EXECUTOR_CONFIG="executor.yaml"
+python3 run_executor.py ./target/release/zksync_state_machine
 ```
 
 ### Step 4: Start the Submitter
 The Submitter pulls completed execution batches and lands the mocked ZK proofs on L1.
 ```bash
 cd submitter
-export EXECUTOR_URL="http://127.0.0.1:50051"
-export L1_RPC_URL="http://127.0.0.1:8545"
-# Add your deployed bridge address here
-export BRIDGE_ADDRESS="0x..." 
 export SUBMITTER_PRIVATE_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-cargo run --release
+cargo run --release --bin submitter -- --config submitter.yaml
 ```
 
 ### Step 5: Start the Sequencer
 Finally, run the Sequencer which handles incoming REST API transactions, batches them, and fires them to the Executor over gRPC.
 ```bash
 cd sequencer
-export EXECUTOR_GRPC_URL="http://127.0.0.1:50051"
-# Ensure the config matches your DB paths and Bridge address in `sequencer/config/default.toml`.
+# Ensure the config matches your DB paths and Bridge address in `sequencer/sequencer.yaml`.
 # Then run:
+export SEQUENCER_CONFIG="sequencer.yaml"
 cargo run --release
 ```
 

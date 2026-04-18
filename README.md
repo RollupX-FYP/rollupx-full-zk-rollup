@@ -29,4 +29,12 @@ The system implements the full transaction lifecycle from inception to execution
 
 ## Usage
 
-See [USAGE.md](USAGE.md) for a comprehensive guide on starting the system components, generating workloads, running automated benchmarks, and using the data tools.
+See [USAGE.md](USAGE.md) for a comprehensive guide on starting the system components (both manually and via Docker Compose), generating workloads, running automated benchmarks, and using the data tools.
+
+### Docker Compose
+You can run the entire system via Docker Compose:
+
+```bash
+docker compose up --build
+```
+This sets up the `l1-node`, compiles contracts, and starts the `sequencer`, `executor`, and `submitter` components using their respective YAML configurations.
