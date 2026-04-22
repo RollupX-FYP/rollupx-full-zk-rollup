@@ -20,7 +20,7 @@ members = [
   "lib/vm_interface",
   "lib/crypto_primitives",
   "lib/test_contracts",
-  "src",
+  "state_machine",
   "lib/vlog",
   "lib/instrument",
   "lib/circuit_breaker",
@@ -274,7 +274,7 @@ zksync_external_price_api = { version = "29.15.0-non-semver-compat", path = "lib
 zksync_task_management = { version = "29.15.0-non-semver-compat", path = "lib/task_management" }
 zk_os_merkle_tree = { version = "29.15.0-non-semver-compat", path = "lib/zk_os_merkle_tree" }
 zksync_settlement_layer_data = { version = "29.15.0-non-semver-compat", path = "lib/settlement_layer_data" }
-zksync_state_machine = { version = "29.15.0-non-semver-compat", path = "src" }
+zksync_state_machine = { version = "29.15.0-non-semver-compat", path = "state_machine" }
 
 # Framework and components
 zksync_node_framework = { version = "29.15.0-non-semver-compat", path = "lib/node_framework" }

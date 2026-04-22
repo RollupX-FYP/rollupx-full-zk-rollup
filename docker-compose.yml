@@ -1,5 +1,8 @@
 services:
   l1-node:
+    profiles:
+      - core
+      - full
     build:
       context: ./contracts
       dockerfile: Dockerfile.node
@@ -12,6 +15,9 @@ services:
       retries: 10
 
   setup:
+    profiles:
+      - core
+      - full
     build:
       context: ./contracts
       dockerfile: Dockerfile
@@ -23,6 +29,9 @@ services:
       - SEPOLIA_RPC_URL=http://l1-node:8545
 
   sequencer:
+    profiles:
+      - core
+      - full
     build:
       context: .
       dockerfile: sequencer/Dockerfile
@@ -37,6 +46,8 @@ services:
         condition: service_healthy
 
   executor:
+    profiles:
+      - full
     build:
       context: .
       dockerfile: executor/Dockerfile
@@ -50,6 +61,8 @@ services:
       - sequencer
 
   submitter:
+    profiles:
+      - full
     build:
       context: .
       dockerfile: submitter/Dockerfile

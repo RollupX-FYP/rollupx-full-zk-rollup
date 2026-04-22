@@ -74,10 +74,7 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
         Box::new(FileBatchSource::new(PathBuf::from("batch_output.json")))
     } else {
         info!("Using gRPC batch source");
-        // Fallback to checking the config struct if the env var isn't set
-        let executor_url = std::env::var("EXECUTOR_URL").unwrap_or_else(|_| {
-            cfg.prover.as_ref().map(|p| p.url.clone()).unwrap_or_else(|| "http://127.0.0.1:50051".to_string())
-        });
+        let executor_url = std::env::var("EXECUTOR_URL").unwrap_or_else(|_| "http://127.0.0.1:50051".to_string());
         Box::new(GrpcBatchSource::new(executor_url))
     };
 

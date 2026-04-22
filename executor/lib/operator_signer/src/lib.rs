@@ -5,18 +5,11 @@
 
 use std::sync::Arc;
 
-#[cfg(feature = "gcp-kms")]
 use alloy_primitives::B256;
-#[cfg(feature = "gcp-kms")]
 use alloy_signer::Signer;
-#[cfg(feature = "gcp-kms")]
 use alloy_signer_gcp::GcpSigner;
-
 use async_trait::async_trait;
-
-#[cfg(feature = "gcp-kms")]
 use tokio::sync::OnceCell;
-
 use zksync_basic_types::{web3, Address, H256};
 use zksync_config::configs::wallets::Wallet;
 use zksync_crypto_primitives::{
@@ -26,7 +19,6 @@ use zksync_eth_signer::{
     EthereumSigner, PrivateKeySigner, SignerError, Transaction, TransactionParameters,
 };
 
-#[cfg(feature = "gcp-kms")]
 mod gcp;
 
 /// Operator signer supporting both local private keys and GCP KMS.
@@ -40,7 +32,6 @@ pub enum OperatorSigner {
     /// Use a local private key for signing.
     Local(PrivateKeySigner),
     /// Use a Google Cloud KMS key for signing.
-    #[cfg(feature = "gcp-kms")]
     GcpKms {
         /// Full resource name of the KMS key version, e.g.
         /// `projects/{project}/locations/{location}/keyRings/{ring}/cryptoKeys/{key}/cryptoKeyVersions/{version}`
@@ -57,7 +48,6 @@ impl OperatorSigner {
     }
 
     /// Creates a GCP KMS signer config with an empty signer cache.
-    #[cfg(feature = "gcp-kms")]
     pub fn gcp_kms(resource_name: String) -> Self {
         Self::GcpKms {
             resource_name,
@@ -67,14 +57,11 @@ impl OperatorSigner {
 
     /// Creates an [`OperatorSigner`] from a [`Wallet`] config.
     pub fn from_wallet(wallet: &Wallet) -> Self {
-        #[cfg(feature = "gcp-kms")]
-        {
-            if let Some(resource) = wallet.gcp_kms_resource() {
-                return Self::gcp_kms(resource.to_string());
-            }
+        if let Some(resource) = wallet.gcp_kms_resource() {
+            Self::gcp_kms(resource.to_string())
+        } else {
+            Self::local(wallet.private_key().clone())
         }
-        
-        Self::local(wallet.private_key().clone())
     }
 
     /// Returns the Ethereum address for this signer.
@@ -85,7 +72,6 @@ impl OperatorSigner {
     pub async fn address(&self) -> Result<Address, SignerError> {
         match self {
             Self::Local(signer) => Ok(signer.address()),
-            #[cfg(feature = "gcp-kms")]
             Self::GcpKms { .. } => {
                 let signer = self.get_gcp_signer().await?;
                 Ok(Address::from_slice(signer.address().as_slice()))
@@ -94,7 +80,6 @@ impl OperatorSigner {
     }
 
     /// Returns the cached GCP signer, creating it on first call.
-    #[cfg(feature = "gcp-kms")]
     async fn get_gcp_signer(&self) -> Result<&GcpSigner, SignerError> {
         match self {
             Self::GcpKms {
@@ -111,7 +96,6 @@ impl OperatorSigner {
     /// Signs a hash via GCP KMS and converts the alloy signature to `(r, s, y_parity)`.
     ///
     /// `y_parity` is 0 or 1 (NOT Electrum-style 27/28).
-    #[cfg(feature = "gcp-kms")]
     async fn gcp_sign_hash(&self, hash: &H256) -> Result<(H256, H256, u8), SignerError> {
         let signer = self.get_gcp_signer().await?;
         let sig = signer
@@ -138,7 +122,6 @@ impl EthereumSigner for OperatorSigner {
     ) -> Result<PackedEthSignature, SignerError> {
         match self {
             Self::Local(signer) => signer.sign_typed_data(domain, typed_struct),
-            #[cfg(feature = "gcp-kms")]
             Self::GcpKms { .. } => {
                 let hash = H256::from(
                     PackedEthSignature::typed_data_to_signed_bytes(domain, typed_struct).0,
@@ -155,7 +138,6 @@ impl EthereumSigner for OperatorSigner {
     ) -> Result<Vec<u8>, SignerError> {
         match self {
             Self::Local(signer) => Ok(signer.sign_transaction(raw_tx)),
-            #[cfg(feature = "gcp-kms")]
             Self::GcpKms { .. } => {
                 let chain_id = raw_tx.chain_id;
                 let tx = Transaction::from(raw_tx);

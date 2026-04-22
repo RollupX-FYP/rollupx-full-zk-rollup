@@ -13,8 +13,8 @@ A production-grade, highly reliable Rust service for submitting ZK Rollup batche
 - **Reliability & Resilience:** Implements **Outbox Pattern**, **Saga Workflow**, **Circuit Breakers**, **Exponential Backoff**, and **Crash Recovery** to ensure fault tolerance.
 - **Data Availability:** Supports **Calldata** (Legacy) and **EIP-4844 Blobs** with **Archiver** integration for long-term persistence.
 - **Experimental Features:**
-  - **Priority Scheduling:** Reorders batches based on fees when configured.
-  - **Payload Compression:** Compresses calldata using Zlib (flate2) to reduce L1 costs.
+    - **Priority Scheduling:** Reorders batches based on fees when configured.
+    - **Payload Compression:** Compresses calldata using Zlib (flate2) to reduce L1 costs.
 - **Idempotency:** Deterministic batch processing (UUID v5) prevents double-spending and ensures consistency.
 - **Observability:** Built-in Prometheus metrics and structured JSON logging (Tracing).
 - **Persistence:** Supports both **SQLite** (local/dev) and **PostgreSQL** (production).
@@ -38,21 +38,16 @@ For more detailed information, please refer to:
 - **Docker**: For containerized deployment and Postgres integration tests.
 - **Ethereum Node**: An RPC endpoint (e.g., Anvil, Hardhat, Geth).
 
-`protoc` is vendored via build dependencies, so no system-wide protobuf compiler install is required.
-
 ### Configuration
 
 The daemon is configured via a YAML file (e.g., `submitter.yaml`) and Environment Variables.
 
 **Environment Variables:**
-
 - `SUBMITTER_PRIVATE_KEY`: **Required**. The private key (hex) of the wallet submitting transactions.
 - `DATABASE_URL`: **Required**. Connection string for the database.
-  - SQLite: `sqlite://data/submitter.db`
-  - Postgres: `postgres://user:pass@localhost:5432/db`
+    - SQLite: `sqlite://data/submitter.db`
+    - Postgres: `postgres://user:pass@localhost:5432/db`
 - `RUST_LOG`: **Optional**. Log level (e.g., `info`, `debug`).
-- `COMM_MODE`: **Optional**. `grpc` (default) or `file`.
-- `EXECUTOR_URL`: **Optional**. gRPC endpoint used when `COMM_MODE=grpc` (default `http://127.0.0.1:50051`).
 
 ### Running Locally
 
@@ -66,8 +61,6 @@ touch data/submitter.db
 # 2. Export Env Vars
 export DATABASE_URL=sqlite://data/submitter.db
 export SUBMITTER_PRIVATE_KEY="0x..." # Replace with your key
-export COMM_MODE=grpc
-export EXECUTOR_URL=http://127.0.0.1:50051
 
 # 3. Run
 cargo run --bin submitter -- --config submitter.yaml
@@ -76,13 +69,11 @@ cargo run --bin submitter -- --config submitter.yaml
 ### Docker Usage
 
 Build the production image:
-
 ```bash
 docker build -t submitter .
 ```
 
 Run the container:
-
 ```bash
 docker run -d \
   --name submitter \

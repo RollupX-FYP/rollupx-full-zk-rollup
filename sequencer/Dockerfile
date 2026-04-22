@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/rust:1.79 as builder
+FROM rust:1.91.1-bookworm as builder
 WORKDIR /app
 
 # Install dependencies for compilation

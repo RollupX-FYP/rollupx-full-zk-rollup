@@ -1,40 +1,30 @@
-# RollupX Architecture
 
-RollupX is an experimental, modular Layer-2 ZK-Rollup prototype. Its primary design goal is high throughput, custom transaction scheduling, and comprehensive observability across various components. 
+## Docker E2E Stack
+The local Docker setup is split into `core` and `full` profiles. The `core` profile is verified and includes the local L1 node, setup node, and sequencer. The `full` profile additionally includes executor-dependent services, but is currently blocked by a pre-existing executor toolchain/lockfile incompatibility. This PR intentionally does not modify the executor dependency graph or pinned Rust toolchain, so that Docker/configuration changes remain isolated from upstream executor build issues.
 
-The system implements the full transaction lifecycle from inception to execution. However, **the Zero-Knowledge proving subsystem (Prover) is currently entirely mocked/stubbed**, and data availability (DA) is posted to a local L1 (Ethereum/Hardhat) with verification checks that utilize mock verification responses. 
-
-## Documentation Map
-
-- [docs/system-overview.md](docs/system-overview.md): High-level overview of the system architecture and components.
-- [docs/e2e-flow.md](docs/e2e-flow.md): End-to-end transaction lifecycle from generation to L1 settlement.
-- [docs/ui.md](docs/ui.md): Overview of the partially implemented Next.js frontend dashboard.
-- [docs/workload-generator.md](docs/workload-generator.md): Details on the Python-based workload generator.
-- [docs/sequencer.md](docs/sequencer.md): Deep dive into the Sequencer microservice.
-- [docs/executor.md](docs/executor.md): Details on the Executor microservice.
-- [docs/prover.md](docs/prover.md): Information regarding the mocked Prover subsystem.
-- [docs/submitter.md](docs/submitter.md): Documentation on the Submitter microservice.
-- [docs/contracts.md](docs/contracts.md): Details on the L1 Solidity smart contracts.
-- [docs/data-tools.md](docs/data-tools.md): Guide to the data analysis and visualization pipeline.
-- [docs/runtime-integration.md](docs/runtime-integration.md): Information on how the components integrate during runtime.
-- [docs/known-gaps.md](docs/known-gaps.md): Known limitations, mocked areas, and incomplete flows.
-
-## Recommended Reading Order
-
-1. [docs/system-overview.md](docs/system-overview.md)
-2. [docs/e2e-flow.md](docs/e2e-flow.md)
-3. Component-specific documentation as needed (e.g., [docs/sequencer.md](docs/sequencer.md), [docs/executor.md](docs/executor.md))
-4. [docs/data-tools.md](docs/data-tools.md)
-5. [docs/known-gaps.md](docs/known-gaps.md)
-
-## Usage
-
-See [USAGE.md](USAGE.md) for a comprehensive guide on starting the system components (both manually and via Docker Compose), generating workloads, running automated benchmarks, and using the data tools.
-
-### Docker Compose
-You can run the entire system via Docker Compose:
-
+### Running the Core Stack
+To launch the verified core stack, run:
 ```bash
-docker compose up --build
+docker compose --profile core up --build -d
 ```
-This sets up the `l1-node`, compiles contracts, and starts the `sequencer`, `executor`, and `submitter` components using their respective YAML configurations.
+This will start the local Ethereum node, deploy the contracts, and start the Sequencer. The project can still be used in **core Docker mode**.
+
+### Running the Full Stack
+If you wish to attempt running the full stack, run:
+```bash
+docker compose --profile full up --build
+```
+*Note: This will currently fail on the `executor` build step. This is a known, pre-existing issue.*
+
+## Known Blockers
+This PR **does not fix executor source-build compatibility**. It ensures Docker/core stack usability and clean separation of blocked services.
+* **Service:** `executor`
+* **Reason:** Pre-existing toolchain / lockfile / dependency incompatibility. The executor's `ruint` dependency requires `edition2024` on a newer nightly compiler, conflicting with its locked `nightly-2024-08-01` toolchain. This is **not introduced by this PR**.
+* **Untouched Files:** `executor/Cargo.toml`, `executor/Cargo.lock`, and `executor/rust-toolchain.toml` were intentionally left untouched in this PR to avoid mixing Docker/config work with dependency surgery.
+
+A follow-up task is required to repair executor lockfile/toolchain compatibility for source and Docker builds.
+
+## Sequencer Configuration
+The Sequencer accepts YAML or TOML configurations. By default, it loads `config/default.toml`.
+You can override the configuration file by setting the `SEQUENCER_CONFIG` environment variable. The environment variable takes precedence over the default path.
+For example, in Docker, it mounts `sequencer.docker.yaml` and sets `SEQUENCER_CONFIG=/app/sequencer.yaml`.
