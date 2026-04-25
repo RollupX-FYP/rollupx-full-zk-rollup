@@ -10,25 +10,16 @@ license.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
-[features]
-default = []
-gcp-kms = [
-  "dep:alloy-primitives",
-  "dep:alloy-signer",
-  "dep:alloy-signer-gcp",
-  "dep:gcloud-sdk",
-]
-
 [dependencies]
 zksync_basic_types.workspace = true
 zksync_config.workspace = true
 zksync_crypto_primitives.workspace = true
 zksync_eth_signer.workspace = true
 
-alloy-primitives = { workspace = true, optional = true }
-alloy-signer = { workspace = true, optional = true }
-alloy-signer-gcp = { workspace = true, optional = true }
-gcloud-sdk = { workspace = true, optional = true }
+alloy-primitives.workspace = true
+alloy-signer.workspace = true
+alloy-signer-gcp.workspace = true
+gcloud-sdk.workspace = true
 anyhow.workspace = true
 async-trait.workspace = true
 tokio = { workspace = true, features = ["sync"] }

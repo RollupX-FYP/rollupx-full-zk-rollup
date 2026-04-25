@@ -25,10 +25,7 @@
 
 mod factory;
 mod file;
-
-#[cfg(feature = "gcs")]
 mod gcs;
-
 mod metrics;
 mod mirror;
 mod mock;
@@ -37,8 +34,6 @@ pub mod node;
 mod objects;
 mod raw;
 mod retries;
-
-#[cfg(feature = "aws-s3")]
 mod s3;
 
 // Re-export `bincode` crate so that client binaries can conveniently use it.
@@ -52,10 +47,8 @@ pub mod _reexports {
 pub use self::{
     factory::ObjectStoreFactory,
     file::FileBackedObjectStore,
+    gcs::{GoogleCloudStore, GoogleCloudStoreAuthMode},
     mock::MockObjectStore,
     objects::StoredObject,
     raw::{Bucket, ObjectStore, ObjectStoreError},
 };
-
-#[cfg(feature = "gcs")]
-pub use self::gcs::{GoogleCloudStore, GoogleCloudStoreAuthMode};

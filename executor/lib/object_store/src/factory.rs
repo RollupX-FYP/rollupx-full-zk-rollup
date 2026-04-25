@@ -6,16 +6,12 @@ use zksync_config::configs::object_store::{ObjectStoreConfig, ObjectStoreMode};
 
 use crate::{
     file::FileBackedObjectStore,
+    gcs::{GoogleCloudStore, GoogleCloudStoreAuthMode},
     mirror::MirroringObjectStore,
     raw::{ObjectStore, ObjectStoreError},
     retries::StoreWithRetries,
+    s3::{S3Store, S3StoreAuthMode},
 };
-
-#[cfg(feature = "gcs")]
-use crate::gcs::{GoogleCloudStore, GoogleCloudStoreAuthMode};
-
-#[cfg(feature = "aws-s3")]
-use crate::s3::{S3Store, S3StoreAuthMode};
 
 /// Factory of [`ObjectStore`]s that caches the store instance once it's created. Used mainly for legacy reasons.
 ///
@@ -67,7 +63,6 @@ impl ObjectStoreFactory {
     ) -> Result<Arc<dyn ObjectStore>, ObjectStoreError> {
         tracing::trace!("Initializing object store with configuration {config:?}");
         match &config.mode {
-            #[cfg(feature = "gcs")]
             ObjectStoreMode::GCS { bucket_base_url } => {
                 let store = StoreWithRetries::try_new(config.max_retries, || {
                     GoogleCloudStore::new(
@@ -78,7 +73,6 @@ impl ObjectStoreFactory {
                 .await?;
                 Self::wrap_mirroring(store, config.local_mirror_path.as_deref()).await
             }
-            #[cfg(feature = "gcs")]
             ObjectStoreMode::GCSWithCredentialFile {
                 bucket_base_url,
                 gcs_credential_file_path,
@@ -94,7 +88,6 @@ impl ObjectStoreFactory {
                 .await?;
                 Self::wrap_mirroring(store, config.local_mirror_path.as_deref()).await
             }
-            #[cfg(feature = "gcs")]
             ObjectStoreMode::GCSAnonymousReadOnly { bucket_base_url } => {
                 let store = StoreWithRetries::try_new(config.max_retries, || {
                     GoogleCloudStore::new(
@@ -106,7 +99,6 @@ impl ObjectStoreFactory {
                 Self::wrap_mirroring(store, config.local_mirror_path.as_deref()).await
             }
 
-            #[cfg(feature = "aws-s3")]
             ObjectStoreMode::S3WithCredentialFile {
                 bucket_base_url,
                 s3_credential_file_path,
@@ -126,7 +118,6 @@ impl ObjectStoreFactory {
                 .await?;
                 Self::wrap_mirroring(store, config.local_mirror_path.as_deref()).await
             }
-            #[cfg(feature = "aws-s3")]
             ObjectStoreMode::S3AnonymousReadOnly {
                 bucket_base_url,
                 endpoint,
@@ -142,19 +133,6 @@ impl ObjectStoreFactory {
                 })
                 .await?;
                 Self::wrap_mirroring(store, config.local_mirror_path.as_deref()).await
-            }
-
-            #[cfg(not(feature = "gcs"))]
-            ObjectStoreMode::GCS { .. }
-            | ObjectStoreMode::GCSWithCredentialFile { .. }
-            | ObjectStoreMode::GCSAnonymousReadOnly { .. } => {
-                unimplemented!("GCS features are disabled");
-            }
-
-            #[cfg(not(feature = "aws-s3"))]
-            ObjectStoreMode::S3WithCredentialFile { .. }
-            | ObjectStoreMode::S3AnonymousReadOnly { .. } => {
-                unimplemented!("AWS S3 features are disabled");
             }
 
             ObjectStoreMode::FileBacked {
@@ -176,7 +154,6 @@ impl ObjectStoreFactory {
         }
     }
 
-    #[allow(dead_code)]
     async fn wrap_mirroring(
         store: impl ObjectStore,
         mirror_path: Option<&Path>,

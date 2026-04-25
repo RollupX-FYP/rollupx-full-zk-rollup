@@ -117,7 +117,6 @@ impl<M: Middleware + 'static> DaStrategy for OffChainStrategy<M> {
             latency_ms: latency,
             compression_ratio: None,
             gas_saved: None,
-            gas_used: None,
         })
     }
 

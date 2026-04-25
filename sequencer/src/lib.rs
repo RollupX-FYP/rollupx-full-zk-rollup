@@ -26,7 +26,6 @@ pub mod scheduler;   // Manages configurable transaction ordering policies.
 pub mod batch;       // Handles batch creation, triggering, and orchestration.
 pub mod registry;    // Manages persistent batch metadata storage.
 pub mod config;      // Defines and loads system configuration.
-pub mod proto;       // gRPC protobuf client bindings.
 
 // Re-export commonly used types and configurations for easier access.
 pub use types::*;

@@ -10,7 +10,7 @@ COPY . .
 WORKDIR /app/executor
 RUN cargo build --release --bin zksync_state_machine
 
-FROM public.ecr.aws/docker/library/debian:bookworm-slim
+FROM debian:bookworm-slim
 WORKDIR /app
 
 # Install python3 and yaml for the wrapper

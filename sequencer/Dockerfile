@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/rust:1.79 as builder
+FROM rust:1.91.1-bookworm as builder
 WORKDIR /app
 
 # Install dependencies for compilation
@@ -10,7 +10,7 @@ COPY . .
 WORKDIR /app/sequencer
 RUN cargo build --release --bin sequencer
 
-FROM public.ecr.aws/docker/library/debian:bookworm-slim
+FROM debian:bookworm-slim
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y ca-certificates openssl gettext-base && rm -rf /var/lib/apt/lists/*

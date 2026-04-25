@@ -1,7 +1,7 @@
 //! Configuration Module
 //! 
 //! This module defines all configuration structures for the sequencer.
-//! Configuration is loaded from YAML files and parsed using serde.
+//! Configuration is loaded from TOML files and parsed using serde.
 
 use serde::Deserialize;
 use std::fs;
@@ -9,21 +9,21 @@ use std::fs;
 /// Main configuration structure
 /// 
 /// Contains all configuration sections for the sequencer.
-/// Loaded from a YAML file (e.g., sequencer.yaml).
+/// Loaded from a TOML file (e.g., config/default.toml).
 /// 
-/// # Example YAML
-/// ```yaml
-/// batch:
-///   max_batch_size: 100
-///   timeout_interval_ms: 5000
-///   min_batch_size: 10
+/// # Example TOML
+/// ```toml
+/// [batch]
+/// max_batch_size = 100
+/// timeout_interval_ms = 5000
+/// min_batch_size = 10
 /// 
-/// scheduling:
-///   policy_type: "FCFS"
+/// [scheduling]
+/// policy_type = "FCFS"
 /// 
-/// api:
-///   host: "127.0.0.1"
-///   port: 8545
+/// [api]
+/// host = "127.0.0.1"
+/// port = 8545
 /// ```
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
@@ -32,66 +32,6 @@ pub struct Config {
     pub api: ApiConfig,
     pub l1: L1Config,
     pub database: DatabaseConfig,
-    #[serde(default)]
-    pub executor: ExecutorConfig,
-    #[serde(default)]
-    pub prover: ProverConfig,
-    #[serde(default)]
-    pub da: DaConfig,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct ExecutorConfig {
-    #[serde(default = "default_executor_grpc_url")]
-    pub grpc_url: String,
-}
-
-fn default_executor_grpc_url() -> String {
-    "http://127.0.0.1:50051".to_string()
-}
-
-impl Default for ExecutorConfig {
-    fn default() -> Self {
-        Self {
-            grpc_url: default_executor_grpc_url(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct ProverConfig {
-    #[serde(default = "default_prover_backend")]
-    pub backend: String,
-}
-
-fn default_prover_backend() -> String {
-    "groth16".to_string()
-}
-
-impl Default for ProverConfig {
-    fn default() -> Self {
-        Self {
-            backend: default_prover_backend(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Deserialize)]
-pub struct DaConfig {
-    #[serde(default = "default_da_mode")]
-    pub mode: String,
-}
-
-fn default_da_mode() -> String {
-    "calldata".to_string()
-}
-
-impl Default for DaConfig {
-    fn default() -> Self {
-        Self {
-            mode: default_da_mode(),
-        }
-    }
 }
 
 /// Batch creation configuration
@@ -198,25 +138,29 @@ pub struct DatabaseConfig {
 }
 
 impl Config {
-    /// Load configuration from a YAML file
+    /// Load configuration from a TOML file
     /// 
     /// # Arguments
-    /// * `path` - Path to the YAML configuration file
+    /// * `path` - Path to the TOML configuration file
     /// 
     /// # Returns
     /// * `Ok(Config)` if the file was successfully loaded and parsed
-    /// * `Err` if the file couldn't be read or the YAML is invalid
+    /// * `Err` if the file couldn't be read or the TOML is invalid
     /// 
     /// # Example
     /// ```ignore
-    /// let config = Config::load("sequencer.yaml")?;
+    /// let config = Config::load("config/default.toml")?;
     /// ```
     pub fn load(path: &str) -> anyhow::Result<Self> {
         // Read the file contents as a string
         let content = fs::read_to_string(path)?;
         
-        // Parse the YAML into our Config structure
-        let config: Config = serde_yaml::from_str(&content)?;
+        // Parse the TOML into our Config structure
+        let config: Config = if path.ends_with(".yaml") || path.ends_with(".yml") {
+            serde_yaml::from_str(&content)?
+        } else {
+            toml::from_str(&content)?
+        };
         
         Ok(config)
     }
