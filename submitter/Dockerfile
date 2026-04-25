@@ -10,7 +10,7 @@ COPY . .
 WORKDIR /app/submitter
 RUN cargo build --release --bin submitter
 
-FROM public.ecr.aws/docker/library/debian:bookworm-slim
+FROM debian:bookworm-slim
 WORKDIR /app
 
 # Install python3 and yaml for the wrapper
