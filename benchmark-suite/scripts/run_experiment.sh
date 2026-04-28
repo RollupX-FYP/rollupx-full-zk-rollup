@@ -87,7 +87,7 @@ if [[ -x "$SEQUENCER_BIN" ]]; then
     sleep 1
 
     echo "[sequencer] starting with config $SEQ_CONFIG ..."
-    ROLLUPX_CONFIG="$SEQ_CONFIG" "$SEQUENCER_BIN" \
+    SEQUENCER_CONFIG="$SEQ_CONFIG" "$SEQUENCER_BIN" \
         > "$METRICS_ROOT/sequencer.log" 2>&1 &
     SEQ_PID=$!
     echo "[sequencer] PID=$SEQ_PID"

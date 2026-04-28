@@ -108,9 +108,8 @@ def section_results_table(df: pd.DataFrame) -> str:
     headers   = [h for _, h in available]
 
     # one row per experiment (mean across repeats)
-    numeric_cols = [c for c, _ in available if c != "experiment_id"]
     agg = df.groupby("experiment_id").agg(
-        {c: "first" if df[c].dtype == object else "mean" for c, _ in available}
+        {c: "first" if df[c].dtype == "O" or pd.api.types.is_string_dtype(df[c]) else "mean" for c, _ in available if c != "experiment_id"}
     ).reset_index()
 
     rows = []

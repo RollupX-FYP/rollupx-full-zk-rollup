@@ -9,13 +9,13 @@ policy_type   = "${POLICY}"
 time_window_ms = 5000
 
 [api]
-host = "${SEQ_HOST:-127.0.0.1}"
-port = ${SEQ_PORT:-3000}
+host = "${SEQ_HOST}"
+port = ${SEQ_PORT}
 
 [l1]
 rpc_url        = "${L1_RPC_URL}"
 bridge_address = "${BRIDGE_ADDRESS}"
-start_block    = ${START_BLOCK:-0}
+start_block    = ${START_BLOCK}
 
 [database]
 url = "sqlite://sequencer_${RUN_ID}.db"
