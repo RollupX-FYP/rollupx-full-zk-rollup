@@ -105,6 +105,11 @@ impl Server {
         let app = Router::new()
             .route("/", post(handle_rpc))
             .route("/tx", post(handle_rest_tx))
+            .route("/health", axum::routing::get(|| async { "OK" }))
+
+
+
+
             .with_state(self.state);
 
         // Format the listening address from config

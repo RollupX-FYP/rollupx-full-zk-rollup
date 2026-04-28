@@ -137,7 +137,7 @@ def plot_all_frontiers(df: pd.DataFrame, output_dir: str):
     # ── 4. DA mode comparison bar ─────────────────────────────────────────────
     if "da_mode" in df.columns and "avg_gas_per_tx" in df.columns:
         da_agg = (
-            df.groupby("da_mode")[["avg_gas_per_tx", "avg_l2_l1_ms", "avg_comp_ratio"]]
+            df.groupby("da_mode")[[c for c in ["avg_gas_per_tx", "avg_l2_l1_ms", "avg_comp_ratio"] if c in df.columns]]
             .mean()
             .reset_index()
         )
@@ -148,6 +148,7 @@ def plot_all_frontiers(df: pd.DataFrame, output_dir: str):
                 ("avg_l2_l1_ms",    "Avg L2→L1 (ms)"),
                 ("avg_comp_ratio",  "Avg Compression Ratio"),
             ]):
+                if col not in da_agg.columns: continue
                 bars = axes[ax_i].bar(
                     da_agg["da_mode"], da_agg[col],
                     color=plt.cm.tab10.colors[:len(da_agg)], alpha=0.85,
