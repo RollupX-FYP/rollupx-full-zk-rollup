@@ -28,15 +28,15 @@ tonic = { workspace = true, features = ["transport", "codegen", "prost"] }
 prost.workspace = true
 futures-util.workspace = true
 tracing.workspace = true
-
-zksync_contracts.workspace = true
-zksync_crypto_primitives.workspace = true
-zksync_merkle_tree.workspace = true
-zksync_multivm.workspace = true
-zksync_prover_interface.workspace = true
-zksync_system_constants.workspace = true
-zksync_types.workspace = true
-zksync_vm_interface.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+k256 = { version = "0.13", features = ["ecdsa"] }
+bincode.workspace = true
+rollup_core = { path = "../risc0_prover/rollup_core" }
+rocksdb.workspace = true
+zksync_merkle_tree = { path = "../lib/merkle_tree" }
+zksync_storage = { path = "../lib/storage" }
+zksync_types = { path = "../lib/types" }
 
 [dev-dependencies]
 tempfile.workspace = true
@@ -46,4 +46,4 @@ tonic-build = "0.11.0"
 protoc-bin-vendored = "3"
 
 [features]
-artifact-contracts = []
+rocksdb = []
