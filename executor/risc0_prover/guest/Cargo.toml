@@ -1,0 +1,9 @@
+[package]
+name = "rollup_guest"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+risc0-zkvm = { version = "1", default-features = false, features = ["std"] }
+rollup_core = { path = "../rollup_core" }
+serde = { version = "1", features = ["derive"] }
