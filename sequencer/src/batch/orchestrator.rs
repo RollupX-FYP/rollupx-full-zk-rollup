@@ -163,6 +163,22 @@ impl BatchOrchestrator {
         );
         info!("Scheduling policy: {}", self.scheduler.policy_name());
 
+        // Recover batch ID sequence from persistent registry so restarts do not
+        // collide with existing rows (batch_id is PRIMARY KEY).
+        match self.registry.get_next_batch_id().await {
+            Ok(next_id) => {
+                let mut engine = self.batch_engine.write().await;
+                engine.set_next_batch_id(next_id);
+                info!("Recovered next batch id from registry: {}", next_id);
+            }
+            Err(err) => {
+                warn!(
+                    "Failed to recover next batch id from registry (defaulting to 1): {:?}",
+                    err
+                );
+            }
+        }
+
         let mut last_batch_time = Instant::now();
 
         loop {

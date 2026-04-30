@@ -171,6 +171,17 @@ impl Registry {
 
         Ok(row.0 as u64)
     }
+
+    /// Returns the next available batch ID.
+    ///
+    /// Uses `MAX(batch_id) + 1` so a restarted sequencer continues from the
+    /// persisted registry rather than resetting to 1.
+    pub async fn get_next_batch_id(&self) -> anyhow::Result<u64> {
+        let row: (Option<i64>,) = sqlx::query_as("SELECT MAX(batch_id) FROM batches")
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(row.0.map(|v| v as u64 + 1).unwrap_or(1))
+    }
 }
 
 /// Internal row struct for SQLite query deserialization
