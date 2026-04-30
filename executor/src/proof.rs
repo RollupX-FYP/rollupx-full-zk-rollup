@@ -6,9 +6,16 @@ use std::process::Command;
 
 #[derive(Clone)]
 pub struct ProverBackend {
-    pub host_binary: PathBuf,
-    pub guest_elf: PathBuf,
-    pub work_dir: PathBuf,
+    pub kind: ProverBackendKind,
+}
+
+#[derive(Clone)]
+pub enum ProverBackendKind {
+    Risc0 {
+        host_binary: PathBuf,
+        guest_elf: Option<PathBuf>,
+        work_dir: PathBuf,
+    },
 }
 
 pub struct ProofArtifacts {
@@ -28,36 +35,50 @@ struct ProofRunMetadata {
 }
 
 pub fn backend_from_env() -> anyhow::Result<ProverBackend> {
+    let backend_kind = std::env::var("PROVER_BACKEND").unwrap_or_else(|_| "risc0".to_string());
+    if !backend_kind.eq_ignore_ascii_case("risc0") {
+        anyhow::bail!("unsupported PROVER_BACKEND '{}': only 'risc0' is supported", backend_kind);
+    }
+
     let host_binary = PathBuf::from(
         std::env::var("RISC0_HOST_BIN")
             .map_err(|_| anyhow::anyhow!("RISC0_HOST_BIN is required"))?,
     );
-    let guest_elf = PathBuf::from(
-        std::env::var("RISC0_GUEST_ELF")
-            .map_err(|_| anyhow::anyhow!("RISC0_GUEST_ELF is required"))?,
-    );
+    let guest_elf = std::env::var("RISC0_GUEST_ELF")
+        .ok()
+        .filter(|v| !v.trim().is_empty())
+        .map(PathBuf::from);
     let work_dir = PathBuf::from(std::env::var("RISC0_WORK_DIR").unwrap_or_else(|_| "tmp/risc0".to_string()));
 
     Ok(ProverBackend {
-        host_binary,
-        guest_elf,
-        work_dir,
+        kind: ProverBackendKind::Risc0 {
+            host_binary,
+            guest_elf,
+            work_dir,
+        },
     })
 }
 
 pub fn generate_artifacts(trace: &ExecutionTraceV1, backend: &ProverBackend) -> anyhow::Result<ProofArtifacts> {
-    generate_risc0_artifacts(trace, &backend.host_binary, &backend.guest_elf, &backend.work_dir)
+    match &backend.kind {
+        ProverBackendKind::Risc0 {
+            host_binary,
+            guest_elf,
+            work_dir,
+        } => generate_risc0_artifacts(trace, host_binary, guest_elf, work_dir),
+    }
 }
 
 pub fn backend_label(backend: &ProverBackend) -> &'static str {
-    let _ = backend;
-    "risc0"
+    match backend.kind {
+        ProverBackendKind::Risc0 { .. } => "risc0",
+    }
 }
 
 fn generate_risc0_artifacts(
     trace: &ExecutionTraceV1,
     host_binary: &PathBuf,
-    guest_elf: &PathBuf,
+    guest_elf: &Option<PathBuf>,
     work_dir: &PathBuf,
 ) -> anyhow::Result<ProofArtifacts> {
     std::fs::create_dir_all(work_dir)?;
@@ -72,9 +93,12 @@ fn generate_risc0_artifacts(
     std::fs::write(&trace_path, &core_trace_bytes)?;
     let expected_trace_sha = hex::encode(Sha256::digest(&core_trace_bytes));
 
-    let output = Command::new(host_binary)
-        .arg(&trace_path)
-        .arg(guest_elf)
+    let mut cmd = Command::new(host_binary);
+    cmd.arg(&trace_path);
+    if let Some(path) = guest_elf {
+        cmd.arg(path);
+    }
+    let output = cmd
         .arg(&proof_path)
         .arg(&journal_path)
         .arg(&metadata_path)
