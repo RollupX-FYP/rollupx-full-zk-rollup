@@ -1,48 +1,48 @@
-# Prover Subsystem (Mocked)
+# Prover
 
-**CRITICAL NOTE:** The Prover is currently implemented as a **Mock/Stub**. There is no real ZK proof generation occurring in the end-to-end pipeline. The diagrams below reflect the implemented mock behavior.
+RollupX uses a real RISC0 host/guest proving path through `risc0_prover/`.
 
-## Prover Abstract Architecture
-**Purpose:** Show the simulated proof generation process.
-**Evidence from code:** `submitter/src/infrastructure/prover_mock.rs`, `Zk-Prover/rollup-prover/core/bin/prover/src/dummy_prover.rs`
+## Components
 
-```mermaid
-flowchart TD
-    SUB[Submitter] -->|Request Proof| MOCK[Mock Prover]
-    MOCK -->|Delay Timer| PADDING[Zero-Padder]
-    PADDING -->|Return 256-byte string| SUB
+- `risc0_prover/rollup_core`
+  - Shared proof input model (`BlockTrace`, `StateDiff`)
+  - Lightweight state-diff verifier logic used by guest
+- `risc0_prover/host/guest`
+  - Guest zkVM program
+  - Reads `BlockTrace`, applies diffs, commits `(initial_root, final_root)`
+- `risc0_prover/host`
+  - Host prover binary (`rollup_host`)
+  - Produces:
+    - proof bytes
+    - journal bytes
+    - metadata json with integrity hashes/sizes
+
+## Host CLI
+
+```bash
+rollup_host <block_trace.json> [guest_elf_path] [proof_out] [journal_out] [metadata_out]
 ```
-**Explanation:** When asked for a proof, the mock system simply waits and returns fixed bytes to satisfy L1 size requirements.
 
-## Prover Detailed Architecture
-**Purpose:** Detail how the mocked prover handles requests.
-**Evidence from code:** `submitter/src/infrastructure/prover_http.rs`, `submitter/src/application/proof_manager.rs` (inferred from HTTP provider error handling)
+## Executor Integration
 
-```mermaid
-flowchart TD
-    subgraph Mock_Prover_Implementation
-        HTTP[HttpProofProvider] --> CB{Circuit Breaker}
-        CB -->|Closed/Half-Open| REQ[reqwest POST]
-        REQ --> |Wait| DELAY[Mock Delay]
-        DELAY --> RET[Return '00' * 256]
-        
-        CB -->|Open| ERR[Fast Fail]
-    end
-```
-**Explanation:** The Submitter uses a robust HTTP client with a Circuit Breaker to talk to the Prover. However, the endpoint it talks to simply returns a mocked zero-string.
+Executor invokes host binary from `executor/src/proof.rs` and validates metadata before publishing batches.
 
-## Prover Sequence Diagram
-**Purpose:** Flow of a mocked proof request.
-**Evidence from code:** `submitter/src/infrastructure/prover_mock.rs`
+Environment:
+- `PROVER_BACKEND=risc0`
+- `RISC0_HOST_BIN=/abs/path/to/rollup_host`
+- `RISC0_GUEST_ELF` (optional when host embeds guest ELF)
+- `RISC0_WORK_DIR` (optional)
 
-```mermaid
-sequenceDiagram
-    participant Submitter
-    participant MockProver
+## Artifact Contract
 
-    Submitter->>MockProver: get_proof(batch_id, public_inputs)
-    Note over MockProver: Sleep(delay_ms)
-    MockProver->>MockProver: Generate 256-byte '00' string
-    MockProver-->>Submitter: ProofResponse { proof: valid_proof }
-```
-**Explanation:** The delay simulates the computational time of a real Prover without doing any real work.
+For each batch, executor expects:
+- `trace_<batch_id>.json`
+- `proof_<batch_id>.bin`
+- `journal_<batch_id>.bin`
+- `proof_meta_<batch_id>.json`
+
+Metadata must satisfy:
+- `status == "ok"`
+- trace hash agreement
+- expected public input hash agreement
+- proof/journal hash+size agreement

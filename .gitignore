@@ -21,6 +21,11 @@
 /submitter/data/submitter.db-shm
 /submitter/data/submitter.db-wal
 /submitter/offchain_store/
+/offchain_store/
+/outbox.db
+/outbox.db-shm
+/outbox.db-wal
+/tmp/
 
 # Benchmark and local test outputs
 /benchmark-suite/metrics/e2e/
@@ -30,3 +35,5 @@
 
 # RISC0 local build artifacts
 /risc0_prover/target/
+
+.*
