@@ -7,7 +7,8 @@ pub fn build_enriched_payload(
     da_commitment: Vec<u8>,
     proof: Vec<u8>,
 ) -> BatchPayload {
-    let normalized_batch_data = serde_json::to_vec(&trace.executed_transactions).unwrap_or_else(|_| input.batch_data.clone());
+    let normalized_batch_data = serde_json::to_vec(&trace.executed_transactions)
+        .unwrap_or_else(|_| input.batch_data.clone());
 
     BatchPayload {
         batch_id: input.batch_id,

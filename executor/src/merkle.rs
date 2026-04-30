@@ -44,7 +44,11 @@ pub fn compute_root(accounts: &BTreeMap<Address, Account>) -> Hash {
         let mut i = 0usize;
         while i < leaf_hashes.len() {
             let left = leaf_hashes[i];
-            let right = if i + 1 < leaf_hashes.len() { leaf_hashes[i + 1] } else { left };
+            let right = if i + 1 < leaf_hashes.len() {
+                leaf_hashes[i + 1]
+            } else {
+                left
+            };
             let mut hasher = Sha256::new();
             hasher.update(left);
             hasher.update(right);

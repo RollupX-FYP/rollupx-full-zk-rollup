@@ -13,7 +13,11 @@ const NEXT_LEAF_INDEX_KEY: &[u8] = b"meta:next_leaf_index";
 
 pub trait StateManager: Send + Sync {
     fn get_account(&self, address: &Address) -> Account;
-    fn set_account(&mut self, address: Address, account: Account) -> Result<StateDiff, ExecutorError>;
+    fn set_account(
+        &mut self,
+        address: Address,
+        account: Account,
+    ) -> Result<StateDiff, ExecutorError>;
     fn current_root(&self) -> Hash;
 }
 
@@ -46,7 +50,11 @@ impl StateManager for InMemoryStateManager {
         self.accounts.get(address).cloned().unwrap_or_default()
     }
 
-    fn set_account(&mut self, address: Address, account: Account) -> Result<StateDiff, ExecutorError> {
+    fn set_account(
+        &mut self,
+        address: Address,
+        account: Account,
+    ) -> Result<StateDiff, ExecutorError> {
         let old = self.get_account(&address);
         self.accounts.insert(address, account.clone());
         let proof = self.tree.prove_account(&self.accounts, &address);
@@ -76,13 +84,16 @@ pub struct RocksDbStateManager {
 impl RocksDbStateManager {
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Self, ExecutorError> {
         let base = path.as_ref();
-        std::fs::create_dir_all(base).map_err(|e| ExecutorError::State(format!("mkdir state base: {e}")))?;
+        std::fs::create_dir_all(base)
+            .map_err(|e| ExecutorError::State(format!("mkdir state base: {e}")))?;
 
         let jmt_path = base.join("jmt");
         let account_path = base.join("accounts");
 
-        std::fs::create_dir_all(&jmt_path).map_err(|e| ExecutorError::State(format!("mkdir jmt db: {e}")))?;
-        std::fs::create_dir_all(&account_path).map_err(|e| ExecutorError::State(format!("mkdir account db: {e}")))?;
+        std::fs::create_dir_all(&jmt_path)
+            .map_err(|e| ExecutorError::State(format!("mkdir jmt db: {e}")))?;
+        std::fs::create_dir_all(&account_path)
+            .map_err(|e| ExecutorError::State(format!("mkdir account db: {e}")))?;
 
         let jmt_db = ZkRocksDB::new(&PathBuf::from(&jmt_path))
             .map_err(|e| ExecutorError::State(format!("open jmt rocksdb: {e}")))?;
@@ -97,7 +108,11 @@ impl RocksDbStateManager {
         Ok(Self { jmt, account_db })
     }
 
-    pub fn seed_account(&mut self, address: Address, account: Account) -> Result<(), ExecutorError> {
+    pub fn seed_account(
+        &mut self,
+        address: Address,
+        account: Account,
+    ) -> Result<(), ExecutorError> {
         self.set_account(address, account).map(|_| ())
     }
 
@@ -119,7 +134,9 @@ impl RocksDbStateManager {
         match self.account_db.get(NEXT_LEAF_INDEX_KEY) {
             Ok(Some(bytes)) => {
                 if bytes.len() != 8 {
-                    return Err(ExecutorError::State("corrupt next leaf index bytes".to_string()));
+                    return Err(ExecutorError::State(
+                        "corrupt next leaf index bytes".to_string(),
+                    ));
                 }
                 let mut arr = [0u8; 8];
                 arr.copy_from_slice(&bytes);
@@ -159,7 +176,11 @@ impl RocksDbStateManager {
         Ok(idx)
     }
 
-    fn persist_account_blob(&self, address: &Address, account: &Account) -> Result<(), ExecutorError> {
+    fn persist_account_blob(
+        &self,
+        address: &Address,
+        account: &Account,
+    ) -> Result<(), ExecutorError> {
         let key = Self::account_key(address);
         let val = bincode::serialize(account)
             .map_err(|e| ExecutorError::State(format!("encode account blob: {e}")))?;
@@ -196,7 +217,11 @@ impl StateManager for RocksDbStateManager {
         }
     }
 
-    fn set_account(&mut self, address: Address, account: Account) -> Result<StateDiff, ExecutorError> {
+    fn set_account(
+        &mut self,
+        address: Address,
+        account: Account,
+    ) -> Result<StateDiff, ExecutorError> {
         let old = self.get_account(&address);
         let leaf_index = self.get_or_assign_leaf_index(&address)?;
         let key = Self::key_from_address(&address);

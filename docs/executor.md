@@ -30,6 +30,8 @@ Required env:
 Optional env:
 - `RISC0_GUEST_ELF`
 - `RISC0_WORK_DIR` (default `tmp/risc0`)
+- `ALLOW_PROOF_FALLBACK` (default strict off; set to `1` only if you intentionally allow non-groth16 proof mode)
+- `ALLOW_UNSIGNED_USER_TXS` (default strict off; set to `1` for synthetic unsigned user-transaction experiments)
 
 ## Inputs and Outputs
 

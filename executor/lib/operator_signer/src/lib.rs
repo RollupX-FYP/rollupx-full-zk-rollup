@@ -73,7 +73,7 @@ impl OperatorSigner {
                 return Self::gcp_kms(resource.to_string());
             }
         }
-        
+
         Self::local(wallet.private_key().clone())
     }
 

@@ -32,6 +32,7 @@ Environment:
 - `RISC0_HOST_BIN=/abs/path/to/rollup_host`
 - `RISC0_GUEST_ELF` (optional when host embeds guest ELF)
 - `RISC0_WORK_DIR` (optional)
+- `ALLOW_PROOF_FALLBACK=1` (optional override; default is strict `groth16`-only acceptance in executor)
 
 ## Artifact Contract
 
@@ -43,6 +44,7 @@ For each batch, executor expects:
 
 Metadata must satisfy:
 - `status == "ok"`
+- `proof_mode == "groth16"` by default (unless `ALLOW_PROOF_FALLBACK=1`)
 - trace hash agreement
 - expected public input hash agreement
 - proof/journal hash+size agreement

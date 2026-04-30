@@ -26,6 +26,8 @@ pub struct ProofArtifacts {
 #[derive(Debug, Deserialize)]
 struct ProofRunMetadata {
     status: String,
+    #[serde(default)]
+    proof_mode: Option<String>,
     trace_sha256: String,
     public_inputs_hash: String,
     journal_sha256: String,
@@ -37,7 +39,10 @@ struct ProofRunMetadata {
 pub fn backend_from_env() -> anyhow::Result<ProverBackend> {
     let backend_kind = std::env::var("PROVER_BACKEND").unwrap_or_else(|_| "risc0".to_string());
     if !backend_kind.eq_ignore_ascii_case("risc0") {
-        anyhow::bail!("unsupported PROVER_BACKEND '{}': only 'risc0' is supported", backend_kind);
+        anyhow::bail!(
+            "unsupported PROVER_BACKEND '{}': only 'risc0' is supported",
+            backend_kind
+        );
     }
 
     let host_binary = PathBuf::from(
@@ -48,7 +53,8 @@ pub fn backend_from_env() -> anyhow::Result<ProverBackend> {
         .ok()
         .filter(|v| !v.trim().is_empty())
         .map(PathBuf::from);
-    let work_dir = PathBuf::from(std::env::var("RISC0_WORK_DIR").unwrap_or_else(|_| "tmp/risc0".to_string()));
+    let work_dir =
+        PathBuf::from(std::env::var("RISC0_WORK_DIR").unwrap_or_else(|_| "tmp/risc0".to_string()));
 
     Ok(ProverBackend {
         kind: ProverBackendKind::Risc0 {
@@ -59,7 +65,10 @@ pub fn backend_from_env() -> anyhow::Result<ProverBackend> {
     })
 }
 
-pub fn generate_artifacts(trace: &ExecutionTraceV1, backend: &ProverBackend) -> anyhow::Result<ProofArtifacts> {
+pub fn generate_artifacts(
+    trace: &ExecutionTraceV1,
+    backend: &ProverBackend,
+) -> anyhow::Result<ProofArtifacts> {
     match &backend.kind {
         ProverBackendKind::Risc0 {
             host_binary,
@@ -118,6 +127,19 @@ fn generate_risc0_artifacts(
     if meta.status != "ok" {
         anyhow::bail!("proof metadata status is not ok");
     }
+    let proof_mode = meta
+        .proof_mode
+        .clone()
+        .unwrap_or_else(|| "unknown".to_string());
+    let allow_fallback = std::env::var("ALLOW_PROOF_FALLBACK")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+    if proof_mode != "groth16" && !allow_fallback {
+        anyhow::bail!(
+            "unsupported proof mode '{}' from host metadata; set ALLOW_PROOF_FALLBACK=1 to override",
+            proof_mode
+        );
+    }
     if meta.trace_sha256 != expected_trace_sha {
         anyhow::bail!("trace sha mismatch between host metadata and executor");
     }
@@ -142,7 +164,10 @@ fn generate_risc0_artifacts(
 
     let da_commitment = sha256_hash(&journal).to_vec();
 
-    Ok(ProofArtifacts { proof, da_commitment })
+    Ok(ProofArtifacts {
+        proof,
+        da_commitment,
+    })
 }
 
 fn to_rollup_core_trace(trace: &ExecutionTraceV1) -> rollup_core::BlockTrace {

@@ -12,6 +12,7 @@ mod methods {
 #[derive(Debug, Serialize, Deserialize)]
 struct ProofRunMetadata {
     status: String,
+    proof_mode: String,
     trace_sha256: String,
     public_inputs_hash: String,
     journal_sha256: String,
@@ -39,9 +40,18 @@ fn main() -> Result<()> {
     } else {
         (None, 2usize)
     };
-    let proof_out = args.get(arg_i).cloned().unwrap_or_else(|| "snark_proof.bin".to_string());
-    let journal_out = args.get(arg_i + 1).cloned().unwrap_or_else(|| "journal.bin".to_string());
-    let metadata_out = args.get(arg_i + 2).cloned().unwrap_or_else(|| "proof_metadata.json".to_string());
+    let proof_out = args
+        .get(arg_i)
+        .cloned()
+        .unwrap_or_else(|| "snark_proof.bin".to_string());
+    let journal_out = args
+        .get(arg_i + 1)
+        .cloned()
+        .unwrap_or_else(|| "journal.bin".to_string());
+    let metadata_out = args
+        .get(arg_i + 2)
+        .cloned()
+        .unwrap_or_else(|| "proof_metadata.json".to_string());
 
     let trace_bytes = fs::read(trace_path).context("read trace json")?;
     let trace_sha = hex::encode(Sha256::digest(&trace_bytes));
@@ -61,18 +71,26 @@ fn main() -> Result<()> {
     let prover = default_prover();
     println!("Generating ZK Proof... (this may take time)");
 
-    let receipt = prover.prove(env, &elf).context("prove guest execution")?.receipt;
+    let receipt = prover
+        .prove(env, &elf)
+        .context("prove guest execution")?
+        .receipt;
 
     let journal = receipt.journal.bytes.clone();
     fs::write(&journal_out, &journal).context("write journal")?;
 
-    let seal = receipt
-        .inner
-        .groth16()
-        .map(|s| s.seal.to_vec())
-        // Some local prover modes don't emit a Groth16 receipt.
-        // Keep proof bytes non-empty so downstream DA/submitter pipeline can progress.
-        .unwrap_or_else(|_| receipt.journal.bytes.clone());
+    let (seal, proof_mode) = match receipt.inner.groth16() {
+        Ok(s) => (s.seal.to_vec(), "groth16".to_string()),
+        Err(_) => {
+            // Some local prover modes don't emit a Groth16 receipt.
+            // Keep proof bytes non-empty so downstream DA/submitter pipeline can progress,
+            // while explicitly tagging this mode in metadata.
+            (
+                receipt.journal.bytes.clone(),
+                "journal_fallback".to_string(),
+            )
+        }
+    };
     fs::write(&proof_out, &seal).context("write proof")?;
 
     let mut inputs_buf = Vec::with_capacity(64);
@@ -81,6 +99,7 @@ fn main() -> Result<()> {
 
     let metadata = ProofRunMetadata {
         status: "ok".to_string(),
+        proof_mode,
         trace_sha256: trace_sha,
         public_inputs_hash: hex::encode(Sha256::digest(&inputs_buf)),
         journal_sha256: hex::encode(Sha256::digest(&journal)),

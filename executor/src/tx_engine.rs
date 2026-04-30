@@ -1,14 +1,18 @@
 use crate::state::StateManager;
 use crate::types::{
-    state_diff_commitment, tx_commitment, Account, AccountSnapshot, ExecutionTraceV1, ExecutorError, Hash,
-    ProverContext, TracePublicInputs, Transaction, TxExecutionOutcome,
+    state_diff_commitment, tx_commitment, Account, AccountSnapshot, ExecutionTraceV1,
+    ExecutorError, Hash, ProverContext, TracePublicInputs, Transaction, TxExecutionOutcome,
 };
 use ethers::utils::keccak256;
 use k256::ecdsa::{RecoveryId, Signature, VerifyingKey};
 use sha2::{Digest, Sha256};
 
 pub trait TransactionEngine {
-    fn execute_batch(&mut self, batch_id: &str, transactions: Vec<Transaction>) -> Result<ExecutionTraceV1, ExecutorError>;
+    fn execute_batch(
+        &mut self,
+        batch_id: &str,
+        transactions: Vec<Transaction>,
+    ) -> Result<ExecutionTraceV1, ExecutorError>;
 }
 
 pub struct SimpleTransactionEngine<S: StateManager> {
@@ -22,7 +26,13 @@ impl<S: StateManager> SimpleTransactionEngine<S> {
 
     fn verify_signature(&self, tx: &Transaction) -> bool {
         if tx.signature.is_empty() {
-            return true;
+            // Forced/system-style transactions may intentionally omit signatures.
+            // For user-like transactions, require signatures by default.
+            let allow_unsigned_user_txs = std::env::var("ALLOW_UNSIGNED_USER_TXS")
+                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                .unwrap_or(false);
+            let looks_like_user_tx = tx.gas_price > 0 || tx.boost_bid > 0;
+            return !looks_like_user_tx || allow_unsigned_user_txs;
         }
         if tx.signature.len() != 65 {
             return false;
@@ -55,7 +65,11 @@ impl<S: StateManager> SimpleTransactionEngine<S> {
 }
 
 impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
-    fn execute_batch(&mut self, batch_id: &str, transactions: Vec<Transaction>) -> Result<ExecutionTraceV1, ExecutorError> {
+    fn execute_batch(
+        &mut self,
+        batch_id: &str,
+        transactions: Vec<Transaction>,
+    ) -> Result<ExecutionTraceV1, ExecutorError> {
         let initial_root = self.state.current_root();
         let mut prover_root = initial_root;
         let mut executed = Vec::new();
@@ -151,7 +165,8 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
             schema_version: 1,
             batch_id: batch_id.to_string(),
             created_at: now_unix_secs(),
-            executor_build_id: std::env::var("EXECUTOR_BUILD_ID").unwrap_or_else(|_| "dev".to_string()),
+            executor_build_id: std::env::var("EXECUTOR_BUILD_ID")
+                .unwrap_or_else(|_| "dev".to_string()),
             public_inputs: TracePublicInputs {
                 initial_root,
                 final_root,
@@ -162,7 +177,8 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
             tx_outcomes: outcomes,
             state_diffs: diffs,
             prover_context: ProverContext {
-                guest_method_id: std::env::var("RISC0_GUEST_METHOD_ID").unwrap_or_else(|_| "unknown".to_string()),
+                guest_method_id: std::env::var("RISC0_GUEST_METHOD_ID")
+                    .unwrap_or_else(|_| "unknown".to_string()),
                 expected_journal_hash: expected_journal_hash(initial_root, final_root),
                 backend_config_fingerprint: backend_config_fingerprint(),
             },
@@ -246,7 +262,7 @@ mod tests {
             amount,
             nonce,
             signature: Vec::new(),
-            gas_price: 1,
+            gas_price: 0,
             gas_limit: 21_000,
             timestamp: 1,
             boost_bid: 0,
@@ -258,11 +274,20 @@ mod tests {
         let mut state = InMemoryStateManager::default();
         let from = [1u8; 20];
         let to = [2u8; 20];
-        state.seed_account(from, Account { balance: 100, nonce: 0 });
+        state.seed_account(
+            from,
+            Account {
+                balance: 100,
+                nonce: 0,
+            },
+        );
         let mut engine = SimpleTransactionEngine::new(state);
 
         let trace = engine
-            .execute_batch("1", vec![unsigned_tx(from, to, 10, 0), unsigned_tx(from, to, 10, 0)])
+            .execute_batch(
+                "1",
+                vec![unsigned_tx(from, to, 10, 0), unsigned_tx(from, to, 10, 0)],
+            )
             .expect("batch executes");
 
         assert_eq!(trace.executed_transactions.len(), 1);
@@ -274,11 +299,22 @@ mod tests {
         let mut state = InMemoryStateManager::default();
         let from = [3u8; 20];
         let to = [4u8; 20];
-        state.seed_account(from, Account { balance: 50, nonce: 0 });
+        state.seed_account(
+            from,
+            Account {
+                balance: 50,
+                nonce: 0,
+            },
+        );
 
         let mut engine1 = SimpleTransactionEngine::new(state);
-        let trace1 = engine1.execute_batch("b", vec![unsigned_tx(from, to, 10, 0)]).unwrap();
-        assert_eq!(trace1.public_inputs.tx_commitment, tx_commitment(&trace1.tx_outcomes));
+        let trace1 = engine1
+            .execute_batch("b", vec![unsigned_tx(from, to, 10, 0)])
+            .unwrap();
+        assert_eq!(
+            trace1.public_inputs.tx_commitment,
+            tx_commitment(&trace1.tx_outcomes)
+        );
     }
 
     #[tokio::test]
@@ -292,7 +328,13 @@ mod tests {
         tx.signature = sig.to_vec();
 
         let mut state = InMemoryStateManager::default();
-        state.seed_account(from, Account { balance: 20, nonce: 0 });
+        state.seed_account(
+            from,
+            Account {
+                balance: 20,
+                nonce: 0,
+            },
+        );
         let mut engine = SimpleTransactionEngine::new(state);
         let trace = engine.execute_batch("s", vec![tx.clone()]).unwrap();
         assert_eq!(trace.executed_transactions.len(), 1);
@@ -301,7 +343,10 @@ mod tests {
         bad.signature[10] ^= 1;
         let trace_bad = engine.execute_batch("s2", vec![bad]).unwrap();
         assert_eq!(trace_bad.executed_transactions.len(), 0);
-        assert_eq!(trace_bad.tx_outcomes[0].rejection_reason.as_deref(), Some("invalid_signature"));
+        assert_eq!(
+            trace_bad.tx_outcomes[0].rejection_reason.as_deref(),
+            Some("invalid_signature")
+        );
     }
 
     #[tokio::test]
@@ -309,7 +354,13 @@ mod tests {
         let mut state = InMemoryStateManager::default();
         let from = [7u8; 20];
         let to = [8u8; 20];
-        state.seed_account(from, Account { balance: 100, nonce: 0 });
+        state.seed_account(
+            from,
+            Account {
+                balance: 100,
+                nonce: 0,
+            },
+        );
         let mut engine = SimpleTransactionEngine::new(state);
 
         let trace = engine
@@ -326,7 +377,8 @@ mod tests {
                 new_nonce: diff.new_nonce,
                 merkle_proof: diff.merkle_proof.clone(),
             };
-            smt.apply_diff(&core_diff).expect("guest verifier accepts diff");
+            smt.apply_diff(&core_diff)
+                .expect("guest verifier accepts diff");
         }
 
         assert_eq!(smt.current_root(), trace.public_inputs.final_root);

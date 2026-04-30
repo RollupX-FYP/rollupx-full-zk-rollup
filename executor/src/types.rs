@@ -184,12 +184,16 @@ pub fn state_diff_commitment(diffs: &[StateDiff]) -> Hash {
 
 fn u256_to_u64_checked(value: U256, label: &str) -> Result<u64, ExecutorError> {
     if value > U256::from(u64::MAX) {
-        return Err(ExecutorError::InvalidPayload(format!("{label} exceeds u64")));
+        return Err(ExecutorError::InvalidPayload(format!(
+            "{label} exceeds u64"
+        )));
     }
     Ok(value.as_u64())
 }
 
-pub fn normalize_transactions(input: Vec<SequencerTransaction>) -> Result<Vec<Transaction>, ExecutorError> {
+pub fn normalize_transactions(
+    input: Vec<SequencerTransaction>,
+) -> Result<Vec<Transaction>, ExecutorError> {
     input
         .into_iter()
         .map(|tx| match tx {

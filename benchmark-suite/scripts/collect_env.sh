@@ -73,6 +73,13 @@ cat > "$METRICS_ROOT/run_metadata.json" <<EOF
     "warmup_s":      "${WARMUP_S:-unknown}",
     "tx_mix":        "${TX_MIX:-unknown}",
     "seed":          "${SEED:-unknown}"
+  },
+  "validity_envelope": {
+    "environment": "${VALIDITY_ENVIRONMENT:-local_hardhat}",
+    "network_model": "${VALIDITY_NETWORK_MODEL:-single_node_local}",
+    "execution_scope": "${VALIDITY_EXECUTION_SCOPE:-transfer_centric_stf}",
+    "proof_mode_policy": "${VALIDITY_PROOF_MODE_POLICY:-groth16_only}",
+    "cost_interpretation": "${VALIDITY_COST_INTERPRETATION:-comparative_not_market_representative}"
   }
 }
 EOF

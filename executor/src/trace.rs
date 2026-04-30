@@ -34,7 +34,10 @@ pub struct PersistedTraceMeta {
     pub sha256_hex: String,
 }
 
-pub fn persist_trace(trace_root: &Path, trace: &ExecutionTraceV1) -> anyhow::Result<PersistedTraceMeta> {
+pub fn persist_trace(
+    trace_root: &Path,
+    trace: &ExecutionTraceV1,
+) -> anyhow::Result<PersistedTraceMeta> {
     let batch_dir = trace_root.join(&trace.batch_id);
     fs::create_dir_all(&batch_dir)?;
 
@@ -47,7 +50,11 @@ pub fn persist_trace(trace_root: &Path, trace: &ExecutionTraceV1) -> anyhow::Res
     let sha_hex = hex::encode(sha);
 
     {
-        let mut file = OpenOptions::new().create(true).write(true).truncate(true).open(&tmp_path)?;
+        let mut file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(&tmp_path)?;
         file.write_all(&bytes)?;
         file.sync_all()?;
     }
@@ -55,7 +62,11 @@ pub fn persist_trace(trace_root: &Path, trace: &ExecutionTraceV1) -> anyhow::Res
     fs::rename(&tmp_path, &final_path)?;
 
     {
-        let mut sha_file = OpenOptions::new().create(true).write(true).truncate(true).open(&sha_path)?;
+        let mut sha_file = OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .open(&sha_path)?;
         sha_file.write_all(sha_hex.as_bytes())?;
         sha_file.write_all(b"\n")?;
         sha_file.sync_all()?;
@@ -77,7 +88,11 @@ pub fn verify_trace_hash(path: &Path, expected_sha_hex: &str) -> anyhow::Result<
     let bytes = fs::read(path)?;
     let got = hex::encode(Sha256::digest(&bytes));
     if got != expected_sha_hex {
-        anyhow::bail!("trace hash mismatch: expected {}, got {}", expected_sha_hex, got);
+        anyhow::bail!(
+            "trace hash mismatch: expected {}, got {}",
+            expected_sha_hex,
+            got
+        );
     }
     Ok(())
 }
@@ -104,7 +119,10 @@ pub fn append_lifecycle(
     };
 
     let line = serde_json::to_string(&entry)?;
-    let mut file = OpenOptions::new().create(true).append(true).open(index_path)?;
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(index_path)?;
     file.write_all(line.as_bytes())?;
     file.write_all(b"\n")?;
     file.sync_all()?;
