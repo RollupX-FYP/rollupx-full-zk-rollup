@@ -2,7 +2,18 @@
 
 RollupX is an experimental, modular Layer-2 ZK-Rollup prototype. Its primary design goal is high throughput, custom transaction scheduling, and comprehensive observability across various components. 
 
-The system implements the full transaction lifecycle from inception to execution. However, **the Zero-Knowledge proving subsystem (Prover) is currently entirely mocked/stubbed**, and data availability (DA) is posted to a local L1 (Ethereum/Hardhat) with verification checks that utilize mock verification responses. 
+The system implements a full transaction lifecycle from ingestion to execution, trace persistence, RISC0-based proof artifact generation, and gRPC publication to the submitter.
+
+## Current Runtime Status
+
+- `Sequencer` accepts user transactions over JSON-RPC and seals batches.
+- `Executor` runs STF execution, persists execution traces, verifies trace hashes, invokes RISC0 host proving, and publishes enriched batch payloads over gRPC.
+- `Submitter` consumes gRPC batch stream and performs settlement flow to the local L1 test deployment.
+- `risc0_prover` is now in the repository root and is used as the real proof path backend for executor (`PROVER_BACKEND=risc0`).
+
+Known scope limits:
+- STF is transfer-centric research logic, not full EVM-equivalent execution.
+- Results are intended for controlled benchmarking and tuning experiments.
 
 ## Documentation Map
 
@@ -29,4 +40,8 @@ The system implements the full transaction lifecycle from inception to execution
 
 ## Usage
 
-See [USAGE.md](USAGE.md) for a comprehensive guide on starting the system components, generating workloads, running automated benchmarks, and using the data tools.
+See [USAGE.md](USAGE.md) for:
+- new-environment setup (toolchains and dependencies),
+- full local stack bring-up (Hardhat + deploy + executor + submitter + sequencer),
+- E2E workload replay,
+- benchmark and analysis pipeline steps.

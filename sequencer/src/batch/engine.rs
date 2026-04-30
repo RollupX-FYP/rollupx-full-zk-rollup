@@ -52,6 +52,11 @@ impl BatchEngine {
         self.next_batch_id += 1;
         batch
     }
+
+    /// Set the next batch ID, typically restored from persistent registry state.
+    pub fn set_next_batch_id(&mut self, next_batch_id: u64) {
+        self.next_batch_id = next_batch_id.max(1);
+    }
     
     /// Check if adding a transaction would exceed the gas limit
     /// 

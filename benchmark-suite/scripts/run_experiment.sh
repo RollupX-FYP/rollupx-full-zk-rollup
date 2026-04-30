@@ -38,6 +38,12 @@ export BRIDGE_ADDRESS=${BRIDGE_ADDRESS:-0x00000000000000000000000000000000000000
 export START_BLOCK=${START_BLOCK:-0}
 export RUN_ID="$RUN_ID"
 export EXPERIMENT_ID="$EXP_ID"
+export VALIDITY_ENVIRONMENT=${VALIDITY_ENVIRONMENT:-local_hardhat}
+export VALIDITY_NETWORK_MODEL=${VALIDITY_NETWORK_MODEL:-single_node_local}
+export VALIDITY_EXECUTION_SCOPE=${VALIDITY_EXECUTION_SCOPE:-transfer_centric_stf}
+export VALIDITY_PROOF_MODE_POLICY=${VALIDITY_PROOF_MODE_POLICY:-groth16_only}
+export VALIDITY_COST_INTERPRETATION=${VALIDITY_COST_INTERPRETATION:-comparative_not_market_representative}
+export CLEAN_STATE_BEFORE_RUN=${CLEAN_STATE_BEFORE_RUN:-1}
 
 METRICS_ROOT="metrics/${EXP_ID}/${RUN_ID}"
 export METRICS_ROOT
@@ -57,6 +63,11 @@ trap cleanup EXIT INT TERM
 mkdir -p "$METRICS_ROOT"
 LOGFILE="$METRICS_ROOT/run.log"
 exec > >(tee -a "$LOGFILE") 2>&1
+
+# ── optional: reset local runtime state for controlled experiments ───────────
+if [[ "$CLEAN_STATE_BEFORE_RUN" == "1" || "$CLEAN_STATE_BEFORE_RUN" == "true" ]]; then
+    bash "$(dirname "$0")/reset_state.sh" "$RUN_ID"
+fi
 
 echo "======================================================================"
 echo "  RUN: $RUN_ID"

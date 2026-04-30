@@ -36,7 +36,6 @@ members = [
   "lib/external_price_api",
   "lib/settlement_layer_data",
   "lib/zk_os_merkle_tree",
-  "node/shared_metrics",
 ]
 resolver = "2"
 
@@ -276,44 +275,11 @@ zk_os_merkle_tree = { version = "29.15.0-non-semver-compat", path = "lib/zk_os_m
 zksync_settlement_layer_data = { version = "29.15.0-non-semver-compat", path = "lib/settlement_layer_data" }
 zksync_state_machine = { version = "29.15.0-non-semver-compat", path = "src" }
 
-# Framework and components
+# Framework and shared components used by workspace crates.
 zksync_node_framework = { version = "29.15.0-non-semver-compat", path = "lib/node_framework" }
 zksync_node_framework_derive = { version = "29.15.0-non-semver-compat", path = "lib/node_framework_derive" }
 zksync_shared_resources = { version = "29.15.0-non-semver-compat", path = "lib/shared_resources" }
-zksync_node_jemalloc = { version = "29.15.0-non-semver-compat", path = "node/jemalloc" }
-zksync_eth_proof_manager = { version = "29.15.0-non-semver-compat", path = "node/eth_proof_manager" }
-zksync_eth_watch = { version = "29.15.0-non-semver-compat", path = "node/eth_watch" }
 zksync_shared_metrics = { version = "29.15.0-non-semver-compat", path = "node/shared_metrics" }
-zksync_proof_data_handler = { version = "29.15.0-non-semver-compat", path = "node/proof_data_handler" }
-zksync_airbender_proof_data_handler = { version = "29.15.0-non-semver-compat", path = "node/airbender_proof_data_handler" }
-zksync_block_reverter = { version = "29.15.0-non-semver-compat", path = "node/block_reverter" }
-zksync_commitment_generator = { version = "29.15.0-non-semver-compat", path = "node/commitment_generator" }
-zksync_house_keeper = { version = "29.15.0-non-semver-compat", path = "node/house_keeper" }
-zksync_node_genesis = { version = "29.15.0-non-semver-compat", path = "node/genesis" }
-zksync_da_dispatcher = { version = "29.15.0-non-semver-compat", path = "node/da_dispatcher" }
-zksync_da_clients = { version = "29.15.0-non-semver-compat", path = "node/da_clients" }
-zksync_eth_sender = { version = "29.15.0-non-semver-compat", path = "node/eth_sender" }
-zksync_node_db_pruner = { version = "29.15.0-non-semver-compat", path = "node/db_pruner" }
-zksync_node_fee_model = { version = "29.15.0-non-semver-compat", path = "node/fee_model" }
-zksync_vm_runner = { version = "29.15.0-non-semver-compat", path = "node/vm_runner" }
-zksync_external_proof_integration_api = { version = "29.15.0-non-semver-compat", path = "node/external_proof_integration_api" }
-zksync_node_test_utils = { version = "29.15.0-non-semver-compat", path = "node/test_utils" }
-zksync_state_keeper = { version = "29.15.0-non-semver-compat", path = "node/state_keeper" }
-zksync_reorg_detector = { version = "29.15.0-non-semver-compat", path = "node/reorg_detector" }
-zksync_consistency_checker = { version = "29.15.0-non-semver-compat", path = "node/consistency_checker" }
-zksync_metadata_calculator = { version = "29.15.0-non-semver-compat", path = "node/metadata_calculator" }
-zksync_node_sync = { version = "29.15.0-non-semver-compat", path = "node/node_sync" }
-zksync_node_storage_init = { version = "29.15.0-non-semver-compat", path = "node/node_storage_init" }
-zksync_node_consensus = { version = "29.15.0-non-semver-compat", path = "node/consensus" }
-zksync_contract_verification_server = { version = "29.15.0-non-semver-compat", path = "node/contract_verification_server" }
-zksync_node_api_server = { version = "29.15.0-non-semver-compat", path = "node/api_server" }
-zksync_base_token_adjuster = { version = "29.15.0-non-semver-compat", path = "node/base_token_adjuster" }
-zksync_logs_bloom_backfill = { version = "29.15.0-non-semver-compat", path = "node/logs_bloom_backfill" }
-zksync_gateway_migrator = { version = "29.15.0-non-semver-compat", path = "node/gateway_migrator" }
 
 [patch.crates-io]
 sqlx-postgres = { git = "https://github.com/matter-labs/sqlx-postgres.git", rev = "f4bf3674ecc2e96f4b8fb48b4a0bc08b85e0f6f3" }
-# Patched to enable let_chains nightly feature and drop rust-version=1.89 requirement,
-# so the crate compiles with nightly-2025-03-19 (rustc 1.87).
-svm-rs = { path = "patches/svm-rs" }
-svm-rs-builds = { path = "patches/svm-rs-builds" }
