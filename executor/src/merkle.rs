@@ -19,7 +19,7 @@ impl MerkleTree for Sha256SparseMerkle {
         let mut hasher = Sha256::new();
         hasher.update(compute_root(accounts));
         hasher.update(address);
-        [hasher.finalize().into()]
+        vec![hasher.finalize().into()]
     }
 }
 

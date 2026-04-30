@@ -1,4 +1,3 @@
-use crate::merkle::attach_proof;
 use crate::state::StateManager;
 use crate::types::{
     state_diff_commitment, tx_commitment, Account, AccountSnapshot, ExecutionTraceV1, ExecutorError, Hash,
@@ -35,7 +34,8 @@ impl<S: StateManager> SimpleTransactionEngine<S> {
             Err(_) => return false,
         };
         let v = tx.signature[64];
-        let recovery_id = RecoveryId::from_byte(v % 2);
+        let normalized_v = if v >= 27 { v - 27 } else { v };
+        let recovery_id = RecoveryId::from_byte(normalized_v);
         let Some(recovery_id) = recovery_id else {
             return false;
         };
@@ -57,6 +57,7 @@ impl<S: StateManager> SimpleTransactionEngine<S> {
 impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
     fn execute_batch(&mut self, batch_id: &str, transactions: Vec<Transaction>) -> Result<ExecutionTraceV1, ExecutorError> {
         let initial_root = self.state.current_root();
+        let mut prover_root = initial_root;
         let mut executed = Vec::new();
         let mut diffs = Vec::new();
         let mut outcomes = Vec::new();
@@ -106,11 +107,17 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
                 nonce: receiver_pre_acc.nonce,
             };
 
-            let root_before = self.state.current_root();
+            // Proof contract for guest verifier: each diff must carry the state root
+            // that was current immediately before applying that diff.
+            let sender_root_before = prover_root;
             let mut sender_diff = self.state.set_account(tx.from, new_sender.clone())?;
+            sender_diff.merkle_proof = vec![sender_root_before];
+            prover_root = fold_diff(prover_root, &sender_diff);
+
+            let receiver_root_before = prover_root;
             let mut receiver_diff = self.state.set_account(tx.to, new_receiver.clone())?;
-            attach_proof(&mut sender_diff, root_before);
-            attach_proof(&mut receiver_diff, root_before);
+            receiver_diff.merkle_proof = vec![receiver_root_before];
+            prover_root = fold_diff(prover_root, &receiver_diff);
 
             diffs.push(sender_diff);
             diffs.push(receiver_diff);
@@ -135,7 +142,7 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
             });
         }
 
-        let final_root = self.state.current_root();
+        let final_root = prover_root;
         let tx_commit = tx_commitment(&outcomes);
         let diff_commit = state_diff_commitment(&diffs);
 
@@ -192,6 +199,17 @@ fn backend_config_fingerprint() -> Hash {
     let mut hasher = Sha256::new();
     hasher.update(host.as_bytes());
     hasher.update(guest.as_bytes());
+    hasher.finalize().into()
+}
+
+fn fold_diff(prev_root: Hash, diff: &crate::types::StateDiff) -> Hash {
+    let mut hasher = Sha256::new();
+    hasher.update(prev_root);
+    hasher.update(diff.account);
+    hasher.update(diff.old_balance.to_be_bytes());
+    hasher.update(diff.new_balance.to_be_bytes());
+    hasher.update(diff.old_nonce.to_be_bytes());
+    hasher.update(diff.new_nonce.to_be_bytes());
     hasher.finalize().into()
 }
 
@@ -284,5 +302,33 @@ mod tests {
         let trace_bad = engine.execute_batch("s2", vec![bad]).unwrap();
         assert_eq!(trace_bad.executed_transactions.len(), 0);
         assert_eq!(trace_bad.tx_outcomes[0].rejection_reason.as_deref(), Some("invalid_signature"));
+    }
+
+    #[tokio::test]
+    async fn produced_state_diffs_are_replayable_by_guest_verifier() {
+        let mut state = InMemoryStateManager::default();
+        let from = [7u8; 20];
+        let to = [8u8; 20];
+        state.seed_account(from, Account { balance: 100, nonce: 0 });
+        let mut engine = SimpleTransactionEngine::new(state);
+
+        let trace = engine
+            .execute_batch("replay", vec![unsigned_tx(from, to, 25, 0)])
+            .expect("batch executes");
+
+        let mut smt = rollup_core::LightweightSMT::new(trace.public_inputs.initial_root);
+        for diff in &trace.state_diffs {
+            let core_diff = rollup_core::StateDiff {
+                account: diff.account,
+                old_balance: diff.old_balance,
+                new_balance: diff.new_balance,
+                old_nonce: diff.old_nonce,
+                new_nonce: diff.new_nonce,
+                merkle_proof: diff.merkle_proof.clone(),
+            };
+            smt.apply_diff(&core_diff).expect("guest verifier accepts diff");
+        }
+
+        assert_eq!(smt.current_root(), trace.public_inputs.final_root);
     }
 }

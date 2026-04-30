@@ -133,8 +133,11 @@ fn deserialize_signature<'de, D>(deserializer: D) -> Result<EthSignature, D::Err
 where
     D: Deserializer<'de>,
 {
-    let s: String = Deserialize::deserialize(deserializer)?;
-    s.parse().map_err(serde::de::Error::custom)
+    let value = serde_json::Value::deserialize(deserializer)?;
+    match value {
+        serde_json::Value::String(s) => s.parse().map_err(serde::de::Error::custom),
+        other => serde_json::from_value(other).map_err(serde::de::Error::custom),
+    }
 }
 
 impl SequencerUserTransaction {

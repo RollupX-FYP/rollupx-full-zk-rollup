@@ -9707,6 +9707,8 @@ dependencies = [
 [[package]]
 name = "svm-rs"
 version = "0.5.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "230df06b463c7251e4d1b39b1b3e6f25a9b3a42630179053a1e5f919e6e15534"
 dependencies = [
  "const-hex",
  "dirs 6.0.0",
@@ -9724,6 +9726,8 @@ dependencies = [
 [[package]]
 name = "svm-rs-builds"
 version = "0.5.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b271921143e5b12947a526de464db02b00363919d582a7ea712374840f928328"
 dependencies = [
  "const-hex",
  "semver 1.0.26",
@@ -12693,6 +12697,7 @@ dependencies = [
  "k256 0.13.4",
  "prost 0.12.6",
  "protoc-bin-vendored",
+ "rand 0.8.5",
  "rocksdb",
  "rollup_core",
  "serde",

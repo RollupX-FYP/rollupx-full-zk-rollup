@@ -3,7 +3,7 @@ use crate::types::{Account, Address, ExecutorError, Hash, StateDiff};
 use rocksdb::{Options, DB};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use zksync_merkle_tree::{MerkleTree as JmtTree, RocksDBWrapper, TreeEntry, TreeInstruction};
+use zksync_merkle_tree::{MerkleTree as JmtTree, RocksDBWrapper, TreeInstruction};
 use zksync_storage::RocksDB as ZkRocksDB;
 use zksync_types::{H256, U256};
 
