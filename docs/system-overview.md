@@ -22,21 +22,17 @@ The system relies heavily on Domain-Driven Design (DDD) principles in its Rust-b
 
 4. **Executor (`executor/`)**
    - **Responsibility:** Receive sealed batches from the Sequencer via gRPC, apply state transitions using a VM, and produce outputs containing root hashes and witness metadata.
-   - **Status:** **Real / Fully Implemented.** *Note: In default `grpc` mode, it acts as a pass-through relay and emits relay metrics to `executor_<exp_id>.json`. It currently fails tests locally because pre-compiled system-contract artifacts (`Bootloader.zbin`) are missing.*
+   - **Status:** **Real / Fully Implemented.** _Note: In default `grpc` mode, it acts as a pass-through relay and emits relay metrics to `executor_<exp_id>.json`. It currently fails tests locally because pre-compiled system-contract artifacts (`Bootloader.zbin`) are missing._
 
-5. **Prover Subsystem (`Zk-Prover/`, `submitter/src/infrastructure/prover_mock.rs`)**
-   - **Responsibility:** Generate Zero-Knowledge proofs for the executed batches.
-   - **Status:** **Mocked / Stubbed.** The system heavily simulates this stage. The submitter uses mock providers to simulate proof generation delay and return dummy proof payloads.
-
-6. **Submitter (`submitter/`)**
+5. **Submitter (`submitter/`)**
    - **Responsibility:** Ingest finalized executor batches and submit them to the Ethereum L1 bridge. It handles DA (Data Availability) via Calldata or EIP-4844 blobs, maintains an internal database for retry loops and idempotency, and uses a Saga workflow.
    - **Status:** **Real / Fully Implemented.**
 
-7. **Smart Contracts (`contracts/`)**
+6. **Smart Contracts (`contracts/`)**
    - **Responsibility:** Act as the L1 settlement layer. Includes the `ZKRollupBridge` which orchestrates validation, and distinct DA providers.
-   - **Status:** **Real / Fully Implemented.** *Note: Verifier contracts are mocked for local testing.*
+   - **Status:** **Real / Fully Implemented.** _Note: Verifier contracts are mocked for local testing._
 
-8. **Data Tools (`data-tools/`)**
+7. **Data Tools (`data-tools/`)**
    - **Responsibility:** Consume JSON/CSV metrics from the benchmark suite to compute statistics and plot Pareto frontiers, throughput bars, and latency CDFs.
    - **Status:** **Real / Fully Implemented.**
 
@@ -63,6 +59,7 @@ flowchart LR
 ```
 
 **Key takeaways:**
+
 - Traffic from the workload generator hits the Sequencer.
 - The Sequencer forwards batches to the Executor via gRPC.
 - The Executor (currently acting as a relay) forwards them to the Submitter.
