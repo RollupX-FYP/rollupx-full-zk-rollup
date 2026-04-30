@@ -1,7 +1,19 @@
-FROM public.ecr.aws/docker/library/python:3.9-slim
+FROM public.ecr.aws/docker/library/python:3.11-slim
 
 WORKDIR /app
 
-COPY workload/poisson_generator.py .
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    bash \
+    bc \
+    ca-certificates \
+    curl \
+    git \
+    jq \
+    && rm -rf /var/lib/apt/lists/*
 
-ENTRYPOINT ["python", "-u", "poisson_generator.py"]
+COPY . .
+
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir eth-account
+
+CMD ["python3", "-u", "workload/poisson_generator.py"]

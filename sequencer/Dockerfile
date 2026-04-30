@@ -10,11 +10,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
+COPY sequencer ./sequencer
 COPY proto ./proto
-COPY submitter ./submitter
 
-WORKDIR /app/submitter
-RUN cargo build --release --bin submitter
+WORKDIR /app/sequencer
+RUN cargo build --release --bin sequencer
 
 FROM public.ecr.aws/docker/library/debian:bookworm-slim
 WORKDIR /app
@@ -24,13 +24,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     openssl \
     && rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /app/data /app/offchain_store
+COPY --from=builder /app/sequencer/target/release/sequencer /usr/local/bin/sequencer
+COPY sequencer/config /app/config
+COPY sequencer/docker-entrypoint.sh /usr/local/bin/sequencer-entrypoint
 
-COPY --from=builder /app/submitter/target/release/submitter /usr/local/bin/submitter
-COPY submitter/submitter.yaml /app/submitter.yaml
-COPY submitter/config /app/config
+RUN chmod +x /usr/local/bin/sequencer-entrypoint
 
-EXPOSE 9000
+EXPOSE 3000
 
-ENTRYPOINT ["submitter"]
-CMD ["--config", "/app/submitter.yaml"]
+ENTRYPOINT ["/usr/local/bin/sequencer-entrypoint"]
