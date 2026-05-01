@@ -118,12 +118,10 @@ npm install
 cd ..
 ```
 
-### 3.4 Python Virtual Environment (Benchmark Suite)
+### 3.4 Python Dependency (Benchmark Suite)
 
-```bash
+```powershell
 cd benchmark-suite
-python3 -m venv .venv
-source .venv/bin/activate
 pip install eth-account
 cd ..
 ```
