@@ -6,28 +6,63 @@ Step-by-step instructions to bring up the entire ZK-Rollup pipeline and run the 
 > Windows natively, use **WSL2** or **Git Bash** — the benchmark orchestration scripts
 > (`run_experiment.sh`, `run_matrix.sh`, `reset_state.sh`, `run_pipeline.sh`) are pure Bash.
 
+> **Docker Compose (Recommended):** The fully containerized execution flow is now the primary method to run the stack. See the "Containerized Execution" section below.
+
 ---
 
 ## Table of Contents
 
-1. [Architecture Overview](#1-architecture-overview)
-2. [Prerequisites](#2-prerequisites)
-3. [One-Time Setup](#3-one-time-setup)
-4. [Start the L1 Node (Terminal A)](#4-start-the-l1-node-terminal-a)
-5. [Deploy Contracts (Terminal E)](#5-deploy-contracts-terminal-e)
-6. [Start the Executor (Terminal B)](#6-start-the-executor-terminal-b)
-7. [Start the Submitter (Terminal C)](#7-start-the-submitter-terminal-c)
-8. [Start the Sequencer (Terminal D)](#8-start-the-sequencer-terminal-d)
-9. [Verify All Services Are Running](#9-verify-all-services-are-running)
-10. [Run the Benchmark Suite](#10-run-the-benchmark-suite)
-11. [Validate End-to-End Pipeline](#11-validate-end-to-end-pipeline)
-12. [Analyse Results (Data Tools)](#12-analyse-results-data-tools)
-13. [Configuration Reference](#13-configuration-reference)
-14. [Troubleshooting](#14-troubleshooting)
+1. [Containerized Execution (Recommended)](#1-containerized-execution-recommended)
+2. [Architecture Overview](#2-architecture-overview)
+3. [Prerequisites (Native)](#3-prerequisites-native)
+4. [One-Time Setup (Native)](#4-one-time-setup-native)
+5. [Start the L1 Node (Terminal A)](#5-start-the-l1-node-terminal-a)
+6. [Deploy Contracts (Terminal E)](#6-deploy-contracts-terminal-e)
+7. [Start the Executor (Terminal B)](#7-start-the-executor-terminal-b)
+8. [Start the Submitter (Terminal C)](#8-start-the-submitter-terminal-c)
+9. [Start the Sequencer (Terminal D)](#9-start-the-sequencer-terminal-d)
+10. [Verify All Services Are Running](#10-verify-all-services-are-running)
+11. [Run the Benchmark Suite](#11-run-the-benchmark-suite)
+12. [Validate End-to-End Pipeline](#12-validate-end-to-end-pipeline)
+13. [Analyse Results (Data Tools)](#13-analyse-results-data-tools)
+14. [Configuration Reference](#14-configuration-reference)
+15. [Troubleshooting](#15-troubleshooting)
 
 ---
 
-## 1. Architecture Overview
+## 1. Containerized Execution (Recommended)
+
+The entire RollupX stack is fully containerized. You do not need to install Rust, Node, or set up multiple terminals if you use Docker Compose.
+
+**Start the core stack:**
+```bash
+docker compose --profile core up -d --build
+```
+This single command spins up:
+- `hardhat`: Local L1 node
+- `contracts-deployer`: Automatically deploys contracts and outputs runtime config to a shared volume
+- `executor`: The RISC0 executor
+- `submitter`: Submits batches to L1
+- `sequencer`: The transaction sequencer
+
+**Run Benchmarks:**
+Start the benchmark generator container (it stays idle), or run workload scripts locally against the containerized sequencer exposed on port `3000`.
+
+**Data Tools/Analytics:**
+```bash
+docker compose --profile report run --rm data-tools
+```
+
+**Cleanup:**
+```bash
+docker compose down -v --remove-orphans
+```
+
+---
+
+## 2. Architecture Overview
+
+
 
 ```
                                         ┌───────────────┐
