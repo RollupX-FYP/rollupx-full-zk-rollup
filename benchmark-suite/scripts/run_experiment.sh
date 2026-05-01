@@ -90,7 +90,7 @@ fi
 
 # ── 4. (Re)start sequencer ────────────────────────────────────────────────────
 # Adjust SEQUENCER_BIN to your actual binary path.
-SEQUENCER_BIN=${SEQUENCER_BIN:-./target/release/rollup_sequencer}
+SEQUENCER_BIN=${SEQUENCER_BIN:-./target/release/sequencer}
 
 if [[ -x "$SEQUENCER_BIN" ]]; then
     echo "[sequencer] stopping any existing instance ..."

@@ -42,8 +42,9 @@ async fn main() -> anyhow::Result<()> {
 
     // ── Step 2: Load Configuration ─────────────────────────────────────
     // Parse the TOML configuration file into structured config types.
-    let config = Config::load("config/default.toml")?;
-    info!("Sequencer starting with config: {:?}", config);
+    let config_path = std::env::var("ROLLUPX_CONFIG").unwrap_or_else(|_| "config/default.toml".to_string());
+    let config = Config::load(&config_path)?;
+    info!("Sequencer starting with config from {}: {:?}", config_path, config);
 
     // ── Step 3: Initialize Shared Resources ────────────────────────────
     // All shared state is created here and passed to components that need it.
