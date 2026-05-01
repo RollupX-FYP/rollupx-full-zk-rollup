@@ -1733,6 +1733,7 @@ dependencies = [
  "hex",
  "risc0-build",
  "risc0-zkvm",
+ "risc0-zkvm-platform",
  "rollup_core",
  "serde",
  "serde_json",

@@ -1,4 +1,4 @@
-FROM public.ecr.aws/docker/library/rust:1.85-bookworm AS builder
+FROM public.ecr.aws/docker/library/rust:1.90-bookworm AS builder
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -25,7 +25,7 @@ RUN cargo +nightly-2024-08-01 build --release \
     -p zksync_state_machine \
     --ignore-rust-version
 
-RUN cargo +nightly-2024-08-01 build --release \
+RUN RISC0_SKIP_BUILD=1 cargo build --release \
     --manifest-path risc0_prover/host/Cargo.toml
 
 FROM public.ecr.aws/docker/library/debian:bookworm-slim
