@@ -53,7 +53,6 @@ Step-by-step instructions to bring up the entire ZK-Rollup pipeline, run the ben
 3) **Start Docker**
    ```bash
    sudo systemctl start docker
-   sudo systemctl enable docker
    ```
    Verify:
    ```bash
