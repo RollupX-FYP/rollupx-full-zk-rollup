@@ -11,7 +11,7 @@ echo "========================================"
 # Check if benchmark service image is built
 if ! docker images | grep -q "rollupx/benchmark"; then
     echo "Building benchmark image..."
-    docker compose --profile core --profile bench build benchmark
+    docker compose --profile bench build benchmark
 fi
 
 # Run the benchmark runner container, overriding env vars for a short smoke test
@@ -19,7 +19,7 @@ docker compose --profile core --profile bench run --rm \
     -e DURATION_S=15 \
     -e RATE_TPS=2 \
     -e WARMUP_S=5 \
-    -e TX_MIX=transfer_only \
+    -e TX_MIX=light \
     -e EXP_ID=smoke_test \
     -e REPEAT=1 \
     -e POLICY=FCFS \

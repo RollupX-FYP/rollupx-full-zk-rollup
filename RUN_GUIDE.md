@@ -53,7 +53,6 @@ Step-by-step instructions to bring up the entire ZK-Rollup pipeline, run the ben
 3) **Start Docker**
    ```bash
    sudo systemctl start docker
-   sudo systemctl enable docker
    ```
    Verify:
    ```bash
@@ -67,19 +66,42 @@ Step-by-step instructions to bring up the entire ZK-Rollup pipeline, run the ben
 
 5) **Switch Branch (Optional)**
 
+   View branches:
+
+   ```bash
+   git branch -a
+   ```
+
+   Checkout:
    ```bash
    git checkout <branch-name>
    ```
-   If remote only:
+
+   Pull the latest changes:
    ```bash
-   git checkout -b <branch-name> origin/<branch-name>
+   git pull origin <branch-name>
    ```
 
 ## 1. Containerized Execution (Recommended)
 
 The entire RollupX stack is fully containerized. You do not need to install Rust, Node, or set up multiple terminals. You can run these primary docker commands from **PowerShell** or **WSL**.
 
-### 1.1 Start the Core Stack
+### 1.1 Cleanup and Start the Core Stack
+
+Always ensure a clean state before starting, especially if you are re-running an experiment. 
+
+1. **Tear down existing containers and volumes:**
+```bash
+docker compose down -v --remove-orphans
+```
+
+2. **(Optional) Force Rebuild Images:** 
+If you modified Dockerfiles or want a completely fresh image build without using cached layers, run:
+```bash
+docker compose --profile core build --no-cache
+```
+
+3. **Start the core stack:**
 ```bash
 docker compose --profile core up -d --build
 ```
@@ -96,25 +118,73 @@ Wait a few seconds for services to become healthy, then run the verification scr
 bash scripts/verify_stack.sh
 ```
 
-### 1.3 Run Benchmarks
+### 1.3 Configure and Run Benchmarks
 You can trigger a pre-configured smoke benchmark via the containerized runner (requires **WSL** or **Git Bash**):
 ```bash
+docker compose --profile bench build benchmark --no-cache # Run this once or if Dockerfile changes
 bash scripts/smoke_benchmark.sh
 ```
+
+**Configuring Benchmarks:**
+The benchmarks are controlled via Environment Variables passed to the benchmark container. If you open `scripts/smoke_benchmark.sh`, you can tweak parameters like:
+- `RATE_TPS=10`: Increase or decrease load.
+- `DURATION_S=30`: Run the test for a longer period.
+- `TX_MIX=heavy`: Change the workload type (valid: `balanced`, `light`, `heavy`, `custom`).
+- `DA_MODE=blob`: Test different Data Availability modes.
+- `PROVER=groth16`: Change the prover backend.
+
 Or, you can run specific workload scripts locally against the containerized sequencer exposed on port `3000`.
 
-### 1.4 Generate Data Tools / Analytics Report
-Extract metrics and generate CSV summaries, markdown reports, and plots using the `data-tools` profile:
+### 1.4 Generate Analytics Reports
+After the benchmarks finish, the raw per-run metrics (JSON + CSV) are stored in the Docker volume. To generate the aggregated analysis, plots, and markdown report, run the data-tools pipeline:
 ```bash
+docker compose --profile report build data-tools --no-cache # Run this once or if data-tools/Dockerfile changes
 docker compose --profile report run --rm data-tools
 ```
 
-### 1.5 Cleanup
-To tear down the containers and reset volumes:
+**What this produces (inside the Docker volume):**
+- `all_results.csv` — Aggregated metrics from all experiment runs
+- `stats_summary.csv` — Statistical summary (means, std, CI)
+- `figures/` — PNG plots (Pareto frontiers, throughput bars, latency CDF, fairness, cost heatmap, sensitivity)
+- `thesis_summary.md` — Auto-generated markdown report
+
+### 1.5 View the Results
+
+Since metrics are stored inside a Docker volume, first extract them to the host filesystem:
 ```bash
-docker compose down -v --remove-orphans
+mkdir -p ~/rollupx-metrics
+docker compose --profile report run --rm -v ~/rollupx-metrics:/out data-tools bash -c "cp -r /var/lib/rollupx/metrics/. /out/"
 ```
-*(Note: Remove named volumes with `docker compose down -v` only if you don't wish to keep existing metrics or database state.)*
+
+**Method 1: Through University VPN**
+
+The pipeline generates `.png` graphs and a `thesis_summary.md` inside the metrics folder. Since the VM is hosted on a university server behind a firewall, ports like `8080` might be blocked even on the VPN. The most reliable way to view the graphs is using **SSH Local Port Forwarding**.
+
+1. **On your local machine** (your laptop/desktop), open a new terminal and create an SSH tunnel:
+   ```bash
+   ssh -N -L 8080:localhost:8080 cseroot@10.15.94.170
+   ```
+   *(Keep this terminal open as long as you want to view the files)*
+
+2. **On the VM terminal** (where you run your project), start a simple Python web server:
+   ```bash
+   python3 -m http.server 8080 --directory ~/rollupx-metrics/
+   ```
+
+3. **On your local machine**, open a web browser and navigate to:
+   ```text
+   http://localhost:8080
+   ```
+
+Because of the SSH tunnel, your local browser will securely connect to the VM's server as if it were running on your own machine, completely bypassing any university firewall restrictions. Press `Ctrl+C` on the VM terminal to stop the server when done.
+
+**Method 2: Download Results to Your Local Machine**
+
+From a terminal on your **local machine** (your laptop/desktop):
+```bash
+scp -r cseroot@10.15.94.170:~/rollupx-metrics <save_path>
+```
+*(Replace `<save_path>` with the directory on your computer where you want to save the files. For example: `C:\Users\Lishan\Downloads`)*
 
 ---
 

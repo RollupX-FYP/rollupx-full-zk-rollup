@@ -45,7 +45,7 @@ export VALIDITY_PROOF_MODE_POLICY=${VALIDITY_PROOF_MODE_POLICY:-groth16_only}
 export VALIDITY_COST_INTERPRETATION=${VALIDITY_COST_INTERPRETATION:-comparative_not_market_representative}
 export CLEAN_STATE_BEFORE_RUN=${CLEAN_STATE_BEFORE_RUN:-1}
 
-METRICS_ROOT="metrics/${EXP_ID}/${RUN_ID}"
+METRICS_ROOT="${METRICS_ROOT:-metrics}/${EXP_ID}/${RUN_ID}"
 export METRICS_ROOT
 
 # ── traps — always clean up sequencer ─────────────────────────────────────────

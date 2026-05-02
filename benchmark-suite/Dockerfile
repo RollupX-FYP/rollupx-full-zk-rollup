@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     git \
     jq \
+    gettext-base \
     && rm -rf /var/lib/apt/lists/*
 
 COPY . .

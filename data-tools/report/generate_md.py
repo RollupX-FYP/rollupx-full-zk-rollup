@@ -33,8 +33,13 @@ def _fmt(val, decimals: int = 2, suffix: str = "") -> str:
 def _top_n(df: pd.DataFrame, col: str, n: int = 3, ascending: bool = True) -> pd.DataFrame:
     if col not in df.columns:
         return pd.DataFrame()
+    
+    # Coerce to numeric to avoid mean() failing on string types
+    temp_df = df[["experiment_id", col]].copy()
+    temp_df[col] = pd.to_numeric(temp_df[col], errors="coerce")
+    
     return (
-        df.groupby("experiment_id")[col]
+        temp_df.groupby("experiment_id")[col]
         .mean()
         .reset_index()
         .dropna()
@@ -109,9 +114,17 @@ def section_results_table(df: pd.DataFrame) -> str:
 
     # one row per experiment (mean across repeats)
     numeric_cols = [c for c, _ in available if c != "experiment_id"]
-    agg = df.groupby("experiment_id").agg(
-        {c: "first" if df[c].dtype == object else "mean" for c, _ in available}
-    ).reset_index()
+    
+    agg_dict = {}
+    for c, _ in available:
+        if c == "experiment_id":
+            continue
+        if pd.api.types.is_numeric_dtype(df[c]):
+            agg_dict[c] = "mean"
+        else:
+            agg_dict[c] = "first"
+            
+    agg = df.groupby("experiment_id").agg(agg_dict).reset_index()
 
     rows = []
     for _, row in agg.iterrows():
@@ -168,10 +181,12 @@ def section_baseline_comparison(df: pd.DataFrame) -> str:
         if col in baseline_df.columns
     }
 
-    non_baseline = df[df["experiment_id"] != "baseline"]
-    agg = non_baseline.groupby("experiment_id")[
-        [col for col, _, _ in metrics if col in non_baseline.columns]
-    ].mean().reset_index()
+    non_baseline = df[df["experiment_id"] != "baseline"].copy()
+    metric_cols = [col for col, _, _ in metrics if col in non_baseline.columns]
+    for col in metric_cols:
+        non_baseline[col] = pd.to_numeric(non_baseline[col], errors="coerce")
+        
+    agg = non_baseline.groupby("experiment_id")[metric_cols].mean().reset_index()
 
     headers = ["Experiment"] + [lbl for _, lbl, _ in metrics if metrics[0][0] in agg.columns or True]
     headers = ["Experiment"] + [
