@@ -23,7 +23,9 @@ use sequencer::{
     pool::{ForcedQueue, TransactionPool},
     l1::L1Listener,
     registry::Registry,
+    AccountState,
 };
+use ethers::types::{Address, U256};
 use std::sync::Arc;
 use tracing::info;
 
@@ -40,14 +42,16 @@ async fn main() -> anyhow::Result<()> {
 
     // ── Step 2: Load Configuration ─────────────────────────────────────
     // Parse the TOML configuration file into structured config types.
-    let config = Config::load("config/default.toml")?;
-    info!("Sequencer starting with config: {:?}", config);
+    let config_path = std::env::var("ROLLUPX_CONFIG").unwrap_or_else(|_| "config/default.toml".to_string());
+    let config = Config::load(&config_path)?;
+    info!("Sequencer starting with config from {}: {:?}", config_path, config);
 
     // ── Step 3: Initialize Shared Resources ────────────────────────────
     // All shared state is created here and passed to components that need it.
 
     // State cache: stores account balances and nonces for fast validation
     let state_cache = StateCache::new();
+    seed_local_dev_state(&state_cache).await;
 
     // Transaction pool: stores normal pending transactions from users
     let tx_pool = Arc::new(TransactionPool::new());
@@ -88,6 +92,7 @@ async fn main() -> anyhow::Result<()> {
         config.batch.clone(),
         config.scheduling.to_policy_type(),
         registry.clone(),
+        config.executor.grpc_url.clone(),
     );
 
     tokio::spawn(async move {
@@ -118,4 +123,25 @@ async fn main() -> anyhow::Result<()> {
 
     info!("Sequencer shut down successfully");
     Ok(())
+}
+
+async fn seed_local_dev_state(state_cache: &StateCache) {
+    // For local E2E (Hardhat/Anvil), seed the canonical dev sender account.
+    // This can be disabled with SEQUENCER_DISABLE_DEV_SEED=1.
+    if std::env::var("SEQUENCER_DISABLE_DEV_SEED").as_deref() == Ok("1") {
+        return;
+    }
+
+    let addr: Address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+        .parse()
+        .expect("valid hardhat dev address");
+    let balance = U256::from_dec_str("10000000000000000000000")
+        .expect("valid seeded balance"); // 10_000 ETH
+    state_cache
+        .update(AccountState {
+            address: addr,
+            balance,
+            nonce: 0,
+        })
+        .await;
 }

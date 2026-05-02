@@ -36,6 +36,12 @@ bash scripts/run_matrix.sh --filter batch_size
 | `SEQUENCER_BIN` | `./target/release/rollup_sequencer` | Path to sequencer binary |
 | `L1_RPC_URL` | (required) | Sepolia RPC endpoint |
 | `BRIDGE_ADDRESS` | (required) | Deployed RollupBridge address |
+| `CLEAN_STATE_BEFORE_RUN` | `1` | Reset local runtime DB/prover artifacts before each run |
+
+## Reproducibility guardrails
+
+For controlled runs, `scripts/run_experiment.sh` now calls `scripts/reset_state.sh` by default
+(`CLEAN_STATE_BEFORE_RUN=1`) to avoid cross-run contamination from local SQLite/trace/prover artifacts.
 
 ## Output layout
 

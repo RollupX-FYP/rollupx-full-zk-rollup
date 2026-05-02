@@ -1,3 +1,0 @@
-ALTER TABLE executed_priority_operations DROP COLUMN sequence_number;
-ALTER TABLE executed_transactions DROP COLUMN sequence_number;
-DROP SEQUENCE executed_operations_seq_number;

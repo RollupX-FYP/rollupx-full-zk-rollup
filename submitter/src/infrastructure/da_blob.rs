@@ -256,6 +256,7 @@ mod tests {
             proof: None,
             tx_hash: None,
             attempts: 0,
+            tx_count: 0,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
             blob_versioned_hash: None,
