@@ -1,0 +1,22 @@
+network:
+  rpc_url: "http://127.0.0.1:8545"
+  chain_id: 31337
+
+contracts:
+  bridge: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+
+da:
+  mode: "offchain"
+  blob_binding: "mock"
+  blob_index: 0
+  archiver_url: "http://mock-archiver"
+
+batch:
+  data_file: "dummy.bin"
+  new_root: "0x00"
+  blob_versioned_hash: "0x0100000000000000000000000000000000000000000000000000000000000000"
+
+proof:
+  backend: "groth16"
+  verification_mode: "onchain"
+  verifier_id: 0

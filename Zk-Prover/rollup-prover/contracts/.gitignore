@@ -1,6 +1,0 @@
-/build
-# /contracts/keys
-/contracts/KeysWithPlonkVerifier.sol
-/artifacts
-/cache
-/typechain

@@ -1,0 +1,50 @@
+[package]
+name = "zksync_state_machine"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lib]
+path = "lib.rs"
+
+[[bin]]
+name = "zksync_state_machine"
+path = "main.rs"
+
+[dependencies]
+anyhow.workspace = true
+ethers = "2.0"
+hex.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["full"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+tonic = { workspace = true, features = ["transport", "codegen", "prost"] }
+prost.workspace = true
+futures-util.workspace = true
+tracing.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
+k256 = { version = "0.13", features = ["ecdsa"] }
+bincode.workspace = true
+rollup_core = { path = "../../risc0_prover/rollup_core" }
+rocksdb.workspace = true
+zksync_merkle_tree = { path = "../lib/merkle_tree" }
+zksync_storage = { path = "../lib/storage" }
+zksync_types = { path = "../lib/types" }
+
+[dev-dependencies]
+tempfile.workspace = true
+rand = "0.8"
+
+[build-dependencies]
+tonic-build = "0.11.0"
+protoc-bin-vendored = "3"
+
+[features]
+rocksdb = []

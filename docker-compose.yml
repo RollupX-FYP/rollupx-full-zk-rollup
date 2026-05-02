@@ -1,0 +1,209 @@
+services:
+  hardhat:
+    profiles: ["core"]
+    image: ${CONTRACTS_IMAGE:-rollupx/contracts:dev}
+    build:
+      context: ./contracts
+      dockerfile: Dockerfile
+    command:
+      ["npx", "hardhat", "node", "--hostname", "0.0.0.0", "--port", "8545"]
+    ports:
+      - "${HARDHAT_HOST_PORT:-8545}:8545"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'node -e "fetch(''http://127.0.0.1:8545'',{method:''POST'',headers:{''content-type'':''application/json''},body:JSON.stringify({jsonrpc:''2.0'',method:''eth_blockNumber'',params:[],id:1})}).then(r=>r.ok?process.exit(0):process.exit(1)).catch(()=>process.exit(1))"',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    networks:
+      rollupx:
+        aliases:
+          - l1-node
+
+  contracts-deployer:
+    profiles: ["core"]
+    image: ${CONTRACTS_IMAGE:-rollupx/contracts:dev}
+    depends_on:
+      hardhat:
+        condition: service_healthy
+    command: ["sh", "/compose/scripts/deploy-runtime.sh"]
+    environment:
+      RUNTIME_DIR: /runtime
+      L1_RPC_HTTP: ${L1_RPC_HTTP:-http://hardhat:8545}
+      L1_RPC_WS: ${L1_RPC_WS:-ws://hardhat:8545}
+      L1_CHAIN_ID: ${L1_CHAIN_ID:-31337}
+      L1_START_BLOCK: ${L1_START_BLOCK:-0}
+      SEQUENCER_BATCH_MAX_SIZE: ${SEQUENCER_BATCH_MAX_SIZE:-100}
+      SEQUENCER_BATCH_TIMEOUT_MS: ${SEQUENCER_BATCH_TIMEOUT_MS:-5000}
+      SEQUENCER_BATCH_MIN_SIZE: ${SEQUENCER_BATCH_MIN_SIZE:-10}
+      SEQUENCER_BATCH_MAX_GAS_LIMIT: ${SEQUENCER_BATCH_MAX_GAS_LIMIT:-30000000}
+      SEQUENCER_POLICY: ${SEQUENCER_POLICY:-FCFS}
+      SUBMITTER_DA_MODE: ${SUBMITTER_DA_MODE:-offchain}
+      SUBMITTER_BLOB_BINDING: ${SUBMITTER_BLOB_BINDING:-mock}
+      SUBMITTER_BLOB_INDEX: ${SUBMITTER_BLOB_INDEX:-0}
+      SUBMITTER_ARCHIVER_URL: ${SUBMITTER_ARCHIVER_URL:-http://archiver-service:3000}
+      SUBMITTER_PROOF_BACKEND: ${SUBMITTER_PROOF_BACKEND:-groth16}
+      SUBMITTER_PROOF_VERIFICATION_MODE: ${SUBMITTER_PROOF_VERIFICATION_MODE:-onchain}
+      SUBMITTER_PROOF_VERIFIER_ID: ${SUBMITTER_PROOF_VERIFIER_ID:-0}
+    volumes:
+      - runtime_config:/runtime
+      - ./compose/scripts:/compose/scripts:ro
+    restart: "no"
+    networks:
+      - rollupx
+
+  executor:
+    profiles: ["core"]
+    image: ${EXECUTOR_IMAGE:-rollupx/executor:dev}
+    build:
+      context: .
+      dockerfile: executor/Dockerfile
+    depends_on:
+      contracts-deployer:
+        condition: service_completed_successfully
+    environment:
+      EXECUTOR_GRPC_ADDR: 0.0.0.0:50051
+      TRACE_ROOT: /var/lib/rollupx/executor/traces
+      STATE_DB_PATH: /var/lib/rollupx/executor/state_db
+      RISC0_WORK_DIR: /var/lib/rollupx/executor/risc0
+      RISC0_HOST_BIN: /usr/local/bin/rollup_host
+      PROVER_BACKEND: risc0
+      ALLOW_PROOF_FALLBACK: ${ALLOW_PROOF_FALLBACK:-1}
+      METRICS_ROOT: /var/lib/rollupx/metrics
+    volumes:
+      - executor_state:/var/lib/rollupx/executor/state_db
+      - executor_traces:/var/lib/rollupx/executor/traces
+      - executor_risc0:/var/lib/rollupx/executor/risc0
+      - metrics_data:/var/lib/rollupx/metrics
+      - runtime_config:/runtime:ro
+    ports:
+      - "${EXECUTOR_HOST_PORT:-50051}:50051"
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f zksync_state_machine >/dev/null"]
+      interval: 10s
+      timeout: 3s
+      retries: 15
+      start_period: 15s
+    networks:
+      - rollupx
+
+  submitter:
+    profiles: ["core"]
+    image: ${SUBMITTER_IMAGE:-rollupx/submitter:dev}
+    build:
+      context: .
+      dockerfile: submitter/Dockerfile
+    depends_on:
+      contracts-deployer:
+        condition: service_completed_successfully
+      executor:
+        condition: service_healthy
+    command: ["--config", "/runtime/submitter.yaml"]
+    environment:
+      SUBMITTER_PRIVATE_KEY: ${SUBMITTER_PRIVATE_KEY:-0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80}
+      COMM_MODE: grpc
+      EXECUTOR_URL: http://executor:50051
+      OUTBOX_DB_PATH: /var/lib/rollupx/submitter/outbox.db
+      METRICS_ROOT: /var/lib/rollupx/metrics
+      EXPERIMENT_ID: compose_core
+    volumes:
+      - submitter_data:/var/lib/rollupx/submitter
+      - metrics_data:/var/lib/rollupx/metrics
+      - runtime_config:/runtime:ro
+    ports:
+      - "${SUBMITTER_METRICS_HOST_PORT:-9000}:9000"
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f submitter >/dev/null"]
+      interval: 10s
+      timeout: 3s
+      retries: 15
+      start_period: 15s
+    networks:
+      - rollupx
+
+  sequencer:
+    profiles: ["core"]
+    image: ${SEQUENCER_IMAGE:-rollupx/sequencer:dev}
+    build:
+      context: .
+      dockerfile: sequencer/Dockerfile
+    depends_on:
+      contracts-deployer:
+        condition: service_completed_successfully
+      executor:
+        condition: service_healthy
+      submitter:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - cp /runtime/sequencer.default.toml /app/config/default.toml && exec /usr/local/bin/sequencer
+    volumes:
+      - sequencer_db:/var/lib/rollupx/sequencer
+      - runtime_config:/runtime:ro
+    ports:
+      - "${SEQUENCER_HOST_PORT:-3000}:3000"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'curl -fsS -H ''Content-Type: application/json'' -d ''{"jsonrpc":"2.0","method":"sendTransaction","params":{},"id":1}'' http://127.0.0.1:3000/ >/dev/null',
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+    networks:
+      - rollupx
+
+  benchmark:
+    profiles: ["bench"]
+    image: ${BENCHMARK_IMAGE:-rollupx/benchmark:dev}
+    build:
+      context: ./benchmark-suite
+      dockerfile: Dockerfile
+    depends_on:
+      sequencer:
+        condition: service_healthy
+    working_dir: /app
+    environment:
+      SEQ_HOST: sequencer
+      SEQ_PORT: 3000
+      METRICS_ROOT: /var/lib/rollupx/metrics
+      L1_RPC_URL: ${L1_RPC_HTTP:-http://hardhat:8545}
+    entrypoint: ["bash", "-lc"]
+    command: "sleep infinity"
+    volumes:
+      - metrics_data:/var/lib/rollupx/metrics
+      - runtime_config:/runtime:ro
+    networks:
+      - rollupx
+
+  data-tools:
+    profiles: ["report"]
+    image: ${DATA_TOOLS_IMAGE:-rollupx/data-tools:dev}
+    build:
+      context: .
+      dockerfile: data-tools/Dockerfile
+    environment:
+      METRICS_ROOT: /var/lib/rollupx/metrics
+    volumes:
+      - metrics_data:/var/lib/rollupx/metrics
+    networks:
+      - rollupx
+
+volumes:
+  sequencer_db:
+  executor_state:
+  executor_traces:
+  executor_risc0:
+  submitter_data:
+  metrics_data:
+  runtime_config:
+
+networks:
+  rollupx:
+    driver: bridge

@@ -1,0 +1,3 @@
+[workspace]
+members = ["rollup_core", "guest", "host", "host/guest"]
+resolver = "2"

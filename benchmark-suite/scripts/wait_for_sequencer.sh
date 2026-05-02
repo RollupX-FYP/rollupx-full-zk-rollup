@@ -8,10 +8,10 @@ HOST=${1:-${SEQ_HOST:-localhost}}
 PORT=${2:-${SEQ_PORT:-3000}}
 MAX=${3:-30}
 
-echo "[wait_for_sequencer] polling http://$HOST:$PORT/health (max ${MAX} attempts)"
+echo "[wait_for_sequencer] polling http://$HOST:$PORT/ (max ${MAX} attempts)"
 
 for i in $(seq 1 "$MAX"); do
-    if curl -sf --max-time 2 "http://$HOST:$PORT/health" > /dev/null 2>&1; then
+    if curl -sf "http://$HOST:$PORT/" -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"rollup_health","params":{},"id":1}' > /dev/null 2>&1; then
         echo "[wait_for_sequencer] ready after ${i} attempt(s)"
         exit 0
     fi
