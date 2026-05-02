@@ -30,7 +30,7 @@ This document is an execution-grade plan. An agent should be able to implement c
 
 ---
 
-## Phase 0 - Preflight and Baseline
+## Phase 0 - Preflight and Baseline [COMPLETED]
 
 ## Objectives
 
@@ -61,7 +61,7 @@ find . -maxdepth 3 -name "Dockerfile" -o -name "docker-compose.yml" -o -name ".d
 
 ---
 
-## Phase 1 - Standardize Container Build Assets
+## Phase 1 - Standardize Container Build Assets [COMPLETED]
 
 ## Objectives
 
@@ -111,7 +111,7 @@ docker build -f benchmark-suite/Dockerfile -t rollupx/benchmark:dev benchmark-su
 
 ---
 
-## Phase 2 - Compose Orchestration
+## Phase 2 - Compose Orchestration [COMPLETED]
 
 ## Objectives
 
@@ -163,7 +163,7 @@ docker compose logs --no-color --tail 200
 
 ---
 
-## Phase 3 - Runtime and Script Alignment
+## Phase 3 - Runtime and Script Alignment [COMPLETED]
 
 ## Objectives
 
@@ -215,7 +215,7 @@ curl -sf http://127.0.0.1:3000/ -X POST \
 
 ---
 
-## Phase 4 - End-to-End Validation Harness
+## Phase 4 - End-to-End Validation Harness [COMPLETED]
 
 ## Objectives
 
