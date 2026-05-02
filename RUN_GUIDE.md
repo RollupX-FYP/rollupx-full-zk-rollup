@@ -134,17 +134,31 @@ docker compose --profile report build data-tools # Run this once or if data-tool
 docker compose --profile report run --rm data-tools
 ```
 
-<!-- **How to View the Results (Through University VPN / Firewall):**
+### 1.5 View the Results
+**Method 1: Download Results to Your Local Machine**
+
+If you prefer to download the raw files and graphs to view them natively on your PC, you can securely copy the entire folder from the VM using `scp`:
+
+1. Open a terminal on your local machine (your laptop/desktop).
+2. Run the `scp` command to download the folder:
+   ```bash
+   scp -r cseroot@10.15.94.170:/home/cseroot/rollupx-full-zk-rollup/benchmark-suite/metrics <save_path>
+   ```
+   *(Replace `<save_path>` with the directory on your computer where you want to save the files. For example: `C:\Users\Lishan\Downloads`)*
+
+**Method 2: Through University VPN**
+
 The pipeline generates `.png` graphs and a `thesis_summary.md` inside the `metrics/` folder. Since the VM is hosted on a university server behind a firewall, ports like `8080` might be blocked even on the VPN. The most reliable way to view the graphs is using **SSH Local Port Forwarding**.
 
 1. **On your local machine** (your laptop/desktop), open a new terminal and create an SSH tunnel:
    ```bash
-   ssh -L 8080:localhost:8080 cseroot@10.15.94.170
+   ssh -N -L 8080:localhost:8080 cseroot@10.15.94.170
    ```
    *(Keep this terminal open as long as you want to view the files)*
 
 2. **On the VM terminal** (where you run your project), start a simple Python web server:
    ```bash
+   cd rollupx-full-zk-rollup
    python3 -m http.server 8080 --directory metrics/
    ```
 
@@ -153,7 +167,7 @@ The pipeline generates `.png` graphs and a `thesis_summary.md` inside the `metri
    http://localhost:8080
    ```
 
-Because of the SSH tunnel, your local browser will securely connect to the VM's server as if it were running on your own machine, completely bypassing any university firewall restrictions. Press `Ctrl+C` on the VM terminal to stop the server when done. -->
+Because of the SSH tunnel, your local browser will securely connect to the VM's server as if it were running on your own machine, completely bypassing any university firewall restrictions. Press `Ctrl+C` on the VM terminal to stop the server when done.
 
 ---
 
