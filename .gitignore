@@ -37,4 +37,5 @@
 /risc0_prover/target/
 
 .*
+!.github/
 !.dockerignore
