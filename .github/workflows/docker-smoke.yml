@@ -1,0 +1,57 @@
+name: Docker Smoke Test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Core Stack
+        run: docker compose --profile core build
+
+      - name: Start Core Stack
+        run: docker compose --profile core up -d
+
+      - name: Wait for services
+        run: sleep 10
+
+      - name: Verify Stack Health
+        run: bash scripts/verify_stack.sh
+
+      - name: Build Benchmark and Data Tools
+        run: |
+          docker compose --profile bench build benchmark
+          docker compose --profile report build data-tools
+
+      - name: Run Smoke Benchmark
+        run: bash scripts/smoke_benchmark.sh
+
+      - name: Verify Benchmark Artifacts
+        run: bash scripts/verify_artifacts.sh
+
+      - name: Run Data Pipeline
+        run: docker compose --profile report run --rm data-tools
+
+      - name: Extract Metrics
+        if: always()
+        run: |
+          mkdir -p ./ci_metrics
+          docker compose --profile report run --rm -v ${{ github.workspace }}/ci_metrics:/out --entrypoint /bin/sh data-tools -c "cp -R /var/lib/rollupx/metrics/* /out/ || true"
+
+      - name: Upload Logs and Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-test-artifacts
+          path: ./ci_metrics/
+          retention-days: 7
