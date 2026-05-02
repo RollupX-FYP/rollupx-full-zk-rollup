@@ -1,17 +1,17 @@
 \section{Introduction}
 
-Ethereum Layer-1 provides strong security and decentralization but remains constrained by limited throughput, congestion, and fee volatility~\cite{buterin2014ethereum,wood2014ethereum}. This limitation reflects the blockchain trilemma, where decentralized blockchain systems must balance scalability, security, and decentralization rather than maximizing all three simultaneously~\cite{fu2024trilemma}. Ethereum’s current scaling direction therefore relies heavily on Layer-2 rollups, which move transaction execution off-chain while using Layer-1 for settlement, verification, and data availability~\cite{ethereum_scaling_docs,ethereum_data_availability_docs}.
+Ethereum Layer-1 provides strong security and decentralization but remains constrained by limited throughput, congestion, and fee volatility~\cite{buterin2014ethereum,wood2014ethereum}. This limitation reflects the blockchain trilemma, where decentralized blockchain systems must balance scalability, security, and decentralization rather than maximizing all three simultaneously~\cite{fu2024trilemma}. Ethereum's current scaling direction therefore relies heavily on Layer-2 rollups, which move transaction execution off-chain while using Layer-1 for settlement, verification, and data availability~\cite{ethereum_scaling_docs,ethereum_data_availability_docs}.
 
 Within this rollup-centric design space, ZK-Rollups are particularly attractive because they submit cryptographic validity proofs that allow Layer-1 contracts to verify off-chain state transitions without re-executing every transaction. This preserves the base layer's security model while reducing the amount of computation performed directly on Layer-1.
 
-However, practical ZK-Rollup performance depends heavily on interacting bottleneck factors, including proof-generation overhead, sequencer scheduling policies, data availability (DA) mode costs, and batch size/frequency trade-offs \cite{habib2025bottlenecks, chaliasos2024benchmarking}. Existing production ZK-Rollups are optimized for deployment and user adoption, but their monolithic complexity makes them difficult to modify for controlled academic benchmarking.
+However, practical ZK-Rollup performance is shaped by several interacting factors, including proof-generation overhead, sequencer scheduling policies, data availability (DA) footprint, Layer-1 submission cost, and batch size or batch frequency decisions~\cite{habib2025bottlenecks,chaliasos2024benchmarking}. Existing production ZK-Rollups are optimized for deployment and user adoption, but their deployment-oriented complexity makes it difficult to modify internal policies and run controlled configuration-level experiments under identical workloads.
 
-To address this gap, this paper presents a modular ZK-Rollup research prototype designed to separate sequencing, execution, proving, submission, and data availability concerns. By doing so, it supports reproducible, configuration-level benchmarking. The system is designed as a controlled experimental environment and is not a production-ready system or a full zkEVM.
+To address this gap, this paper presents a modular ZK-Rollup research prototype designed to separate sequencing, execution, proof handling, submission, and data availability concerns. The prototype supports reproducible benchmarking by allowing batching, sequencing, and DA-related parameters to be varied while keeping the remaining pipeline fixed. The system is designed as a controlled experimental environment and is not a production-ready system or a full zkEVM.
 
 The main contributions of this work are:
 \begin{itemize}
-    \item We design and implement a modular ZK-Rollup research prototype with separated sequencer, executor, prover, submitter, smart contract, and DA components.
-    \item We expose configurable batching, sequencing, and DA policies to support controlled benchmarking.
-    \item We define a reproducible methodology for evaluating throughput, latency, gas per transaction, proof or mock-proof time, finalization time, DA footprint, and queueing behavior.
-    \item We analyze the resulting throughput-latency-cost trade-offs and identify bottlenecks that guide future ZK-Rollup optimization.
+    \item We design and implement a modular ZK-Rollup research prototype with separated sequencer, executor, prover interface, submitter, smart contract, and DA components.
+    \item We expose configurable batching, sequencing, and DA policies to support controlled benchmarking under comparable workload conditions.
+    \item We define a reproducible methodology using controlled synthetic workloads and parameterized proof-delay measurements to compare relative behavior across configurations.
+    \item We analyze preliminary throughput--latency--cost trade-offs and study bottleneck trends under mock/parameterized proving delay to guide future ZK-Rollup optimization.
 \end{itemize}

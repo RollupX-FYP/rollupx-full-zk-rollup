@@ -127,9 +127,6 @@ The module is organized into the following components:
     \item[StateManager] 
     The main state controller implementing the repository trait. It combines Caching (LRU), Atomic Commit, and Snapshot/Restore patterns. It batches database writes to ensure the system never enters a partially updated state.
 
-    \item[EvmDatabase (Adapter Pattern)] 
-    Serves as a structural bridge between the internal \texttt{StateRepository} interface and the \texttt{revm::Database} trait.
-
     \item[MerkleTree] 
     Acts as the system's cryptographic accumulator. It maintains the state tree and generates the State Root, which serves as a verifiable cryptographic commitment to the entire Layer-2 state.
 \end{description}
@@ -181,8 +178,7 @@ The utils module serves as a shared library of cross-cutting concerns, primarily
 \paragraph{Phase 1: Execution (Executor Module)}
 Transaction dispatch occurs based on type:
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Transfer}: Direct state mutation via \texttt{StateRepository} (debit sender, credit recipient).
-    \item \textbf{Contract Operations}: Delegation to \texttt{EvmExecutor}, which instantiates \texttt{revm::Evm} with an \texttt{EvmDatabase} adapter bridging to \texttt{StateRepository}.
+    \item \textbf{Transfer}: Direct state mutation via \texttt{StateRepository} (debit sender, credit recipient). The executor is a simplified state-transition engine for transfer-style workloads and Merkle state updates. It is not a full EVM or zkEVM execution environment.
 \end{itemize}
 
 \paragraph{Phase 2: State Commitment (State Module)}
@@ -212,15 +208,6 @@ Standardizing on \texttt{alloy-primitives} (\texttt{Address}, \texttt{U256}, \te
     \item[\cmark] Battle-tested 256-bit arithmetic (security critical)
     \item[\cmark] Native RLP encoding via \texttt{alloy-rlp}
     \item[\xmark] Dependency on external crate evolution
-\end{itemize}
-
-\paragraph{Revm Integration vs. Custom EVM}
-Using \texttt{revm} rather than a custom EVM implementation:
-\begin{itemize}[leftmargin=*]
-    \item[\cmark] Production-tested (used by Reth, Foundry)
-    \item[\cmark] Complete opcode and precompile support
-    \item[\cmark] Trait-based \texttt{Database} interface enables state layer decoupling
-    \item[\xmark] Binary size overhead
 \end{itemize}
 
 \paragraph{Sparse Merkle Tree Selection}
@@ -286,7 +273,6 @@ Post-execution and proving, the system outputs data for on-chain storage and ver
 \midrule
 Ethereum Types & \texttt{alloy-primitives} & 0.6+ & Address, U256, B256 \\
 RLP Encoding & \texttt{alloy-rlp} & 0.6+ & Transaction hashing \\
-EVM Execution & \texttt{revm} & 8.0+ & Smart contract runtime \\
 Cryptography & \texttt{tiny-keccak} & 2.0+ & Hashing \\
 Storage & \texttt{rocksdb} & 0.21+ & Persistent KV store \\
 Merkle Trees & \texttt{sparse-merkle-tree} & 0.6+ & State commitments \\

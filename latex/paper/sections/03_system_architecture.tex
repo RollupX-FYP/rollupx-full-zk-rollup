@@ -1,7 +1,8 @@
 \section{System Architecture}
 
 \subsection{Overview}
-The proposed framework is designed as a modular ZK-Rollup research prototype. The architecture deliberately separates policy decisions from execution and settlement mechanisms. This design prioritizes observability and reproducibility over production completeness, avoiding the complexity of a full production zkEVM.
+
+The proposed framework is designed as a modular ZK-Rollup research prototype for controlled performance evaluation. Rather than targeting production deployment, the architecture separates transaction ordering, state transition execution, proof handling, Layer-1 submission, and data availability concerns into distinct components. This separation allows individual policies to be varied while keeping the rest of the pipeline fixed, supporting reproducible analysis of throughput, latency, and cost trade-offs.
 
 \begin{figure}[t]
     \centering
@@ -17,35 +18,38 @@ The proposed framework is designed as a modular ZK-Rollup research prototype. Th
 \resizebox{\linewidth}{!}{%
 \begin{tabular}{lll} 
 \toprule 
-\textbf{Component} & \textbf{Role} & \textbf{Configurable Control} \\ 
+\textbf{Component} & \textbf{Role} & \textbf{Experimental Control} \\ 
 \midrule 
-Sequencer & Orders and batches transactions & FCFS, fee-priority, time-boost \\ 
-Executor & Applies state transitions & State tree / batch execution \\ 
-Prover & Models proof overhead & Mock delay / proof mode \\ 
-Submitter & Commits batches to L1 & Calldata, blob, off-chain DA \\ 
-L1 Contract & Verifies commitments & Verifier and DA provider abstraction \\ 
+Sequencer & Orders and batches transactions & FCFS/FIFO scheduling, batch sizing \\ 
+Executor & Applies state transitions & Simple transfers, Merkle state updates \\ 
+Prover & Models proof-related delay & Mock delay simulation, RISC Zero path where applicable \\ 
+Submitter & Commits batches to Layer-1 & Calldata and EIP-4844 blob submission \\ 
+Layer-1 Contract & Records commitments & Bridge, DA, and verifier abstraction stubs \\ 
 \bottomrule 
 \end{tabular} 
 }
 \end{table}
 
 \subsection{Transaction Lifecycle and Components}
-The end-to-end transaction lifecycle involves several decoupled components, as illustrated in Fig.~\ref{fig:architecture}.
 
-\textbf{Workload Generator:} Produces synthetic transaction traffic at controlled rates, supporting various workload regimes such as balanced steady-state or bursty arrivals.
+The end-to-end transaction lifecycle, shown in Fig.~\ref{fig:architecture}, begins with synthetic transaction generation and proceeds through sequencing, execution, proof handling, submission, and telemetry collection.
 
-\textbf{Sequencer:} Maintains a transaction pool and orders transactions based on configurable scheduling policies (e.g., FCFS, fee-priority, time-boost, or fair BFT). It includes a batch orchestrator that determines when to form a new batch based on fixed-size, fixed-interval, or soft-cap rules. It also monitors a forced transaction queue to simulate censorship resistance.
+\textbf{Workload Generator:} The workload generator produces synthetic transfer-centric transaction traffic at controlled rates. The current workload model uses a Poisson arrival process to emulate configurable transaction arrival patterns for repeatable experiments.
 
-\textbf{Executor:} The state manager applies state transitions to a sparse Merkle tree. It validates nonces and balances, separating execution from transaction ordering.
+\textbf{Sequencer:} The sequencer maintains a transaction pool and orders incoming transactions using the currently implemented FCFS/FIFO policy. It also coordinates batch formation according to configured batch-size and timing parameters. This component provides the main control point for studying how ordering and batching choices affect queueing delay and committed throughput.
 
-\textbf{Prover:} The mock-prover mode parameterizes proof delay, allowing the proving stage to be studied without requiring full circuit execution in every benchmark run.
+\textbf{Executor:} The executor implements a simplified state-transition engine for transfer-style workloads. It validates transaction nonces and balances, applies state updates, and maintains Merkle-based state commitments. The executor is intended to model rollup-style state transition and commitment behavior; it is not a full EVM or zkEVM execution environment.
 
-\textbf{Submitter and Layer-1 Contract:} The submitter handles bit-packing and compression strategies to commit data to Layer-1. It supports abstractions for different DA providers, routing data as calldata, blobs, or off-chain DA. The L1 smart contract acts as the verifier abstraction.
+\textbf{Prover:} The proving interface supports a mock-prover mode that injects parameterized proof-generation delay into the pipeline. A RISC Zero proving path is included where applicable, but the current benchmark results should be interpreted as controlled proof-delay measurements rather than full cryptographic prover throughput. This design allows the evaluation to isolate the effects of sequencing, batching, DA, and submission choices without requiring PLONK/Groth16 circuit execution for every benchmark run.
 
-\textbf{Telemetry:} Granular data collection is embedded throughout to monitor queueing delays, prover utilization, and submission costs.
+\textbf{Submitter and Layer-1 Contract:} The submitter packages executed batches and commits the corresponding metadata to Layer-1. It supports calldata-based submission and EIP-4844 blob-based submission, allowing the evaluation to compare different data-posting cost profiles. The Layer-1 contract side provides bridge, DA, and verifier abstraction stubs for testing the submission flow rather than production-grade proof verification.
+
+\textbf{Telemetry:} Telemetry hooks collect timing and cost-related measurements across the pipeline, including queueing delay, proof-delay contribution, submission cost, batch finalization time, and committed throughput. These measurements support configuration-level comparison rather than production mainnet performance claims.
 
 \subsection{Design Rationale}
 
-The prototype deliberately prioritizes modularity and observability over production completeness. Unlike production ZK-Rollups, where batching, proving, data availability, and submission logic are tightly optimized for deployment, the proposed framework exposes these mechanisms as configurable experimental controls. This allows the same workload to be replayed across different batch policies, sequencing policies, and data availability modes while keeping the remaining pipeline fixed. This design makes it possible to attribute performance changes to specific architectural choices rather than to unrelated implementation differences.
+The prototype deliberately prioritizes modularity, observability, and reproducibility over production completeness. Production ZK-Rollups are optimized for deployment, user compatibility, and operational reliability, making it difficult to independently vary internal policies under identical workloads. In contrast, the proposed framework exposes batching, proof-delay, and data availability mechanisms as experimental controls.
 
-The separation between the sequencer, executor, prover, submitter, and Layer-1 contract also supports controlled bottleneck isolation. For example, the prover can be executed in mock mode to parameterize proof delay, while the submitter can switch between calldata, blob-based DA, and off-chain DA to isolate data-posting overhead. This makes the prototype suitable for studying the throughput--latency--cost frontier of ZK-Rollup systems, even though it is not intended to provide full zkEVM compatibility.
+This design allows the same workload to be replayed across different batch sizes and data availability modes while keeping the remaining pipeline fixed. As a result, performance changes can be attributed more directly to specific architectural choices rather than to unrelated implementation differences.
+
+The separation between the sequencer, executor, prover, submitter, and Layer-1 contract also supports controlled bottleneck isolation. For example, mock-prover mode parameterizes proof delay, while calldata and blob-based submission paths isolate data-posting overhead. This makes the prototype suitable for studying the throughput--latency--cost frontier of ZK-Rollup systems, while remaining clear that it is not production-ready and does not provide full zkEVM compatibility.

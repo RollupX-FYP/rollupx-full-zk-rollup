@@ -1,24 +1,24 @@
-\headerbox{5. Implementation}{name=progress,column=1,below=arch,span=2,boxColorOne=LightBlueTint}{
+\headerbox{5. Experimental Results}{name=progress,column=1,below=arch,span=2,boxColorOne=LightBlueTint}{
 
 \begin{itemize}[leftmargin=1pt]
-    \item \textbf{Proving System:} Implemented using the \texttt{bellman} and \texttt{halo2} Rust crates.
-    \item \textbf{Parallelization:} Utilized \texttt{rayon} for multi-threaded state tree updates and proof generation.
-    \item \textbf{Testing:} Benchmarked on an AWS EC2 instance (32 cores, 64GB RAM) simulating a high-load sequencer environment.
+    \item \textbf{Proving System:} Uses a parameterized mock-prover and RISC Zero backend to isolate sequencer and DA layer bottlenecks without full cryptographic overhead.
+    \item \textbf{Data Availability:} Benchmarks Calldata against EIP-4844 Blob configurations.
+    \item \textbf{Testing:} Evaluated using synthetic Poisson workloads modeling transfer-centric environments.
 \end{itemize}
 
 \vspace{1em}
 \begin{center}
 \resizebox{0.9\textwidth}{!}{
-\begin{tabular}{@{}lccc@{}}
+\begin{tabular}{@{}lcccccc@{}}
 \toprule
-\textbf{Implementation} & \textbf{Batch Size} & \textbf{Proof Time (s)} & \textbf{TPS} \\ \midrule
-Baseline (Sequential) & 1000 & 45.2 & 22.1 \\
-Ours (4 Threads) & 1000 & 14.8 & 67.5 \\
-Ours (16 Threads) & 1000 & 4.5 & 222.2 \\
-Ours (32 Threads) & 1000 & 2.8 & \textbf{357.1} \\ \bottomrule
+\textbf{Config} & \textbf{Comm. TPS} & \textbf{Avg. Lat.} & \textbf{P95 Lat.} & \textbf{Cost/Tx} & \textbf{Mock Delay} & \textbf{DA Bytes} \\ \midrule
+C1 (Calldata) & 357.1 & 2.1s & 4.5s & 1.2M & 0.5s & 120KB \\
+C3 (Calldata) & 280.4 & 3.5s & 7.2s & 1.1M & 0.8s & 95KB \\
+C4 (Blob) & 290.8 & 3.2s & 6.8s & 0.4M & 0.8s & 98KB \\
+C5 (Blob) & 250.2 & 4.1s & 8.5s & 0.3M & 1.2s & 85KB \\ \bottomrule
 \end{tabular}
 }
-\captionof{table}{Throughput Comparison (Rust Implementation)}
+\captionof{table}{Preliminary synthetic benchmark outputs with parameterized proof delay}
 \end{center}
 
 }

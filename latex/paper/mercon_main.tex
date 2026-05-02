@@ -26,11 +26,11 @@
 \maketitle
 
 \begin{abstract}
-Ethereum's limited Layer-1 throughput has motivated the adoption of Layer-2 rollups, where ZK-Rollups provide strong security and fast finality through validity proofs. However, practical ZK-Rollup performance depends heavily on configuration choices such as batch size, sequencing policy, data availability mode, and proof-generation overhead. Existing production rollups are difficult to modify for controlled experimentation, limiting reproducible analysis of these trade-offs.
+Ethereum's limited Layer-1 throughput has motivated the adoption of Layer-2 rollups, where ZK-Rollups improve scalability by executing transactions off-chain and submitting validity proofs or proof metadata to Layer-1. However, practical ZK-Rollup performance is shaped by interacting configuration choices, including batch formation, sequencing policy, data availability mode, Layer-1 submission cost, and proof-generation overhead. Existing production rollups are highly optimized for deployment, but their complexity makes controlled and reproducible experimentation difficult.
 
-This paper presents a modular ZK-Rollup prototype designed for benchmark-driven performance evaluation. The prototype separates the sequencer, executor, submitter, and prover components, enabling controlled experiments over different batching, scheduling, and data availability configurations. The prototype is evaluated using synthetic workloads, and key metrics such as throughput, latency, gas cost per transaction, batch finalization time, and prover-side overhead are analyzed.
+This paper presents a modular ZK-Rollup benchmarking prototype designed for controlled performance evaluation. The prototype separates sequencing, execution, proof handling, submission, and data availability concerns, enabling experiments over different batching, scheduling, and data-posting configurations. The current evaluation uses controlled synthetic workloads and parameterized proof-delay measurements to compare relative behavior across configurations using metrics such as committed throughput, latency, gas cost per transaction, batch finalization time, data availability footprint, and proof-delay contribution.
 
-The proposed modular evaluation framework isolates key bottlenecks in the rollup pipeline, exposing how configuration choices shift the throughput-latency-cost trade-off. By serving as a reproducible basis for studying ZK-Rollup scalability, the framework offers practical guidance for selecting optimal architectural parameters.
+The preliminary results show how modular benchmarking can expose throughput--latency--cost trade-offs in the rollup pipeline without claiming production-level performance. The framework provides a reproducible basis for studying ZK-Rollup scalability bottlenecks and supports future extension toward full cryptographic prover benchmarking and trace-driven workloads.
 \end{abstract}
 
 \begin{IEEEkeywords}

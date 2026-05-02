@@ -1,11 +1,10 @@
 % --- LAYER 3: THE BOTTOM ANCHORS ---
 \headerbox{6. Conclusions}{name=conclusion,column=1,below=progress,span=2}{
 
-
-\begin{itemize}[leftmargin=1pt]
-    \item \textbf{Scalability Achieved:} Parallel proof generation effectively shifts the bottleneck away from computation, maximizing ZK-Rollup throughput.
-    \item \textbf{Efficiency:} The Rust-based prover network demonstrated near-linear scaling up to 16 cores.
-    \item \textbf{Future Work:} Integrating hardware acceleration (GPUs/FPGAs) to further reduce proof latency and evaluating recursive SNARK limits.
+\begin{itemize}[leftmargin=1pt,itemsep=0.25em,topsep=0pt]
+    \item \textbf{Experimental Framework:} The prototype provides a controlled environment for studying how batching, sequencing, and DA choices shift throughput, latency, and cost trade-offs.
+    \item \textbf{Key Finding:} Preliminary synthetic benchmarks show that blob-based DA reduces cost per transaction compared to calldata, highlighting the impact of EIP-4844-style data posting.
+    \item \textbf{Future Work:} Integrate full cryptographic prover benchmarking, extend evaluation with trace-driven workloads, and explore decentralized sequencing.
 \end{itemize}
 
 }

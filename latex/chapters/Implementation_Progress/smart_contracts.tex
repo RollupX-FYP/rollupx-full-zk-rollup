@@ -58,13 +58,8 @@ function commitBatch(
 \end{lstlisting}
 
 \begin{itemize}
-    \item \textbf{Modular Verification}: The bridge maps \texttt{verifierId} values to \texttt{IVerifier} implementations, enabling multiple proof systems to be selected without changing the bridge logic:
-    \begin{itemize}
-        \item \texttt{verifierId=0}: \textbf{Groth16} (real SNARK verification on BN254).
-        \item \texttt{verifierId=1}: \textbf{Plonky2} (benchmarking/simulation).
-        \item \texttt{verifierId=2}: \textbf{Halo2} (benchmarking/simulation).
-    \end{itemize}
-    \item \textbf{Split DA Commitment}: To satisfy BN254 scalar field constraints in Groth16 public inputs, the 256-bit DA commitment (Keccak hash) is explicitly split into two 128-bit chunks (\texttt{daLow}, \texttt{daHigh}). This ensures the inputs fit within the field modulus ($p \approx 254$ bits), preserving cryptographic binding while remaining circuit-compatible.
+    \item \textbf{Modular Verification}: The bridge maps \texttt{verifierId} values to \texttt{IVerifier} implementations, enabling multiple proof systems to be selected without changing the bridge logic. In the current testbed, these verifiers are implemented as mock or stub contracts.
+    \item \textbf{Split DA Commitment}: To satisfy typical scalar field constraints in public inputs, the 256-bit DA commitment (Keccak hash) is explicitly split into two 128-bit chunks (\texttt{daLow}, \texttt{daHigh}).
     \item \textbf{Access Control}: Governance-sensitive operations (e.g., updating sequencer address or registering new verifiers) are secured via \texttt{Ownable2Step}.
 \end{itemize}
 
@@ -175,10 +170,7 @@ When the Submitter calls \texttt{commitBatch}, the bridge executes a strict sequ
 \subsubsection{Design Rationale and Trade-offs}
 
 \paragraph{Modular Verification}
-Decoupling the proof verification logic from the bridge (via the \texttt{IVerifier} interface) allows for upgrading the proof system (e.g., from Groth16 to Plonky2) without redeploying the main bridge contract. This is essential for a research testbed where cryptographic primitives are subject to change.
-
-\paragraph{Cryptographic Compatibility (Groth16)}
-A critical implementation detail involves the G2 point representation. The Rust-based prover (Arkworks) outputs G2 points as $(c0, c1)$ (imaginary, real), whereas the Ethereum `ecPairing` precompile expects $(c1, c0)$ (real, imaginary). The bridge logic explicitly handles this coordinate swapping in the `commitBatch` function to ensure valid proof verification on-chain, bridging the gap between the off-chain ZK circuit and the EVM.
+Decoupling the proof verification logic from the bridge (via the \texttt{IVerifier} interface) allows for upgrading the proof system without redeploying the main bridge contract. This is essential for a research testbed where cryptographic primitives are subject to change.
 
 \paragraph{Censorship Resistance via Forced Transactions}
 The \texttt{forceTransaction} mechanism (Listing~\ref{lst:force-tx}) introduces a trade-off: it adds complexity and potential state bloat (tracking the forced queue) but provides a fundamental security guarantee. Without it, the centralized sequencer could effectively freeze user funds. The use of a time-delayed trigger (\texttt{forcedInclusionDelay}) balances this by giving the sequencer a grace period to process legitimate transactions before the "freeze" mode is activated.

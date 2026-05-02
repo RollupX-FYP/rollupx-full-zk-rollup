@@ -126,7 +126,7 @@ async fn submit(
 \end{lstlisting}
 
 \paragraph{Mode C: Off-Chain / Validium (Lowest Cost)}
-Implemented in \texttt{infrastructure/da\_offchain.rs}, this strategy stores the batch data externally and posts only a compact \textbf{data commitment} (CID/hash) to the L1 contract. This achieves minimal on-chain data cost but introduces an explicit availability trust assumption on the external data layer. In the current PoC, a local filesystem path (\texttt{offchain\_store/}) is used as the off-chain storage backend to prototype the integration pattern for decentralized storage systems such as IPFS or Celestia.
+Implemented in \texttt{infrastructure/da\_offchain.rs}, this strategy models storing the batch data externally and posts only a compact \textbf{data commitment} (CID/hash) to the L1 contract. This achieves minimal on-chain data cost but introduces an explicit availability trust assumption on the external data layer. The current off-chain DA mode is a local or simulated storage stub intended to model future external DA integration. IPFS, Celestia, and Avail are future-work targets, not completed integrations.
 
 \subsubsubsection{Compression Strategy}
 

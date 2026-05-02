@@ -1,24 +1,19 @@
 \subsubsection{Overview}
 
-The \textbf{RollupX Prototype Prover} is a \textbf{zk-Rollup (Zero-Knowledge Rollup)} scaling solution for Ethereum. Its primary purpose is to enable \textbf{low-gas transfers of ETH and ERC-20 tokens} by moving transaction execution off-chain (Layer 2) while preserving the security guarantees of the Ethereum mainnet (Layer 1) through \textbf{cryptographic validity proofs}.
+The \textbf{prototype's proving module} is designed to integrate proving pathways for a \textbf{zk-Rollup (Zero-Knowledge Rollup)} scaling solution. Its primary purpose in the context of benchmarking is to model the computational overhead of cryptographic validity proofs and isolate data availability and sequencer bottlenecks.
 
-The core idea is simple: instead of processing every transaction on Ethereum directly, transactions are batched off-chain into \textbf{blocks}, a \textbf{zero-knowledge proof} is generated to attest to the correctness of all those transactions, and only the compact proof plus a small amount of public data is submitted on-chain. The Ethereum smart contract verifies the proof and updates the state without re-executing the transactions.
-
-The system uses a \textbf{PLONK} proof system as an universal, succinct, non-interactive argument of knowledge (SNARK) backed by \textbf{Kate/KZG polynomial commitments} over the BN256 elliptic curve.
+The prototype uses a modular proving interface that supports a parameterized mock prover for benchmarking and a RISC Zero proving path where applicable. The mock prover is used to isolate sequencer, executor, and DA bottlenecks without treating proof generation as a fixed implementation dependency.
 
 \subsubsection{System Components (Broad View)}
 
-The system consists of three principal components that interact to form the full rollup pipeline:
+The system consists of several components that interact to form the full rollup pipeline:
 
 \paragraph{Rollup Smart Contract (L1  Solidity)}
 
-Located in \texttt{contracts/contracts/rollup.sol} and \texttt{contracts/contracts/PlonkCore.sol}, this is the on-chain anchor. It:
+Located in the \texttt{contracts} directory, this is the on-chain anchor. It:
 \begin{itemize}
-    \item Manages user \textbf{balances} and \textbf{account state} on Ethereum.
-    \item Accepts \textbf{priority operations} from L1 (e.g., \texttt{Deposit}, \texttt{FullExit}).
-    \item \textbf{Commits} blocks by verifying their data integrity and storing block hashes.
-    \item \textbf{Verifies PLONK proofs} (both single and recursive/aggregated) submitted by the server.
-    \item \textbf{Executes} proven blocks to finalise withdrawals and state changes.
+    \item Keeps track of the \textbf{state root} (a single 32-byte hash representing the entire L2 account tree).
+    \item Supports pluggable verifier stubs to evaluate bridge and DA mechanisms.
 \end{itemize}
 
 \paragraph{Server Application (L2  Rust)}
