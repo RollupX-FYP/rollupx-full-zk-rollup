@@ -29,14 +29,28 @@ Step-by-step instructions to bring up the entire ZK-Rollup pipeline, run the ben
 
 ## 0. Server Access & Preparation
 
-1) **Connect to Server**
+1) **Check the Connection After Setting Up the VPN**
+   
+   From your local terminal:
+   ```bash
+   ping 10.15.94.170
+   ```
+
+   What successful output looks like:
+
+   ```bash
+   Reply from 10.15.94.170: bytes=32 time=15ms TTL=64
+   ```
+
+2) **Connect to Server**
+   
    From your local terminal:
    ```bash
    ssh cseroot@10.15.94.170
    ```
    Say yes to “Are you sure you want to continue connecting (yes/no/[fingerprint])?” and enter the password.
 
-2) **Start Docker**
+3) **Start Docker**
    ```bash
    sudo systemctl start docker
    sudo systemctl enable docker
@@ -46,12 +60,12 @@ Step-by-step instructions to bring up the entire ZK-Rollup pipeline, run the ben
    systemctl status docker
    ```
 
-3) **Navigate to Project Directory**
+4) **Navigate to Project Directory**
    ```bash
    cd rollupx-full-zk-rollup
    ```
 
-4) **Switch Branch (Optional)**
+5) **Switch Branch (Optional)**
 
    ```bash
    git checkout <branch-name>
