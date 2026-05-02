@@ -10,6 +10,7 @@ Step-by-step instructions to bring up the entire ZK-Rollup pipeline, run the ben
 
 ## Table of Contents
 
+0. [Server Access & Preparation](#0-server-access--preparation)
 1. [Containerized Execution (Recommended)](#1-containerized-execution-recommended)
 2. [Continuous Integration (GitHub Actions)](#2-continuous-integration-github-actions)
 3. [Architecture Overview](#3-architecture-overview)
@@ -25,6 +26,54 @@ Step-by-step instructions to bring up the entire ZK-Rollup pipeline, run the ben
 13. [Troubleshooting](#13-troubleshooting)
 
 ---
+
+## 0. Server Access & Preparation
+
+1) **Check the Connection After Setting Up the VPN**
+   
+   From your local terminal:
+   ```bash
+   ping 10.15.94.170
+   ```
+
+   What successful output looks like:
+
+   ```bash
+   Reply from 10.15.94.170: bytes=32 time=15ms TTL=64
+   ```
+
+2) **Connect to Server**
+   
+   From your local terminal:
+   ```bash
+   ssh cseroot@10.15.94.170
+   ```
+   Say yes to “Are you sure you want to continue connecting (yes/no/[fingerprint])?” and enter the password.
+
+3) **Start Docker**
+   ```bash
+   sudo systemctl start docker
+   sudo systemctl enable docker
+   ```
+   Verify:
+   ```bash
+   systemctl status docker
+   ```
+
+4) **Navigate to Project Directory**
+   ```bash
+   cd rollupx-full-zk-rollup
+   ```
+
+5) **Switch Branch (Optional)**
+
+   ```bash
+   git checkout <branch-name>
+   ```
+   If remote only:
+   ```bash
+   git checkout -b <branch-name> origin/<branch-name>
+   ```
 
 ## 1. Containerized Execution (Recommended)
 

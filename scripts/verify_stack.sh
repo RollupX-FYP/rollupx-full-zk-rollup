@@ -15,10 +15,10 @@ else
 fi
 
 echo "2. Checking Shared Runtime Config (Contracts Deployed)..."
-if docker compose exec -T sequencer cat /runtime/addresses.json > /dev/null 2>&1 || docker compose exec -T submitter cat /runtime/addresses.json > /dev/null 2>&1; then
-    echo " [OK] Contracts deployed and addresses.json is present"
+if docker compose exec -T sequencer cat /runtime/contracts.json > /dev/null 2>&1 || docker compose exec -T submitter cat /runtime/contracts.json > /dev/null 2>&1; then
+    echo " [OK] Contracts deployed and contracts.json is present"
 else
-    echo " [FAIL] addresses.json not found in sequencer/submitter /runtime volume"
+    echo " [FAIL] contracts.json not found in sequencer/submitter /runtime volume"
     # Don't strictly exit 1 here as it might be named differently (e.g. submitter.yaml, sequencer.default.toml)
     # Let's just check if the runtime directory has any config files.
     if docker compose exec -T sequencer ls /runtime/ > /dev/null 2>&1; then
