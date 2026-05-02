@@ -64,6 +64,8 @@ Key risks identified at the outset were managed through implementation choices a
 The successful deployment of a cost-aware Layer 2 prototype reinforces the broader relevance of blockchain scalability research. By supporting lower-cost DA modes (Blob submission) and integrating data-size optimization (bit-packing compression), the work aligns with the practical requirements of reducing transaction costs and improving accessibility. This has direct implications for scaling DeFi and other high-volume blockchain applications, where cost barriers can otherwise limit adoption and user participation.
 
 \subsection{Limitations}
+The dynamic batching model currently depends on estimated or parameterized values for proof delay, blob fee, and user latency preference. Therefore, its selected batch size should be interpreted as a heuristic operating point rather than a globally optimal policy. More accurate calibration requires real prover benchmarks, serialized DA payload measurements, and sensitivity analysis over different \(\gamma\) values.
+
 \vspace{12pt}
 
 While the current prototype is functional and suitable for research and benchmarking, it has clear limitations that restrict production readiness:
@@ -85,6 +87,8 @@ The implemented \textbf{Submitter} service—with runtime-selectable DA strategi
 Overall, the results provide empirical evidence that a modular architecture is not only feasible, but advantageous for future-proofing Layer 2 systems as proof systems, DA standards, and cost models continue to evolve. The implemented prototype therefore serves as a solid foundation for continued research into decentralized sequencing, proof aggregation, and alternative DA layers.
 
 \subsection{Future Work}
+Future work will integrate the dynamic batch-size controller directly into the sequencer policy layer and evaluate it against fixed-size, fixed-interval, and soft-cap batching. The evaluation will include sensitivity analysis over the impatience factor \(\gamma\), empirical calibration of \(P(N)\) using real prover measurements, and DA payload measurements for calldata and EIP-4844 blob submission.
+
 \vspace{12pt}
 
 To evolve the current prototype toward production-grade capabilities, the following extensions have been identified:

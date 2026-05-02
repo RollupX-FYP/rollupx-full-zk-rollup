@@ -126,6 +126,88 @@ Close the batch when the first resource limit is reached.
         \item Dimension 1: Proving cost
         \item Dimension 2: DA size
     \end{itemize}
+
+\section{Experimental Methodology}
+
+\subsection{Study Objective and Scope}
+
+The objective of the evaluation is to analyze how configuration choices influence ZK-Rollup performance under controlled and repeatable benchmark conditions. The study focuses on relative performance shifts rather than absolute production metrics. Accordingly, the prototype uses synthetic transfer-centric workloads, simplified state-transition execution, and parameterized proof-delay measurements. This scope enables batching, sequencing, data availability, and submission effects to be compared under consistent conditions without claiming production mainnet performance or full cryptographic prover throughput.
+
+\input{paper/tables/experiment_configs}
+
+\subsection{Experimental Factors and Regimes}
+
+The benchmark varies the main experimental factors summarized in Table~\ref{tab:experiment_configs}: batch formation policy, sequencing policy, data availability mode, workload regime, and proof-delay mode. The workload regimes include balanced steady-state traffic, skewed synthetic transaction mixes, and bursty arrivals with latency thresholds. These regimes are designed to expose how queueing delay, committed throughput, data availability footprint, cost per transaction, and batch finalization time change as workload intensity and transaction composition vary.
+
+\subsection{Batching Policy Space}
+
+The benchmark considers three categories of batching policies. First, baseline agnostic policies close batches using either a fixed transaction count or a fixed time interval. These policies are simple and predictable, but they do not adapt to workload heterogeneity or changing fee conditions. Second, soft-cap policies close a batch when a resource threshold is reached, such as data availability size, proof-delay budget, gas limit, or maximum waiting time. This reflects how practical rollup systems often avoid exceeding execution, proving, or posting constraints. Third, transaction-aware policies construct batches based on transaction cost profiles, for example by limiting the proportion of heavy transactions or by treating batching as a multidimensional packing problem over proof-delay contribution and data availability footprint.
+
+This policy space is used to evaluate whether simple fixed batching remains sufficient under homogeneous workloads or whether adaptive and transaction-aware policies become useful when proof-delay contribution and data footprint vary across transaction classes. The dynamic batching model introduced in Section~\ref{subsec:dynamic_batching_model} provides an analytical basis for reasoning about adaptive batch-size selection. In the present evaluation, it is used to interpret batching trade-offs rather than to claim a production-ready online optimizer.
+
+\subsection{Workload Model}
+
+Synthetic transactions are generated using a Poisson arrival process to model transfer-centric traffic under controlled arrival rates. Rather than replaying production traces, the benchmark uses synthetic workloads to isolate the effect of configuration changes. This allows the same workload distribution to be replayed across different batching, sequencing, and data availability settings.
+
+The workload model abstracts transactions into light, medium, and heavy classes. Light transactions represent simple transfers with low data availability footprint and low proof-delay contribution. Medium transactions represent moderately larger state updates. Heavy transactions represent synthetic operations with higher data availability footprint or parameterized proof-delay cost. These classes are used to study how workload heterogeneity affects queueing delay, finalization time, committed throughput, and latency-threshold violations.
+
+\subsection{Dynamic Batching Cost Model}
+\label{subsec:dynamic_batching_model}
+
+To reason about adaptive batch-size selection, batching is modeled as a cost-equivalent optimization problem. For a candidate batch size \(N\), the batcher estimates a penalty score \(U(N)\) that combines amortized Layer-1 cost, blob-based data availability cost, queueing delay, proof-delay contribution, and Layer-1 settlement delay:
+
+\begin{equation}
+U(N)=
+\frac{
+C_{\mathrm{fixed}}
++
+F_{\mathrm{blob}}
+\left\lceil
+\frac{N b_{\mathrm{tx}}}{B_{\mathrm{blob}}}
+\right\rceil
+}{N}
++
+\gamma
+\left(
+\frac{N}{2\lambda}
++
+P(N)
++
+T_{L1}
+\right).
+\label{eq:dynamic_batching}
+\end{equation}
+
+Here, \(C_{\mathrm{fixed}}\) denotes the fixed Layer-1 commit and verification cost per batch, \(b_{\mathrm{tx}}\) is the average data availability footprint per transaction, \(B_{\mathrm{blob}}\) is the blob capacity, and \(F_{\mathrm{blob}}\) is the cost associated with one blob. The variable \(\lambda\) denotes the transaction arrival rate, \(P(N)\) represents the total proof-generation delay or parameterized proof-delay for a batch of size \(N\), and \(T_{L1}\) denotes Layer-1 settlement delay. The parameter \(\gamma\) converts latency into a cost-equivalent penalty, allowing the model to represent different operator or user preferences between lower cost and lower latency.
+
+The ceiling term captures the step-wise cost behavior of blob-based data availability. Since blob space is consumed in discrete units, the posting cost can increase abruptly when the serialized batch payload crosses a blob-capacity boundary. This makes the data availability cost curve jagged rather than perfectly linear. In the current prototype evaluation, \(P(N)\) is interpreted as parameterized mock-proof delay unless a full cryptographic prover benchmark is explicitly executed. Therefore, the model should be viewed as an analytical tool for studying batching trade-offs, not as evidence of production-grade prover optimization.
+
+\subsection{Cost Model and Metrics}
+
+The total transaction cost is modeled as the combination of Layer-2 processing cost and Layer-1 submission cost. The Layer-2 component captures simplified execution and parameterized proof-delay overhead, while the Layer-1 component captures calldata or blob posting cost, commitment cost, and verification-related overhead. Since the evaluation uses controlled synthetic workloads, the reported costs are interpreted as relative comparisons across configurations rather than direct production fee estimates.
+
+The evaluation collects the following metrics:
+\begin{itemize}
+    \item \textbf{Submitted and Committed TPS:} the transaction input rate and the successfully committed transaction rate.
+    \item \textbf{Average and Tail Latency:} average, P95, and P99 latency from transaction submission to batch finalization.
+    \item \textbf{Cost and Gas per Transaction:} amortized submission and verification cost per committed transaction.
+    \item \textbf{Proof-Delay and Finalization Time:} parameterized mock-proof delay and total batch finalization duration.
+    \item \textbf{Data Availability Bytes and Queueing Delay:} posted data footprint and time spent waiting in the sequencer queue.
+\end{itemize}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{experiment_pipeline.pdf}
+    \caption{Benchmark execution pipeline used for controlled configuration sweeps.}
+    \label{fig:experiment_pipeline}
+\end{figure}
+
+\subsection{Procedure and Hypotheses}
+
+The experimental procedure consists of initializing the prototype, selecting a benchmark configuration, generating the synthetic workload, executing the benchmark run, collecting telemetry, and computing summary metrics, as shown in Fig.~\ref{fig:experiment_pipeline}. Each configuration is evaluated using the same workload-generation process so that observed differences in throughput, latency, data availability footprint, and cost can be attributed to configuration changes rather than workload variation.
+
+The experiments are guided by three hypotheses. First, fixed-size or fixed-interval batching is expected to perform well under homogeneous workloads but degrade under heterogeneous transaction mixes because it does not adapt to transaction cost profiles. Second, soft-cap batching may improve robustness by avoiding data availability, proving, gas, or waiting-time thresholds, although it can leave some batch capacity unused. Third, transaction-aware or adaptive batching may improve latency and cost behavior when transaction classes differ significantly in data availability footprint or proof-delay contribution.
+    
     \item \textbf{Bounded Mixing}: Upper bounds on heavy transaction ratios per batch.
 \end{itemize}
 
