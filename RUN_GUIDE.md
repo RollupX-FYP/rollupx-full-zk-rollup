@@ -121,7 +121,7 @@ bash scripts/verify_stack.sh
 ### 1.3 Configure and Run Benchmarks
 You can trigger a pre-configured smoke benchmark via the containerized runner (requires **WSL** or **Git Bash**):
 ```bash
-docker compose --profile bench build benchmark # Run this once or if Dockerfile changes
+docker compose --profile bench build benchmark --no-cache # Run this once or if Dockerfile changes
 bash scripts/smoke_benchmark.sh
 ```
 
@@ -129,7 +129,7 @@ bash scripts/smoke_benchmark.sh
 The benchmarks are controlled via Environment Variables passed to the benchmark container. If you open `scripts/smoke_benchmark.sh`, you can tweak parameters like:
 - `RATE_TPS=10`: Increase or decrease load.
 - `DURATION_S=30`: Run the test for a longer period.
-- `TX_MIX=erc20_heavy`: Change the workload type.
+- `TX_MIX=heavy`: Change the workload type (valid: `balanced`, `light`, `heavy`, `custom`).
 - `DA_MODE=blob`: Test different Data Availability modes.
 - `PROVER=groth16`: Change the prover backend.
 
@@ -138,7 +138,7 @@ Or, you can run specific workload scripts locally against the containerized sequ
 ### 1.4 Generate and View Analytics Reports
 After the benchmarks finish, extract metrics and generate CSV summaries, markdown reports, and plots using the `data-tools` profile:
 ```bash
-docker compose --profile report build data-tools # Run this once or if data-tools/Dockerfile changes
+docker compose --profile report build data-tools --no-cache # Run this once or if data-tools/Dockerfile changes
 docker compose --profile report run --rm data-tools
 ```
 

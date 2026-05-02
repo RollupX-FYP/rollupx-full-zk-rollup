@@ -19,7 +19,7 @@ docker compose --profile core --profile bench run --rm \
     -e DURATION_S=15 \
     -e RATE_TPS=2 \
     -e WARMUP_S=5 \
-    -e TX_MIX=transfer_only \
+    -e TX_MIX=light \
     -e EXP_ID=smoke_test \
     -e REPEAT=1 \
     -e POLICY=FCFS \
