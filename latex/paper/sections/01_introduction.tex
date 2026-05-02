@@ -1,17 +1,40 @@
 \section{Introduction}
 
+\subsection{Motivation}
+
 Ethereum Layer-1 provides strong security and decentralization but remains constrained by limited throughput, congestion, and fee volatility~\cite{buterin2014ethereum,wood2014ethereum}. This limitation reflects the blockchain trilemma, where decentralized blockchain systems must balance scalability, security, and decentralization rather than maximizing all three simultaneously~\cite{fu2024trilemma}. Ethereum's current scaling direction therefore relies heavily on Layer-2 rollups, which move transaction execution off-chain while using Layer-1 for settlement, verification, and data availability~\cite{ethereum_scaling_docs,ethereum_data_availability_docs}.
 
 Within this rollup-centric design space, ZK-Rollups are particularly attractive because they submit cryptographic validity proofs that allow Layer-1 contracts to verify off-chain state transitions without re-executing every transaction. This preserves the base layer's security model while reducing the amount of computation performed directly on Layer-1.
 
-However, practical ZK-Rollup performance is shaped by several interacting factors, including proof-generation overhead, sequencer scheduling policies, data availability (DA) footprint, Layer-1 submission cost, and batch size or batch frequency decisions~\cite{habib2025bottlenecks,chaliasos2024benchmarking}. Existing production ZK-Rollups are optimized for deployment and user adoption, but their deployment-oriented complexity makes it difficult to modify internal policies and run controlled configuration-level experiments under identical workloads.
+\subsection{Problem Statement}
 
-To address this gap, this paper presents a modular ZK-Rollup research prototype designed to separate sequencing, execution, proof handling, submission, and data availability concerns. The prototype supports reproducible benchmarking by allowing batching, sequencing, and DA-related parameters to be varied while keeping the remaining pipeline fixed. The system is designed as a controlled experimental environment and is not a production-ready system or a full zkEVM.
+Practical ZK-Rollup performance is shaped by several interacting factors, including batch formation, sequencer scheduling, data availability footprint, Layer-1 submission cost, and proof-generation overhead~\cite{habib2025bottlenecks,chaliasos2024benchmarking}. These factors do not affect performance independently: increasing batch size may reduce amortized submission cost while increasing queueing delay, changing the data availability path may reduce posting cost while changing finalization behavior, and proof-generation overhead may dominate end-to-end latency under larger or more complex batches.
+
+The research problem addressed in this paper is the lack of a compact and reproducible experimental framework for isolating how batching, sequencing, proof-delay, and data availability choices affect ZK-Rollup throughput, latency, finalization time, and cost behavior under comparable workloads.
+
+\subsection{Research Gap}
+
+Existing studies provide valuable insights into deployed rollups, public datasets, data availability costs, sequencing behavior, and proof-generation bottlenecks. However, most prior work either analyzes production systems after deployment or studies specific rollup components in isolation. Production ZK-Rollups are optimized for reliability, compatibility, and user-facing deployment, but their internal batching, sequencing, proving, and data availability policies are difficult to modify under a fixed benchmark harness.
+
+As a result, there remains a gap for a modular research prototype that can vary batching, sequencing, data availability, and proof-delay parameters independently while replaying comparable workloads. Addressing this gap is important for understanding how configuration choices shift ZK-Rollup throughput, latency, finalization time, and cost behavior before such choices are applied in production systems.
+
+\subsection{Research Questions, Objectives, and Outcomes}
+
+This work is guided by the following research questions:
+\begin{enumerate}
+    \item How can a modular ZK-Rollup prototype be designed to support controlled benchmarking of batching, sequencing, state execution, proof handling, and data availability choices?
+    \item How do variations in batching strategy, sequencing policy, and data availability mode shift end-to-end performance across throughput, latency, data footprint, and cost dimensions?
+    \item How can parameterized proof-delay measurements help isolate proving-stage effects from sequencing, execution, and Layer-1 submission overhead?
+\end{enumerate}
+
+The primary objective is to design, implement, and systematically benchmark a modular ZK-Rollup research prototype under controlled synthetic workloads. The expected outcomes include a reproducible experimental framework, preliminary insights into throughput--latency--cost trade-offs, and an open-source benchmarking harness to support future Layer-2 scalability research.
+
+\subsection{Contributions}
 
 The main contributions of this work are:
 \begin{itemize}
-    \item We design and implement a modular ZK-Rollup research prototype with separated sequencer, executor, prover interface, submitter, smart contract, and DA components.
-    \item We expose configurable batching, sequencing, and DA policies to support controlled benchmarking under comparable workload conditions.
+    \item We design and implement a modular ZK-Rollup research prototype with separated sequencer, simplified state-transition executor, prover interface, submitter, smart contract, and data availability components.
+    \item We expose configurable batching, sequencing, and data availability policies to support controlled benchmarking under comparable workload conditions.
     \item We define a reproducible methodology using controlled synthetic workloads and parameterized proof-delay measurements to compare relative behavior across configurations.
     \item We analyze preliminary throughput--latency--cost trade-offs and study bottleneck trends under mock/parameterized proving delay to guide future ZK-Rollup optimization.
 \end{itemize}

@@ -1,22 +1,26 @@
-\section{Background and Related Work}
+\section{Background}
 
 \subsection{Ethereum Scalability and Rollups}
 
-Ethereum's rollup-centric scaling roadmap relies on Layer-2 systems that move execution off-chain while using Layer-1 for settlement, verification, and data availability~\cite{ethereum_scaling_docs,ethereum_data_availability_docs}. In this model, rollups amortize Layer-1 costs across many off-chain transactions while retaining the base chain as the security and settlement layer.
+Ethereum's rollup-centric scaling roadmap relies on Layer-2 systems that move execution off-chain while using Layer-1 for settlement, verification, and data availability~\cite{ethereum_scaling_docs,ethereum_data_availability_docs}. By grouping many off-chain transactions into batches, rollups amortize Layer-1 submission and verification costs across multiple transactions while retaining Ethereum as the security and settlement layer.
 
-ZK-Rollups strengthen this model by using validity proofs to attest to the correctness of off-chain state transitions. Depending on the system design, these proofs may be based on SNARK- or STARK-style constructions, including pairing-based arguments such as Groth16 and transparent proof systems such as STARKs~\cite{groth2016snark,ben2018stark}. This allows Layer-1 contracts to verify compact proof artifacts instead of re-executing every transaction.
+ZK-Rollups extend this model by using validity proofs to attest to the correctness of off-chain state transitions. Depending on the system design, these proofs may be based on SNARK- or STARK-style constructions, including pairing-based arguments such as Groth16 and transparent proof systems such as STARKs~\cite{groth2016snark,ben2018stark}. In production systems, such proof systems allow Layer-1 contracts to verify compact proof artifacts rather than re-executing every transaction.
 
-\subsection{Performance Bottlenecks and Benchmarking}
+\subsection{ZK-Rollup Performance Factors}
 
-Despite their scalability benefits, ZK-Rollups introduce performance bottlenecks that depend on both cryptographic and systems-level design choices. Proof generation can become a major computational bottleneck, especially as batch size and circuit complexity increase~\cite{habib2025bottlenecks}. At the same time, batching decisions affect queueing delay, finalization time, and the degree to which Layer-1 submission costs are amortized across transactions~\cite{chaliasos2024benchmarking}.
+ZK-Rollup performance is shaped by both cryptographic and systems-level factors. Proof generation can become a computational bottleneck, while batching affects queueing delay, finalization time, and cost amortization~\cite{habib2025bottlenecks,chaliasos2024benchmarking}. Sequencer ordering also affects latency and fairness because the sequencer determines transaction inclusion order and batch construction~\cite{motepalli2023sequencers}.
 
-Data availability is another critical design dimension. Posting rollup data as calldata provides strong availability through Ethereum but can be expensive. EIP-4844 introduces blob-carrying transactions that provide cheaper temporary data availability for rollups. Blob contents are not directly accessible to EVM execution, but commitments to blob data are accessible, making blobs suitable for rollup data posting rather than general contract execution data~\cite{eip4844,ethereum_data_availability_docs}. This changes the cost structure of rollup submission and motivates separate evaluation of calldata and blob-based DA paths~\cite{saif2024dataavailability,lavaur2023modular}.
+Data availability is another major performance and cost factor. Posting rollup data through calldata provides strong availability through Ethereum, but it can be expensive. EIP-4844 introduces blob-carrying transactions where large rollup data are made available through blob space rather than permanent calldata. The EVM cannot directly access blob contents, but commitments to blob data are accessible, making blobs suitable for rollup data availability rather than general contract execution data~\cite{eip4844,ethereum_data_availability_docs}. This changes the cost structure of rollup submission and motivates separate evaluation of calldata and blob-based DA paths~\cite{saif2024dataavailability,lavaur2023modular}.
 
-Sequencer design also affects rollup performance and fairness. Since sequencers determine transaction ordering and batch construction, ordering policies can influence latency distribution, inclusion fairness, and economic behavior~\cite{motepalli2023sequencers}. Existing studies analyze production rollup traces, public datasets, or deployed systems to understand these behaviors at scale~\cite{silva2025zksyncdataset,chaliasos2024benchmarking}.
+\section{Related Work}
 
-\subsection{Research Gap}
+\subsection{Rollup Benchmarking and Public Datasets}
 
-Prior work provides valuable insight into rollup economics, data availability, sequencing, and production-trace behavior. However, production rollups are not primarily designed as experimental platforms, and their internal policies are difficult to modify under a fixed benchmark harness. There remains a need for a compact modular prototype that supports controlled experiments over batching, sequencing, data availability, and proof-delay parameters under identical workloads.
+Existing studies analyze production rollup traces, public datasets, deployed systems, cost behavior, and rollup bottlenecks~\cite{silva2025zksyncdataset,chaliasos2024benchmarking,habib2025bottlenecks}. These studies provide valuable insight into real-world rollup behavior, but they primarily observe existing deployments. As a result, they are less suited for isolating the causal impact of individual configuration choices, because batching rules, sequencing policies, proof-delay behavior, and DA modes cannot always be independently modified under identical workloads.
+
+\subsection{Positioning of This Work}
+
+Prior work provides valuable insight into deployed rollups and production traces, while the proposed prototype focuses on controlled configuration-level experimentation under comparable synthetic workloads.
 
 \begin{table}[t]
 \centering
@@ -35,4 +39,4 @@ Proposed prototype & Research benchmarking & Configurable & Batching, sequencing
 \end{tabular}
 \end{table}
 
-As summarized in Table~\ref{tab:positioning}, the proposed prototype is complementary to production rollups rather than a replacement for them. Its goal is not broad application compatibility or mainnet deployment, but controlled configuration-level experimentation. By exposing batching, sequencing, DA, and proof-delay controls, the prototype enables repeatable studies of how individual design choices shift throughput, latency, and cost behavior.
+As summarized in Table~\ref{tab:positioning}, the proposed prototype is complementary to production rollups rather than a replacement for them. Production systems prioritize reliability, compatibility, and user-facing deployment, whereas the proposed prototype prioritizes controlled experimentation and observability. By exposing batching, sequencing, DA, and proof-delay controls, the prototype enables repeatable studies of how individual design choices shift throughput, latency, and cost behavior.
