@@ -77,6 +77,7 @@ def plot_all_frontiers(df: pd.DataFrame, output_dir: str):
     req_cols = {
         "avg_l2_l1_ms", "avg_gas_saved", "avg_gas_per_tx",
         "avg_prove_ms", "tps_committed", "da_mode", "prover",
+        "avg_comp_ratio",
     }
     missing = req_cols - set(df.columns)
     if missing:
