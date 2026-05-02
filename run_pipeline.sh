@@ -7,6 +7,7 @@ set -euo pipefail
 EXP_ID=${1:-}
 
 METRICS_ROOT=${METRICS_ROOT:-"benchmark-suite/metrics"}
+FIGURES_DIR="$METRICS_ROOT/figures"
 
 echo "======================================================================"
 echo "  Running Data Tools Pipeline"
@@ -14,6 +15,7 @@ if [ -n "$EXP_ID" ]; then
     echo "  Filtering for Experiment: $EXP_ID"
 fi
 echo "  Metrics Root: $METRICS_ROOT"
+echo "  Figures Dir:  $FIGURES_DIR"
 echo "======================================================================"
 
 echo "── 1. Aggregating metrics ──────────────────────────────────────────────"
@@ -28,17 +30,22 @@ echo "── 2. Computing statistics ──────────────�
 python3 data-tools/stats.py --input "$METRICS_ROOT/all_results.csv" --output "$METRICS_ROOT/stats_summary.csv"
 
 echo "── 3. Generating plots ─────────────────────────────────────────────────"
-python3 data-tools/plots/pareto_frontier.py --input "$METRICS_ROOT/all_results.csv"
-python3 data-tools/plots/throughput_bar.py --input "$METRICS_ROOT/all_results.csv"
-python3 data-tools/plots/latency_cdf.py --metrics_root "$METRICS_ROOT"
-python3 data-tools/plots/latency_boxplot.py --input "$METRICS_ROOT/all_results.csv"
-python3 data-tools/plots/fairness.py --input "$METRICS_ROOT/all_results.csv"
-python3 data-tools/plots/cost_heatmap.py --input "$METRICS_ROOT/all_results.csv"
-python3 data-tools/plots/sensitivity.py --input "$METRICS_ROOT/all_results.csv"
+python3 data-tools/plots/pareto_frontier.py --input "$METRICS_ROOT/all_results.csv" --output_dir "$FIGURES_DIR"
+python3 data-tools/plots/throughput_bar.py --input "$METRICS_ROOT/all_results.csv" --output_dir "$FIGURES_DIR"
+python3 data-tools/plots/latency_cdf.py --metrics_root "$METRICS_ROOT" --output_dir "$FIGURES_DIR"
+python3 data-tools/plots/latency_boxplot.py --input "$METRICS_ROOT/all_results.csv" --output_dir "$FIGURES_DIR"
+python3 data-tools/plots/fairness.py --input "$METRICS_ROOT/all_results.csv" --output_dir "$FIGURES_DIR"
+python3 data-tools/plots/cost_heatmap.py --input "$METRICS_ROOT/all_results.csv" --output_dir "$FIGURES_DIR"
+python3 data-tools/plots/sensitivity.py --input "$METRICS_ROOT/all_results.csv" --output_dir "$FIGURES_DIR"
 
 echo "── 4. Generating report ────────────────────────────────────────────────"
-python3 data-tools/report/generate_md.py --input "$METRICS_ROOT/all_results.csv" --stats "$METRICS_ROOT/stats_summary.csv" --output "$METRICS_ROOT/thesis_summary.md"
+python3 data-tools/report/generate_md.py --input "$METRICS_ROOT/all_results.csv" --stats "$METRICS_ROOT/stats_summary.csv" --output "$METRICS_ROOT/thesis_summary.md" --figures_dir "$FIGURES_DIR"
 
 echo "======================================================================"
 echo "  Pipeline completed successfully."
+echo "  Outputs:"
+echo "    CSV:     $METRICS_ROOT/all_results.csv"
+echo "    Stats:   $METRICS_ROOT/stats_summary.csv"
+echo "    Plots:   $FIGURES_DIR/"
+echo "    Report:  $METRICS_ROOT/thesis_summary.md"
 echo "======================================================================"

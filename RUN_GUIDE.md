@@ -135,19 +135,25 @@ The benchmarks are controlled via Environment Variables passed to the benchmark 
 
 Or, you can run specific workload scripts locally against the containerized sequencer exposed on port `3000`.
 
-### 1.4 Generate and View Analytics Reports
-After the benchmarks finish, extract metrics and generate CSV summaries, markdown reports, and plots using the `data-tools` profile:
+### 1.4 Generate Analytics Reports
+After the benchmarks finish, the raw per-run metrics (JSON + CSV) are stored in the Docker volume. To generate the aggregated analysis, plots, and markdown report, run the data-tools pipeline:
 ```bash
 docker compose --profile report build data-tools --no-cache # Run this once or if data-tools/Dockerfile changes
 docker compose --profile report run --rm data-tools
 ```
+
+**What this produces (inside the Docker volume):**
+- `all_results.csv` — Aggregated metrics from all experiment runs
+- `stats_summary.csv` — Statistical summary (means, std, CI)
+- `figures/` — PNG plots (Pareto frontiers, throughput bars, latency CDF, fairness, cost heatmap, sensitivity)
+- `thesis_summary.md` — Auto-generated markdown report
 
 ### 1.5 View the Results
 
 Since metrics are stored inside a Docker volume, first extract them to the host filesystem:
 ```bash
 mkdir -p ~/rollupx-metrics
-docker compose run --rm -v ~/rollupx-metrics:/out data-tools bash -c "cp -r /var/lib/rollupx/metrics/* /out/"
+docker compose --profile report run --rm -v ~/rollupx-metrics:/out data-tools bash -c "cp -r /var/lib/rollupx/metrics/. /out/"
 ```
 
 **Method 1: Download Results to Your Local Machine**
