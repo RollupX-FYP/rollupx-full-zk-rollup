@@ -12,7 +12,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
 
-RUN rustup toolchain install nightly-2024-08-01
+RUN rustup toolchain install nightly-2024-08-01 && \
+    rustup component add rustfmt --toolchain nightly-2024-08-01
 
 COPY executor ./executor
 COPY proto ./proto
