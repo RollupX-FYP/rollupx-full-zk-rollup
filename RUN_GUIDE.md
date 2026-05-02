@@ -66,8 +66,20 @@ Step-by-step instructions to bring up the entire ZK-Rollup pipeline, run the ben
 
 5) **Switch Branch (Optional)**
 
+   View branches:
+
+   ```bash
+   git branch -a
+   ```
+
+   Checkout:
    ```bash
    git checkout <branch-name>
+   ```
+
+   Pull the latest changes:
+   ```bash
+   git pull origin <branch-name>
    ```
 
 ## 1. Containerized Execution (Recommended)

@@ -160,14 +160,11 @@ services:
       - rollupx
 
   benchmark:
-    profiles: ["bench", "core"]
+    profiles: ["bench"]
     image: ${BENCHMARK_IMAGE:-rollupx/benchmark:dev}
     build:
       context: ./benchmark-suite
       dockerfile: Dockerfile
-    depends_on:
-      sequencer:
-        condition: service_healthy
     working_dir: /app
     environment:
       SEQ_HOST: sequencer
