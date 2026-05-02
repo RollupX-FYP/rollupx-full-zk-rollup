@@ -69,10 +69,6 @@ Step-by-step instructions to bring up the entire ZK-Rollup pipeline, run the ben
    ```bash
    git checkout <branch-name>
    ```
-   If remote only:
-   ```bash
-   git checkout -b <branch-name> origin/<branch-name>
-   ```
 
 ## 1. Containerized Execution (Recommended)
 

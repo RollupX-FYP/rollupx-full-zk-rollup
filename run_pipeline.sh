@@ -21,7 +21,7 @@ python3 data-tools/aggregate.py --metrics_root "$METRICS_ROOT" --output "$METRIC
 
 if [ ! -f "$METRICS_ROOT/all_results.csv" ]; then
     echo "Error: all_results.csv not found. Aggregation failed."
-    return 1
+    exit 1
 fi
 
 echo "── 2. Computing statistics ─────────────────────────────────────────────"

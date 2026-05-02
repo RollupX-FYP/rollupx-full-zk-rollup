@@ -160,7 +160,7 @@ services:
       - rollupx
 
   benchmark:
-    profiles: ["bench"]
+    profiles: ["bench", "core"]
     image: ${BENCHMARK_IMAGE:-rollupx/benchmark:dev}
     build:
       context: ./benchmark-suite
