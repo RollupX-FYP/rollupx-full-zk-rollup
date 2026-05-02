@@ -143,20 +143,24 @@ docker compose --profile report run --rm data-tools
 ```
 
 ### 1.5 View the Results
+
+Since metrics are stored inside a Docker volume, first extract them to the host filesystem:
+```bash
+mkdir -p ~/rollupx-metrics
+docker compose run --rm -v ~/rollupx-metrics:/out data-tools bash -c "cp -r /var/lib/rollupx/metrics/* /out/"
+```
+
 **Method 1: Download Results to Your Local Machine**
 
-If you prefer to download the raw files and graphs to view them natively on your PC, you can securely copy the entire folder from the VM using `scp`:
-
-1. Open a terminal on your local machine (your laptop/desktop).
-2. Run the `scp` command to download the folder:
-   ```bash
-   scp -r cseroot@10.15.94.170:/home/cseroot/rollupx-full-zk-rollup/benchmark-suite/metrics <save_path>
-   ```
-   *(Replace `<save_path>` with the directory on your computer where you want to save the files. For example: `C:\Users\Lishan\Downloads`)*
+From a terminal on your **local machine** (your laptop/desktop):
+```bash
+scp -r cseroot@10.15.94.170:~/rollupx-metrics <save_path>
+```
+*(Replace `<save_path>` with the directory on your computer where you want to save the files. For example: `C:\Users\Lishan\Downloads`)*
 
 **Method 2: Through University VPN**
 
-The pipeline generates `.png` graphs and a `thesis_summary.md` inside the `metrics/` folder. Since the VM is hosted on a university server behind a firewall, ports like `8080` might be blocked even on the VPN. The most reliable way to view the graphs is using **SSH Local Port Forwarding**.
+The pipeline generates `.png` graphs and a `thesis_summary.md` inside the metrics folder. Since the VM is hosted on a university server behind a firewall, ports like `8080` might be blocked even on the VPN. The most reliable way to view the graphs is using **SSH Local Port Forwarding**.
 
 1. **On your local machine** (your laptop/desktop), open a new terminal and create an SSH tunnel:
    ```bash
@@ -166,8 +170,7 @@ The pipeline generates `.png` graphs and a `thesis_summary.md` inside the `metri
 
 2. **On the VM terminal** (where you run your project), start a simple Python web server:
    ```bash
-   cd rollupx-full-zk-rollup
-   python3 -m http.server 8080 --directory metrics/
+   python3 -m http.server 8080 --directory ~/rollupx-metrics/
    ```
 
 3. **On your local machine**, open a web browser and navigate to:
