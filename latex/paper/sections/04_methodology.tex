@@ -1,0 +1,40 @@
+\section{Experimental Methodology}
+
+\subsection{Study Objective and Scope}
+The objective is to systematically evaluate ZK-Rollup performance trade-offs using controlled configuration sweeps. The scope assumes a simplified operation set via synthetic token transfers, measuring relative performance shifts rather than absolute production metrics.
+
+\input{paper/tables/experiment_configs}
+
+\subsection{Experimental Factors and Regimes}
+The framework exposes configurable parameters (Table~\ref{tab:experiment_configs}), including batching policies (fixed-size, fixed-interval, soft-cap, transaction-aware), sequencing policies, and DA modes. Workload regimes cover balanced steady-state, heavy-transaction skew, and bursty arrivals with latency SLAs.
+
+\subsection{Batching Policy Space}
+The benchmark considers three categories of batching policies. First, baseline agnostic policies close batches using either a fixed transaction count or a fixed time interval. These policies are simple and predictable but do not adapt to workload heterogeneity. Second, soft-cap policies close a batch when a resource limit is reached, such as DA size, proving budget, gas limit, or maximum waiting time. This reflects how practical rollup systems often avoid exceeding execution or posting constraints. Third, transaction-aware policies attempt to construct batches based on transaction cost profiles, for example by limiting the ratio of heavy transactions or by treating batching as a multidimensional packing problem over proof cost and DA footprint.
+
+This policy space is intended to evaluate whether simple fixed batching remains efficient under heterogeneous workloads, or whether transaction-aware policies become necessary when proof cost and DA footprint vary across transaction types.
+
+\subsection{Workload Model}
+Synthetic transactions are grouped into three abstract cost classes. Light transactions represent simple transfers with low proving cost and low DA footprint. Medium transactions represent ERC-20 style transfers or simple swaps with moderate proving and DA cost. Heavy transactions represent more complex contract interactions with higher proving cost and stricter latency impact. The workload generator varies the proportion of these classes across steady-state, skewed, and bursty regimes. This allows the evaluation to study not only average throughput but also how transaction heterogeneity affects queueing delay, prover utilization, and SLA violations.
+
+\subsection{Cost Model and Metrics}
+The total transaction fee is modeled as the sum of the L2 fee (execution/proving resource usage) and the L1 fee (blob or calldata cost, commitment cost, verification cost).
+
+The evaluation collects the following metrics:
+\begin{itemize}
+    \item \textbf{Submitted and Committed TPS}
+    \item \textbf{Average and P95/P99 Latency}
+    \item \textbf{Cost and Gas per Transaction}
+    \item \textbf{Proof/Mock-Proof and Finalization Time}
+    \item \textbf{DA Bytes and Queueing Delay}
+    \item \textbf{Prover Utilization and Expired Transactions}
+\end{itemize}
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{experiment_pipeline.pdf}
+    \caption{Benchmark execution pipeline used for controlled configuration sweeps.}
+    \label{fig:experiment_pipeline}
+\end{figure}
+
+\subsection{Procedure and Hypotheses}
+The procedure involves initializing the prototype, applying the workload generator, and aggregating telemetry (Fig.~\ref{fig:experiment_pipeline}). The experiments test hypotheses such as: agnostic batching degrades with heterogeneity, soft-cap improves robustness but may waste capacity, and transaction-aware batching dominates after a heterogeneity threshold.

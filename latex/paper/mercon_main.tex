@@ -1,0 +1,50 @@
+% =========================================================
+% MERCon / IEEE Conference Paper Main File
+% This file is intended to be compiled from the project root via:
+%   \input{paper/mercon_main}
+%
+% Expected root-level shared files:
+%   IEEEtran.cls
+%   macros.tex
+%   authors.tex
+%   refs.bib
+% =========================================================
+
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+% Shared packages and commands from root folder
+\input{macros}
+
+\begin{document}
+
+\title{A Modular ZK-Rollup Prototype for Benchmarking Layer-2 Scalability Bottlenecks}
+
+% Shared author block from root folder
+\input{authors}
+
+\maketitle
+
+\begin{abstract}
+Ethereum's limited Layer-1 throughput has motivated the adoption of Layer-2 rollups, where ZK-Rollups provide strong security and fast finality through validity proofs. However, practical ZK-Rollup performance depends heavily on configuration choices such as batch size, sequencing policy, data availability mode, and proof-generation overhead. Existing production rollups are difficult to modify for controlled experimentation, limiting reproducible analysis of these trade-offs.
+
+This paper presents a modular ZK-Rollup prototype designed for benchmark-driven performance evaluation. The prototype separates the sequencer, executor, submitter, and prover components, enabling controlled experiments over different batching, scheduling, and data availability configurations. The prototype is evaluated using synthetic workloads, and key metrics such as throughput, latency, gas cost per transaction, batch finalization time, and prover-side overhead are analyzed.
+
+The proposed modular evaluation framework isolates key bottlenecks in the rollup pipeline, exposing how configuration choices shift the throughput-latency-cost trade-off. By serving as a reproducible basis for studying ZK-Rollup scalability, the framework offers practical guidance for selecting optimal architectural parameters.
+\end{abstract}
+
+\begin{IEEEkeywords}
+ZK-Rollups, Ethereum, Layer-2 Scaling, Blockchain Scalability, Benchmarking, Sequencer, Data Availability
+\end{IEEEkeywords}
+
+\input{paper/sections/01_introduction}
+\input{paper/sections/02_related_work}
+\input{paper/sections/03_system_architecture}
+\input{paper/sections/04_methodology}
+\input{paper/sections/05_results_discussion}
+\input{paper/sections/06_conclusion}
+
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
+\end{document}

@@ -1,0 +1,28 @@
+\section{Results and Discussion}
+
+\subsection{Evaluation Results}
+The evaluation framework reports multi-dimensional metrics across the configured experimental space. Table~\ref{tab:results_summary} illustrates the preliminary benchmark outputs under synthetic workloads. 
+
+All preliminary measurements were obtained from controlled synthetic workloads using the same benchmark harness across configurations. The values should be interpreted as relative comparisons between configurations rather than claims of production mainnet performance. Since the prototype uses a mock-prover mode, proof time represents parameterized proving delay rather than full circuit execution time.
+
+\input{paper/tables/results_summary}
+
+\subsection{Throughput, Latency, and Cost Trade-offs}
+Analysis of the results indicates that increasing batch size amortizes Layer-1 submission costs, decreasing the cost per transaction. However, this increases queuing delay, demonstrating a strict latency-cost trade-off. For instance, comparing C1 with C3, the higher throughput in C1 (357.1 TPS) comes with higher DA costs (120KB) and shorter latency, while C3 trades off throughput (280.4 TPS) for lower DA footprint (95KB). Data availability choices further impact costs; blob-based DA (C4, C5) drastically reduces the L1 footprint cost compared to standard calldata (C1, C2). 
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{result_tps_latency.pdf}
+    \caption{Throughput comparison across the evaluated experimental configurations.}
+    \label{fig:result_tps_latency}
+\end{figure}
+
+\subsection{Design Implications}
+These interactions highlight several implications for rollup designers. TPS alone is insufficient to capture rollup performance; it must be contextualized with latency and cost. 
+\begin{itemize}
+    \item Batch sizes should be chosen based on the application's latency tolerance.
+    \item Transaction-aware batching is beneficial when workloads are heterogeneous.
+    \item Prover utilization must be monitored as a first-class metric, as proof-generation can easily become the primary bottleneck.
+    \item The choice of DA mode should align with specific security and cost assumptions.
+    \item Soft finality (L2 confirmation) should be distinctly separated from L1 finality in reporting.
+\end{itemize}

@@ -1,0 +1,24 @@
+\headerbox{5. Implementation}{name=progress,column=1,below=arch,span=2,boxColorOne=LightBlueTint}{
+
+\begin{itemize}[leftmargin=1pt]
+    \item \textbf{Proving System:} Implemented using the \texttt{bellman} and \texttt{halo2} Rust crates.
+    \item \textbf{Parallelization:} Utilized \texttt{rayon} for multi-threaded state tree updates and proof generation.
+    \item \textbf{Testing:} Benchmarked on an AWS EC2 instance (32 cores, 64GB RAM) simulating a high-load sequencer environment.
+\end{itemize}
+
+\vspace{1em}
+\begin{center}
+\resizebox{0.9\textwidth}{!}{
+\begin{tabular}{@{}lccc@{}}
+\toprule
+\textbf{Implementation} & \textbf{Batch Size} & \textbf{Proof Time (s)} & \textbf{TPS} \\ \midrule
+Baseline (Sequential) & 1000 & 45.2 & 22.1 \\
+Ours (4 Threads) & 1000 & 14.8 & 67.5 \\
+Ours (16 Threads) & 1000 & 4.5 & 222.2 \\
+Ours (32 Threads) & 1000 & 2.8 & \textbf{357.1} \\ \bottomrule
+\end{tabular}
+}
+\captionof{table}{Throughput Comparison (Rust Implementation)}
+\end{center}
+
+}

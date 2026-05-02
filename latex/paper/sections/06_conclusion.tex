@@ -1,0 +1,9 @@
+\section{Conclusion and Future Work}
+
+This paper presented a modular ZK-Rollup research prototype designed to enable controlled experimental measurement of Layer-2 scalability bottlenecks. By isolating the sequencer, executor, prover, submitter, and data availability components, the framework supports reproducible configuration-level benchmarking. The defined methodology and preliminary evaluation highlight the complex trade-offs between throughput, latency, gas cost, and proof overhead.
+
+\subsection{Limitations}
+The proposed prototype is a research tool, not a production-ready system or a full zkEVM. The preliminary evaluation currently relies on synthetic workloads and a simplified operation set within a local testnet environment. Furthermore, the use of a mock prover simulates computational delay but does not capture the full cryptographic complexity of real circuit execution. In addition, the real benchmark values and synthetic measurements presented here may not represent complex DeFi behavior, and local or testnet measurements could differ from mainnet deployment.
+
+\subsection{Future Work}
+Future work will focus on integrating full cryptographic prover capabilities and proof aggregation to measure exact hardware overheads. The framework will be extended to evaluate real trace-based workloads, support a complete trustless deposit and withdrawal path, and experiment with decentralized sequencers and stronger DA backends (e.g., Celestia or Avail). Ultimately, a public reproducibility package will be released to support the broader research community.

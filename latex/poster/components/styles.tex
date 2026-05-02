@@ -1,0 +1,74 @@
+% ====================
+% styles.tex
+% Colours, column types, listings config, and custom shorthand commands
+% ====================
+
+% ---------- Colour definitions ----------
+\definecolor{maroon}{RGB}{95, 120, 173}
+\definecolor{fb_blue}{RGB}{26, 37, 69}
+\definecolor{fb_l_blue}{RGB}{150, 166, 214}
+
+\definecolor{darkgreen}{cmyk}{0.8,0,0.8,0.45}
+\definecolor{lightgreen}{cmyk}{0.8,0,0.8,0.25}
+
+% ---------- Column types ----------
+\renewcommand\bibfont{\scriptsize}
+\newcolumntype{L}{>{\raggedright\arraybackslash}X}
+\newcolumntype{V}{>{\raggedleft\arraybackslash}m{3.5cm}}
+\newcolumntype{Y}{>{\centering\arraybackslash}X}
+\newcolumntype{Z}{>{\raggedleft\arraybackslash}X}
+
+% ---------- Listings config ----------
+\lstset{
+  firstnumber=1,
+  frame=single,
+  float,
+  breaklines=true,
+  basicstyle=\ttfamily
+}
+\renewcommand{\lstlistingname}{Code}
+
+\lstdefinelanguage{json}{
+  basicstyle=\footnotesize\ttfamily,
+  commentstyle=\color{gray},
+  stringstyle=\color{orange},
+  morestring=[b]",
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  moredelim=[is][\color{blue}]{\#}{\#}
+}
+
+% ---------- pgfplots ----------
+\pgfplotsset{compat=1.14}
+
+% ---------- Custom shorthand commands ----------
+\newcommand{\tick}{\textcolor{Green}{\ding{51}}}
+\newcommand{\cross}{\textcolor{Red}{\ding{55}}}
+\newcommand{\cTwo}{Lavender}
+\newcommand{\cThree}{SkyBlue}
+\newcommand{\Goal}{\textcolor{YellowOrange}{[Goal]}}
+\newcommand{\Sol}[1]{\textcolor{RoyalBlue}{[Sol#1]}}
+\newcommand{\Gray}{\cellcolor[gray]{0.8}}
+\newcommand{\Number}[1]{{\small #1}}
+\newcommand*{\affmark}[1][*]{\textsuperscript{#1}}
+\newcommand{\Pair}[2]{(#1,#2)}
+\newcommand{\dnd}{D\&D}
+\newcommand{\keyvalue}{key-value}
+\newcommand{\articles}{over 44,000 articles}
+\newcommand{\articleDate}{June 2022}
+\newcommand{\subTopic}[2]{\begin{center}{\normalsize \textbf{#1}}\end{center}\vspace{#2}}
+
+% Colors for Tech-Slate design
+\definecolor{MidnightBlue}{HTML}{1E293B}
+\definecolor{DeepBlue}{HTML}{1E3A5F}
+\definecolor{DeepSeaBlue}{HTML}{0A3663} % Strong, deep navy/sea blue
+\definecolor{LightBlueTint}{HTML}{EFF6FF}
+\definecolor{LightEmeraldTint}{HTML}{D1FAE5}
+\definecolor{EmeraldGreen}{HTML}{10B981}
+
+% Keep legacy names mapped to new colours (used by baposter options below)
+\definecolor{darkgreen}{HTML}{1E293B}      % → Midnight Blue
+\definecolor{lightgreen}{HTML}{3B82F6}     % → Royal Blue
+\definecolor{boxBlue}{HTML}{C0D3EB}
+\definecolor{royalblue}{HTML}{3B82F6}
+\definecolor{lightemerald}{HTML}{DCFCE7}

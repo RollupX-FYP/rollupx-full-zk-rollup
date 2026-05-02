@@ -1,0 +1,116 @@
+\vspace{0.4em}
+\begin{center}
+\resizebox{\linewidth}{!}{
+\begin{tikzpicture}[
+    font=\sffamily\small,
+    >=Stealth,
+    node distance=1.1cm,
+    mainbox/.style={
+        draw=MidnightBlue,
+        very thick,
+        rounded corners=8pt,
+        fill=LightBlueTint,
+        align=center,
+        inner sep=8pt
+    },
+    smallbox/.style={
+        draw=royalblue,
+        thick,
+        rounded corners=5pt,
+        fill=white,
+        align=center,
+        minimum width=2.6cm,
+        minimum height=1cm,
+        inner sep=4pt
+    },
+    contract/.style={
+        draw=MidnightBlue,
+        very thick,
+        rounded corners=8pt,
+        fill=lightemerald,
+        align=center,
+        minimum width=2.8cm,
+        minimum height=1.5cm,
+        inner sep=5pt
+    },
+    arrow/.style={->, very thick, MidnightBlue},
+    proofarrow/.style={->, very thick, royalblue, dashed}
+]
+
+% Users
+\node[mainbox, minimum width=2.3cm, minimum height=1.4cm] (users) at (0,0) {
+    \textbf{Users}\\
+    \footnotesize Submit txs
+};
+
+% Prover Network container
+\node[
+    draw=MidnightBlue,
+    very thick,
+    rounded corners=10pt,
+    fill=blue!4,
+    minimum width=7.2cm,
+    minimum height=4.0cm,
+    label={[font=\bfseries\color{MidnightBlue}]above:Layer 2 Rollup Network}
+] (network) at (5.3,0) {};
+
+% Internal components
+\node[smallbox] (seq) at (3.3,0.9) {
+    \textbf{Sequencer}\\
+    \footnotesize Sorts txs
+};
+
+\node[smallbox] (exec) at (6.9,0.9) {
+    \textbf{Executor}\\
+    \footnotesize Updates state
+};
+
+\node[smallbox] (prove) at (3.3,-0.9) {
+    \textbf{Prover}\\
+    \footnotesize Creates ZK proof
+};
+
+\node[smallbox] (da) at (6.9,-0.9) {
+    \textbf{Data Availability}\\
+    \footnotesize Batch data / state diff
+};
+
+% Mini server stack icon inside network
+\foreach \y in {1.45,1.2,0.95} {
+    \draw[fill=white, draw=MidnightBlue, thick, rounded corners=2pt]
+        (5.05,\y) rectangle (5.75,\y+0.18);
+    \fill[royalblue] (5.18,\y+0.09) circle (0.025);
+    \draw[royalblue, thick] (5.28,\y+0.09) -- (5.6,\y+0.09);
+}
+
+% L1 contract
+\node[contract] (l1) at (11.0,0) {
+    \textbf{Ethereum L1}\\
+    \footnotesize Verifier Contract\\
+    \footnotesize Final state root
+};
+
+% Ethereum diamond simple icon
+\draw[fill=blue!20, draw=MidnightBlue, thick] (11,-1.65) -- (10.72,-2.05) -- (11,-2.2) -- (11.28,-2.05) -- cycle;
+\draw[fill=blue!45, draw=MidnightBlue, thick] (11,-1.65) -- (10.72,-2.05) -- (11,-1.93) -- (11.28,-2.05) -- cycle;
+
+% Arrows
+\draw[arrow] (users) -- node[above,font=\scriptsize]{transactions} (network.west);
+\draw[arrow] (seq) -- node[above,font=\scriptsize]{ordered batch} (exec);
+\draw[arrow] (exec) -- node[right,font=\scriptsize]{witness} (da);
+\draw[arrow] (exec) -- node[above,font=\scriptsize]{state transition} (prove);
+\draw[arrow] (prove) -- node[below,font=\scriptsize]{validity proof} (da);
+\draw[proofarrow] (network.east) -- node[above,font=\scriptsize]{proof + metadata} (l1);
+
+% Feedback
+\draw[proofarrow] (l1.south) .. controls (8.5,-3.0) and (4,-3.0) .. node[below,font=\scriptsize]{verified commitment} (network.south);
+
+% Caption
+\node[font=\scriptsize, text=MidnightBlue] at (5.6,-2.55) {
+    Heavy computation stays off-chain; Ethereum verifies only the proof.
+};
+
+\end{tikzpicture}
+}
+\end{center}
+\vspace{-0.4em}

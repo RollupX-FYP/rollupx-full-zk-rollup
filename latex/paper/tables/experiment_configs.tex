@@ -1,0 +1,19 @@
+\begin{table}[t]
+\centering
+\caption{Experimental Configurations Used for Prototype Evaluation}
+\label{tab:experiment_configs}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+\textbf{Config} & \textbf{Batch Policy} & \textbf{Seq. Policy} & \textbf{DA Mode} & \textbf{Workload} & \textbf{Prover Mode} \\
+\midrule
+C1 & Fixed-size    & FCFS         & Calldata & Steady-state & Mock \\
+C2 & Fixed-size    & Fee-priority & Calldata & Steady-state & Mock \\
+C3 & Soft-cap      & Time-boost   & Calldata & Bursty       & Mock \\
+C4 & Soft-cap      & FCFS         & Blob     & Bursty       & Mock \\
+C5 & Tx-aware      & Fair BFT     & Blob     & Skewed       & Mock \\
+C6 & Fixed-interval& Fee-priority & Off-chain& Steady-state & Mock \\
+\bottomrule
+\end{tabular}
+}
+\end{table}

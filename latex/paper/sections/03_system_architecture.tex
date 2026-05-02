@@ -1,0 +1,51 @@
+\section{System Architecture}
+
+\subsection{Overview}
+The proposed framework is designed as a modular ZK-Rollup research prototype. The architecture deliberately separates policy decisions from execution and settlement mechanisms. This design prioritizes observability and reproducibility over production completeness, avoiding the complexity of a full production zkEVM.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{architecture.pdf}
+    \caption{Architecture of the proposed modular ZK-Rollup benchmarking prototype.}
+    \label{fig:architecture}
+\end{figure}
+
+\begin{table}[t] 
+\centering 
+\caption{Prototype components and experimental controls} 
+\label{tab:components} 
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lll} 
+\toprule 
+\textbf{Component} & \textbf{Role} & \textbf{Configurable Control} \\ 
+\midrule 
+Sequencer & Orders and batches transactions & FCFS, fee-priority, time-boost \\ 
+Executor & Applies state transitions & State tree / batch execution \\ 
+Prover & Models proof overhead & Mock delay / proof mode \\ 
+Submitter & Commits batches to L1 & Calldata, blob, off-chain DA \\ 
+L1 Contract & Verifies commitments & Verifier and DA provider abstraction \\ 
+\bottomrule 
+\end{tabular} 
+}
+\end{table}
+
+\subsection{Transaction Lifecycle and Components}
+The end-to-end transaction lifecycle involves several decoupled components, as illustrated in Fig.~\ref{fig:architecture}.
+
+\textbf{Workload Generator:} Produces synthetic transaction traffic at controlled rates, supporting various workload regimes such as balanced steady-state or bursty arrivals.
+
+\textbf{Sequencer:} Maintains a transaction pool and orders transactions based on configurable scheduling policies (e.g., FCFS, fee-priority, time-boost, or fair BFT). It includes a batch orchestrator that determines when to form a new batch based on fixed-size, fixed-interval, or soft-cap rules. It also monitors a forced transaction queue to simulate censorship resistance.
+
+\textbf{Executor:} The state manager applies state transitions to a sparse Merkle tree. It validates nonces and balances, separating execution from transaction ordering.
+
+\textbf{Prover:} The mock-prover mode parameterizes proof delay, allowing the proving stage to be studied without requiring full circuit execution in every benchmark run.
+
+\textbf{Submitter and Layer-1 Contract:} The submitter handles bit-packing and compression strategies to commit data to Layer-1. It supports abstractions for different DA providers, routing data as calldata, blobs, or off-chain DA. The L1 smart contract acts as the verifier abstraction.
+
+\textbf{Telemetry:} Granular data collection is embedded throughout to monitor queueing delays, prover utilization, and submission costs.
+
+\subsection{Design Rationale}
+
+The prototype deliberately prioritizes modularity and observability over production completeness. Unlike production ZK-Rollups, where batching, proving, data availability, and submission logic are tightly optimized for deployment, the proposed framework exposes these mechanisms as configurable experimental controls. This allows the same workload to be replayed across different batch policies, sequencing policies, and data availability modes while keeping the remaining pipeline fixed. This design makes it possible to attribute performance changes to specific architectural choices rather than to unrelated implementation differences.
+
+The separation between the sequencer, executor, prover, submitter, and Layer-1 contract also supports controlled bottleneck isolation. For example, the prover can be executed in mock mode to parameterize proof delay, while the submitter can switch between calldata, blob-based DA, and off-chain DA to isolate data-posting overhead. This makes the prototype suitable for studying the throughput--latency--cost frontier of ZK-Rollup systems, even though it is not intended to provide full zkEVM compatibility.

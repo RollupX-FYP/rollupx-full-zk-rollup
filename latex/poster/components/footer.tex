@@ -1,0 +1,15 @@
+% Footer text placed inside the blue footer band
+\newcommand{\posterFooter}{%
+  \begin{tikzpicture}[remember picture,overlay]
+    \node[
+      anchor=south,
+      text=white,
+      align=center,
+      inner sep=0pt,
+      yshift=1.15cm
+    ] at (current page.south) {%
+      \fontsize{13pt}{15pt}\selectfont
+      Supervised by: Sunimal Rathnayake
+    };
+  \end{tikzpicture}%
+}
