@@ -156,15 +156,7 @@ mkdir -p ~/rollupx-metrics
 docker compose --profile report run --rm -v ~/rollupx-metrics:/out data-tools bash -c "cp -r /var/lib/rollupx/metrics/. /out/"
 ```
 
-**Method 1: Download Results to Your Local Machine**
-
-From a terminal on your **local machine** (your laptop/desktop):
-```bash
-scp -r cseroot@10.15.94.170:~/rollupx-metrics <save_path>
-```
-*(Replace `<save_path>` with the directory on your computer where you want to save the files. For example: `C:\Users\Lishan\Downloads`)*
-
-**Method 2: Through University VPN**
+**Method 1: Through University VPN**
 
 The pipeline generates `.png` graphs and a `thesis_summary.md` inside the metrics folder. Since the VM is hosted on a university server behind a firewall, ports like `8080` might be blocked even on the VPN. The most reliable way to view the graphs is using **SSH Local Port Forwarding**.
 
@@ -185,6 +177,14 @@ The pipeline generates `.png` graphs and a `thesis_summary.md` inside the metric
    ```
 
 Because of the SSH tunnel, your local browser will securely connect to the VM's server as if it were running on your own machine, completely bypassing any university firewall restrictions. Press `Ctrl+C` on the VM terminal to stop the server when done.
+
+**Method 2: Download Results to Your Local Machine**
+
+From a terminal on your **local machine** (your laptop/desktop):
+```bash
+scp -r cseroot@10.15.94.170:~/rollupx-metrics <save_path>
+```
+*(Replace `<save_path>` with the directory on your computer where you want to save the files. For example: `C:\Users\Lishan\Downloads`)*
 
 ---
 
