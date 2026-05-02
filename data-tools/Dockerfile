@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY data-tools ./data-tools
 COPY run_pipeline.sh ./run_pipeline.sh
+RUN chmod +x ./run_pipeline.sh
 
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir pandas matplotlib numpy
