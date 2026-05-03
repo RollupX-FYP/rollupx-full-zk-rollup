@@ -64,7 +64,7 @@ Step-by-step instructions to bring up the entire ZK-Rollup pipeline, run the ben
    cd rollupx-full-zk-rollup
    ```
 
-5) **Switch Branch (Optional)**
+5) **Switch Branch (Switch to the branch "connected" and pull for latest changes)**
 
    View branches:
 
