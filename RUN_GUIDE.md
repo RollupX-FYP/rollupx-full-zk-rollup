@@ -143,14 +143,6 @@ bash scripts/run_full_suite.sh
 
 If you want to run specific parts instead of the full suite, you can run the individual scripts directly:
 
-> [!NOTE]
-> When running components directly via `docker compose run`, results are saved to `benchmark-suite/metrics/latest` by default (overwriting previous manual runs). To save them to a distinct folder like the full suite does, export `METRICS_DIR` first:
-> ```bash
-> export METRICS_DIR="$(pwd)/benchmark-suite/metrics/run_$(TZ="Asia/Colombo" date +%Y%m%d_%H%M%S)"
-> mkdir -p "$METRICS_DIR"
-> ```
-> *(Note: `scripts/run_infra_matrix.sh` automatically sets this up for you if not provided).*
-
 **Step 1 — Build the benchmark image** (once, or after Dockerfile changes):
 ```bash
 docker compose --profile bench build benchmark --no-cache
@@ -158,7 +150,7 @@ docker compose --profile bench build benchmark --no-cache
 
 **Step 2 — Run workload experiments** (rate, tx mix — no stack restart needed):
 ```bash
-docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh --workload
+bash scripts/run_workload_matrix.sh
 ```
 
 **Step 3 — Run infrastructure experiments** (batch size, timeout, policy, DA mode, prover):
@@ -166,14 +158,9 @@ docker compose --profile core --profile bench run --rm benchmark bash scripts/ru
 bash scripts/run_infra_matrix.sh
 ```
 
-**Step 4 — Build the data tools image** (once, or after Dockerfile changes):
+**Step 4 — Generate Analytics Reports**:
 ```bash
-docker compose --profile report build data-tools --no-cache
-```
-
-**Step 5 — Generate Analytics Reports**:
-```bash
-docker compose --profile report run --rm data-tools
+bash scripts/generate_reports.sh
 ```
 </details>
 
@@ -182,8 +169,8 @@ docker compose --profile report run --rm data-tools
 
 **Workload factors** (run inside benchmark container):
 ```bash
-docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh --filter rate
-docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh --filter tx_mix
+bash scripts/run_workload_matrix.sh --filter rate
+bash scripts/run_workload_matrix.sh --filter tx_mix
 ```
 
 **Infrastructure factors** (run on host):
