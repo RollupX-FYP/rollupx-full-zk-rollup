@@ -119,21 +119,64 @@ bash scripts/verify_stack.sh
 ```
 
 ### 1.3 Configure and Run Benchmarks
-You can trigger a pre-configured smoke benchmark via the containerized runner (requires **WSL** or **Git Bash**):
+
+The benchmarking system is designed to evaluate the RollupX stack under various conditions. Benchmarks can be run as a single "smoke test" or as a comprehensive "matrix" of experiments.
+
+**Where to configure benchmarks?**
+1. **Single/Quick Smoke Tests:** Configured in `scripts/smoke_benchmark.sh`. This script runs a quick, single-pass test by overriding environment variables passed directly to the `benchmark` docker container.
+2. **Full Benchmark Matrix:** Configured in `benchmark-suite/config/experiments.toml`. This TOML file defines a `[baseline]` scenario and multiple `[[experiments]]` blocks that vary specific factors one by one (e.g., changing batch sizes, DA modes, provers).
+
+**Configurable Parameters:**
+Whether set as environment variables (in `smoke_benchmark.sh`) or in `experiments.toml`, the following key parameters can be configured:
+- `RATE_TPS` / `rate_tps`: Target transaction input rate (e.g., 10, 50).
+- `DURATION_S` / `duration_s`: Test duration in seconds.
+- `WARMUP_S` / `warmup_s`: Warmup time before recording metrics.
+- `TX_MIX` / `tx_mix`: Workload complexity (`light`, `balanced`, `heavy`).
+- `MAX_BATCH_SIZE` / `batch_size`: Max transactions per batch.
+- `TIMEOUT_MS` / `timeout_ms`: Time limit (ms) to seal a batch.
+- `POLICY` / `policy`: Sequencer scheduling policy (`FCFS`, `FeePriority`, `TimeBoost`, `FairBFT`).
+- `DA_MODE` / `da_mode`: Data availability mode (`calldata`, `blob`, `offchain`).
+- `PROVER` / `prover`: Prover backend (`groth16`, `plonk`).
+- `SEED` / `seeds`: Random seeds for reproducible workloads.
+- `REPEAT` / `repeats`: Number of iterations to run each experiment.
+
+**Running a Smoke Test:**
+To trigger a pre-configured, short benchmark:
 ```bash
 docker compose --profile bench build benchmark --no-cache # Run this once or if Dockerfile changes
 bash scripts/smoke_benchmark.sh
 ```
 
-**Configuring Benchmarks:**
-The benchmarks are controlled via Environment Variables passed to the benchmark container. If you open `scripts/smoke_benchmark.sh`, you can tweak parameters like:
-- `RATE_TPS=10`: Increase or decrease load.
-- `DURATION_S=30`: Run the test for a longer period.
-- `TX_MIX=heavy`: Change the workload type (valid: `balanced`, `light`, `heavy`, `custom`).
-- `DA_MODE=blob`: Test different Data Availability modes.
-- `PROVER=groth16`: Change the prover backend.
+**Running the Full Benchmark Suite (Matrix):**
+To run the full suite defined in `experiments.toml`:
+```bash
+docker compose --profile bench build benchmark --no-cache # Run this once or if Dockerfile changes
+docker compose --profile core --profile bench run --rm benchmark bash /app/scripts/run_pipeline.sh
+```
 
-Or, you can run specific workload scripts locally against the containerized sequencer exposed on port `3000`.
+### 1.3.1 Measured Parameters & Benchmarking Outputs
+
+The benchmark framework gathers metrics at multiple levels and generates an automated report.
+
+**1. Raw Measured Parameters (Per-Run):**
+Stored inside `metrics/<experiment_id>/<run_id>/`:
+- `workload_<exp_id>.json`: Details of the generated workload.
+- `run_metadata.json`: Start/end timestamps, configuration snapshots.
+- `tx_log_<run_id>.csv`: Transaction-level metrics (submission time, batching time, proof time, L1 finalization time).
+- `submitter_metrics.json`: Submitter lifecycle and cost tracking.
+- `run_status.json`: Execution status.
+
+**2. Aggregated & Analytical Outputs (from data-tools):**
+When the `data-tools` pipeline is run, it aggregates the raw metrics across all runs and generates:
+- `all_results.csv`: Combined flat list of all experiment results.
+- `stats_summary.csv`: Statistical summaries across repeats (mean, standard deviation, confidence intervals).
+- `figures/`: Visual plots including:
+  - Throughput bar charts
+  - Latency CDFs (Cumulative Distribution Functions)
+  - Pareto frontiers (trade-offs between factors)
+  - Fairness metrics
+  - Cost heatmaps and sensitivity analyses
+- `thesis_summary.md`: An auto-generated markdown report summarizing the findings.
 
 ### 1.4 Generate Analytics Reports
 After the benchmarks finish, the raw per-run metrics (JSON + CSV) are stored in the Docker volume. To generate the aggregated analysis, plots, and markdown report, run the data-tools pipeline:
