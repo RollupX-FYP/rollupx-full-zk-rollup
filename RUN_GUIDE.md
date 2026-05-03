@@ -154,6 +154,63 @@ docker compose --profile bench build benchmark --no-cache # Run this once or if 
 docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh
 ```
 
+> [!WARNING]
+> **Docker Matrix Limitation:** The benchmark container **cannot restart** the external sequencer or submitter containers. This means the matrix script can only dynamically change **workload factors** (parameters controlled by the Python workload generator running inside the benchmark container). **Infrastructure factors** require restarting the core stack with new environment variables (see below).
+
+| Category | Factors | Works via Matrix Script? |
+|---|---|---|
+| ✅ **Workload** | `rate_tps`, `tx_mix`, `duration_s`, `warmup_s` | **Yes** — controlled by the Python workload generator inside the benchmark container |
+| ❌ **Infrastructure** | `batch_size`, `timeout_ms`, `policy`, `da_mode`, `prover` | **No** — these require restarting sequencer/submitter containers to apply |
+
+> [!NOTE]
+> If you see `[WARN] Sequencer binary not found` during a benchmark run, this is **expected and harmless**. It simply means the script detected it is running inside Docker (where there is no local sequencer binary) and correctly fell back to sending traffic to the remote sequencer container via HTTP (`http://sequencer:3000`).
+
+**Running Workload-Only Experiments (No Stack Restart Needed):**
+To only sweep workload factors (rate, tx mix), use the `--filter` flag:
+```bash
+docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh --filter rate
+docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh --filter tx_mix
+```
+
+**Running Infrastructure Experiments (Stack Restart Required):**
+For factors that change the sequencer or submitter configuration (`batch_size`, `timeout`, `policy`, `da_mode`, `prover`), you must restart the core stack with new environment variables for **each** configuration, and then trigger a single benchmark run against it.
+
+The environment variables map to experiment factors as follows:
+
+| Factor | Environment Variable(s) | Default |
+|---|---|---|
+| `batch_size` | `SEQUENCER_BATCH_MAX_SIZE` | `100` |
+| `timeout_ms` | `SEQUENCER_BATCH_TIMEOUT_MS` | `5000` |
+| `policy` | `SEQUENCER_POLICY` | `FCFS` |
+| `da_mode` | `SUBMITTER_DA_MODE` | `offchain` |
+| `prover` | `SUBMITTER_PROOF_BACKEND` | `groth16` |
+
+**Example: Benchmarking with `batch_size = 25`:**
+```bash
+# 1. Tear down the existing stack
+docker compose down -v --remove-orphans
+
+# 2. Restart with the new config
+SEQUENCER_BATCH_MAX_SIZE=25 docker compose --profile core up -d --build
+
+# 3. Wait for the stack to be healthy
+bash scripts/verify_stack.sh
+
+# 4. Run the benchmark (workload-only factors from the baseline)
+docker compose --profile bench run --rm benchmark bash scripts/run_experiment.sh bs_025 1
+```
+
+**Example: Benchmarking with `policy = FeePriority` and `da_mode = blob`:**
+```bash
+docker compose down -v --remove-orphans
+SEQUENCER_POLICY=FeePriority SUBMITTER_DA_MODE=blob \
+  docker compose --profile core up -d --build
+bash scripts/verify_stack.sh
+docker compose --profile bench run --rm benchmark bash scripts/run_experiment.sh pol_fee_da_blob 1
+```
+
+Repeat the **tear-down → reconfigure → restart → run** cycle for each infrastructure configuration you need to benchmark.
+
 The benchmark framework gathers metrics at multiple levels and generates an automated report. The raw measured parameters (per-run) are stored inside `metrics/<experiment_id>/<run_id>/`:
 - `workload_<exp_id>.json`: Details of the generated workload.
 - `run_metadata.json`: Start/end timestamps, configuration snapshots.
@@ -446,6 +503,8 @@ Defines parameters for matrix runs like DA mode, provers, rates.
 
 | Symptom                                                                   | Cause                                   | Fix                                                                     |
 | ------------------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
+| `[WARN] Sequencer binary not found`                                       | Expected in Docker — no local binary    | Harmless; the script falls back to HTTP (`http://sequencer:3000`)        |
+| Infrastructure experiments (batch_size, policy, da_mode) don't change     | Matrix script can't restart containers  | Set env vars on `docker compose up` and restart the stack per config     |
 | `No such file or directory` from sequencer                                | Not running from `sequencer/` directory | `cd sequencer` before `cargo run`                                       |
 | `UNIQUE constraint failed: batches.batch_id`                              | Stale DB from previous run              | Delete `sequencer/sequencer.db` or use `reset_state.sh`                 |
 | Submitter can't reach executor gRPC                                       | Executor not running on `:50051`        | Start executor first; verify `EXECUTOR_URL` matches                     |
