@@ -42,6 +42,17 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# ── Auto-setup METRICS_DIR if not provided ──────────────────────────────────────
+if [[ -z "${METRICS_DIR:-}" ]]; then
+    export METRICS_DIR="${PROJECT_ROOT}/benchmark-suite/metrics/run_$(TZ="Asia/Colombo" date +%Y%m%d_%H%M%S)"
+    mkdir -p "$METRICS_DIR"
+    echo "======================================================================"
+    echo " No METRICS_DIR provided. Creating new session directory:"
+    echo "   $METRICS_DIR"
+    echo "======================================================================"
+    echo ""
+fi
+
 # ── Infra factors that require a stack restart ────────────────────────────────
 INFRA_FACTORS="batch_size timeout policy da_mode prover"
 
@@ -224,7 +235,7 @@ sys.exit(0 if not unhealthy else 1)
         echo ""
         echo "  -- Run $i/$REPEATS  seed=$SEED  run_id=$RUN_ID"
 
-        docker compose --profile bench run --rm \
+        docker compose --profile bench run -T --rm \
             -e RATE_TPS="$RATE" \
             -e DURATION_S="$DURATION" \
             -e WARMUP_S="$WARMUP" \
@@ -253,15 +264,16 @@ sys.exit(0 if not unhealthy else 1)
 FAILURES=0
 INDEX=0
 
-for ROW in $(echo "$EXPERIMENTS_JSON" | python3 -c "
+while read -u 3 -r ROW; do
+    if [[ -z "$ROW" ]]; then continue; fi
+    INDEX=$((INDEX + 1))
+    run_single_experiment "$ROW" "$INDEX" || FAILURES=$((FAILURES + 1))
+done 3<<< "$(echo "$EXPERIMENTS_JSON" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
 for item in data:
     print(json.dumps(item))
-"); do
-    INDEX=$((INDEX + 1))
-    run_single_experiment "$ROW" "$INDEX" || FAILURES=$((FAILURES + 1))
-done
+")"
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 echo ""
