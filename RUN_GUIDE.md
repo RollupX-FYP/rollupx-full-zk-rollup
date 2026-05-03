@@ -118,9 +118,30 @@ Wait a few seconds for services to become healthy, then run the verification scr
 bash scripts/verify_stack.sh
 ```
 
-### 1.3 Run Benchmarks
+### 1.3 Run the Full Benchmark Suite
 
-All commands below are run **from the project root** (`rollupx-full-zk-rollup/`) on the **host machine** (normal terminal) (not inside a container).
+All commands below are run **from the project root** (`rollupx-full-zk-rollup/`) on the **host machine**(normal terminal) (not inside a container).
+
+To run the entire suite (builds images, runs workload experiments, runs infrastructure experiments, and generates all reports), use the automated wrapper:
+```bash
+bash scripts/run_full_suite.sh
+```
+
+> [!NOTE]
+> Every time you run this script, it automatically creates a new timestamped folder (e.g., `benchmark-suite/metrics/run_20260503_150000/`) to prevent overwriting previous data.
+
+**Output:** All raw metrics, plots, and markdown reports are saved directly to the host inside the new timestamped folder. Inside this folder you will find:
+- `metrics/<experiment_id>/<run_id>/`: Raw parameters per-run (JSON + CSV)
+- `all_results.csv` & `stats_summary.csv`: Aggregated flat lists and statistical summaries.
+- `figures/`: Visual plots (throughput charts, latency CDFs, Pareto frontiers, etc.)
+- `thesis_summary.md`: Auto-generated markdown report summarizing the findings.
+
+---
+
+<details>
+<summary><strong>Advanced: Running Individual Components</strong></summary>
+
+If you want to run specific parts instead of the full suite, you can run the individual scripts directly:
 
 **Step 1 — Build the benchmark image** (once, or after Dockerfile changes):
 ```bash
@@ -137,23 +158,15 @@ docker compose --profile core --profile bench run --rm benchmark bash scripts/ru
 bash scripts/run_infra_matrix.sh
 ```
 
-> [!NOTE]
-> Step 2 runs **inside** the benchmark container and sweeps workload factors automatically.
-> Step 3 runs **on the host** and automatically restarts the Docker Compose stack with different configurations for each infrastructure experiment.
-> If you see `[WARN] Sequencer binary not found` during Step 2, this is **expected and harmless** in Docker.
+**Step 4 — Build the data tools image** (once, or after Dockerfile changes):
+```bash
+docker compose --profile report build data-tools --no-cache
+```
 
----
-
-<details>
-<summary><strong>Why two separate commands?</strong></summary>
-
-The benchmark container cannot restart the external sequencer or submitter containers. This means:
-
-| Category | Factors | How they run |
-|---|---|---|
-| ✅ **Workload** | `rate_tps`, `tx_mix`, `duration_s`, `warmup_s` | Controlled by the Python workload generator **inside** the benchmark container → `run_matrix.sh` |
-| ⚙️ **Infrastructure** | `batch_size`, `timeout_ms`, `policy`, `da_mode`, `prover` | Require restarting the core stack with new env vars → `run_infra_matrix.sh` |
-
+**Step 5 — Generate Analytics Reports**:
+```bash
+docker compose --profile report run --rm data-tools
+```
 </details>
 
 <details>
@@ -238,42 +251,13 @@ All experiments are configured in `benchmark-suite/config/experiments.toml`. The
 
 </details>
 
-**Output:** The raw metrics (per-run) are stored inside the Docker volume at `metrics/<experiment_id>/<run_id>/`:
-- `workload_<exp_id>.json`: Details of the generated workload.
-- `run_metadata.json`: Start/end timestamps, configuration snapshots.
-- `tx_log_<run_id>.csv`: Transaction-level metrics (submission time, batching time, proof time, L1 finalization time).
-- `submitter_metrics.json`: Submitter lifecycle and cost tracking.
-- `run_status.json`: Execution status.
+### 1.4 View the Results
 
-### 1.4 Generate Analytics Reports
-After the benchmarks finish, the raw per-run metrics (JSON + CSV) are stored in the Docker volume. To generate the aggregated analysis, plots, and markdown report, run the data-tools pipeline:
-```bash
-docker compose --profile report build data-tools --no-cache # Run this once or if data-tools/Dockerfile changes
-docker compose --profile report run --rm data-tools
-```
-
-When the `data-tools` pipeline is run, it aggregates the raw metrics across all runs and generates (inside the Docker volume):
-- `all_results.csv`: Combined flat list of all experiment results.
-- `stats_summary.csv`: Statistical summaries across repeats (mean, standard deviation, confidence intervals).
-- `figures/`: Visual plots including:
-  - Throughput bar charts
-  - Latency CDFs (Cumulative Distribution Functions)
-  - Pareto frontiers (trade-offs between factors)
-  - Fairness metrics
-  - Cost heatmaps and sensitivity analyses
-- `thesis_summary.md`: An auto-generated markdown report summarizing the findings.
-
-### 1.5 View the Results
-
-Since metrics are stored inside a Docker volume, first extract them to the host filesystem:
-```bash
-mkdir -p ~/rollupx-metrics
-docker compose --profile report run --rm -v ~/rollupx-metrics:/out data-tools bash -c "cp -r /var/lib/rollupx/metrics/. /out/"
-```
+The metrics are saved in `benchmark-suite/metrics/run_<timestamp>/`.
 
 **Method 1: Through University VPN**
 
-The pipeline generates `.png` graphs and a `thesis_summary.md` inside the metrics folder. Since the VM is hosted on a university server behind a firewall, ports like `8080` might be blocked even on the VPN. The most reliable way to view the graphs is using **SSH Local Port Forwarding**.
+The pipeline generates `.png` graphs and a `thesis_summary.md`. Since the VM is hosted on a university server behind a firewall, ports like `8080` might be blocked even on the VPN. The most reliable way to view the graphs is using **SSH Local Port Forwarding**.
 
 1. **On your local machine** (your laptop/desktop), open a new terminal and create an SSH tunnel:
    ```bash
@@ -281,9 +265,10 @@ The pipeline generates `.png` graphs and a `thesis_summary.md` inside the metric
    ```
    *(Keep this terminal open as long as you want to view the files)*
 
-2. **On the VM terminal** (where you run your project), start a simple Python web server:
+2. **On the VM terminal** (where you run your project), start a simple Python web server serving your most recent run:
    ```bash
-   python3 -m http.server 8080 --directory ~/rollupx-metrics/
+   cd rollupx-full-zk-rollup/benchmark-suite/metrics
+   python3 -m http.server 8080 --directory "$(ls -td run_* | head -n 1)"
    ```
 
 3. **On your local machine**, open a web browser and navigate to:
@@ -297,9 +282,9 @@ Because of the SSH tunnel, your local browser will securely connect to the VM's 
 
 From a terminal on your **local machine** (your laptop/desktop):
 ```bash
-scp -r cseroot@10.15.94.170:~/rollupx-metrics <save_path>
+scp -r cseroot@10.15.94.170:~/rollupx-full-zk-rollup/benchmark-suite/metrics <save_path>
 ```
-*(Replace `<save_path>` with the directory on your computer where you want to save the files. For example: `C:\Users\Lishan\Downloads`)*
+*(Replace `<save_path>` with the directory on your computer where you want to save the files. For example: `C:\Users\Downloads`)*
 
 ---
 
