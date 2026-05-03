@@ -8,7 +8,7 @@ rate_tps      = 10
 duration_s    = 120
 warmup_s      = 15
 tx_mix        = "balanced"
-repeats       = 5
+repeats       = 1
 seeds         = [42, 43, 44, 45, 46]
 
 # ── F1: Batch Size ────────────────────────────────────────────────────────────

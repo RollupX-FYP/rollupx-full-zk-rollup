@@ -30,7 +30,7 @@ echo ""
 
 cd "$PROJECT_ROOT"
 
-# ── 2. Build images (just in case) ───────────────────────────────────────────
+# ── 2. Build images ──────────────────────────────────────────────────────────
 echo "[step 1/4] Building benchmark image..."
 docker compose --profile bench build benchmark --no-cache
 
