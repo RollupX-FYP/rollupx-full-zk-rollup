@@ -14,7 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # ── 1. Create a unique folder for this round of experiments ──────────────────
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+TIMESTAMP=$(TZ="Asia/Colombo" date +%Y%m%d_%H%M%S)
 SESSION_DIR="${PROJECT_ROOT}/benchmark-suite/metrics/run_${TIMESTAMP}"
 mkdir -p "$SESSION_DIR"
 
@@ -37,7 +37,7 @@ docker compose --profile bench build benchmark --no-cache
 # ── 3. Run workload experiments ──────────────────────────────────────────────
 echo ""
 echo "[step 2/4] Running workload experiments (rate, tx_mix)..."
-docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh --workload
+bash scripts/run_workload_matrix.sh --workload
 
 # ── 4. Run infrastructure experiments ────────────────────────────────────────
 echo ""
@@ -47,8 +47,7 @@ bash scripts/run_infra_matrix.sh
 # ── 5. Generate analytics reports ────────────────────────────────────────────
 echo ""
 echo "[step 4/4] Generating analytics reports..."
-docker compose --profile report build data-tools --no-cache
-docker compose --profile report run --rm data-tools
+bash scripts/generate_reports.sh
 
 echo ""
 echo "======================================================================"

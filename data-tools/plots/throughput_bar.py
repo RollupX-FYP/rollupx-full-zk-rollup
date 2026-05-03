@@ -33,7 +33,8 @@ def plot_throughput(df: pd.DataFrame, group_col: str, output_dir: str, label: st
     os.makedirs(output_dir, exist_ok=True)
 
     # average across repeats per experiment
-    agg = df.groupby("experiment_id")[[c for c, _, _ in THROUGHPUT_COLS]].mean().reset_index()
+    cols_to_agg = [c for c, _, _ in THROUGHPUT_COLS if c in df.columns]
+    agg = df.groupby("experiment_id")[cols_to_agg].mean().reset_index() if cols_to_agg else pd.DataFrame({"experiment_id": df["experiment_id"].unique()})
 
     # try to sort by group_col value
     if group_col in df.columns:

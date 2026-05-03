@@ -150,7 +150,7 @@ docker compose --profile bench build benchmark --no-cache
 
 **Step 2 — Run workload experiments** (rate, tx mix — no stack restart needed):
 ```bash
-docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh --workload
+bash scripts/run_workload_matrix.sh
 ```
 
 **Step 3 — Run infrastructure experiments** (batch size, timeout, policy, DA mode, prover):
@@ -158,14 +158,9 @@ docker compose --profile core --profile bench run --rm benchmark bash scripts/ru
 bash scripts/run_infra_matrix.sh
 ```
 
-**Step 4 — Build the data tools image** (once, or after Dockerfile changes):
+**Step 4 — Generate Analytics Reports**:
 ```bash
-docker compose --profile report build data-tools --no-cache
-```
-
-**Step 5 — Generate Analytics Reports**:
-```bash
-docker compose --profile report run --rm data-tools
+bash scripts/generate_reports.sh
 ```
 </details>
 
@@ -174,8 +169,8 @@ docker compose --profile report run --rm data-tools
 
 **Workload factors** (run inside benchmark container):
 ```bash
-docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh --filter rate
-docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh --filter tx_mix
+bash scripts/run_workload_matrix.sh --filter rate
+bash scripts/run_workload_matrix.sh --filter tx_mix
 ```
 
 **Infrastructure factors** (run on host):
@@ -270,6 +265,7 @@ The pipeline generates `.png` graphs and a `thesis_summary.md`. Since the VM is 
    cd benchmark-suite/metrics
    python3 -m http.server 8080 --directory "$(ls -td run_* | head -n 1)"
    ```
+   *(Optional: If you want to view the **entire** metrics folder containing all previous runs, omit the `--directory` argument: `python3 -m http.server 8080`)*
 
 3. **On your local machine**, open a web browser and navigate to:
    ```text
