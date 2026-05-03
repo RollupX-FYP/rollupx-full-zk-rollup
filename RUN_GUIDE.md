@@ -64,7 +64,7 @@ Step-by-step instructions to bring up the entire ZK-Rollup pipeline, run the ben
    cd rollupx-full-zk-rollup
    ```
 
-5) **Switch Branch (Optional)**
+5) **Switch Branch (Switch to the branch "connected" and pull for latest changes)**
 
    View branches:
 
@@ -118,47 +118,146 @@ Wait a few seconds for services to become healthy, then run the verification scr
 bash scripts/verify_stack.sh
 ```
 
-### 1.3 Configure and Run Benchmarks
-You can trigger a pre-configured smoke benchmark via the containerized runner (requires **WSL** or **Git Bash**):
+### 1.3 Run the Full Benchmark Suite
+
+All commands below are run **from the project root** (`rollupx-full-zk-rollup/`) on the **host machine**(normal terminal) (not inside a container).
+
+To run the entire suite (builds images, runs workload experiments, runs infrastructure experiments, and generates all reports), use the automated wrapper:
 ```bash
-docker compose --profile bench build benchmark --no-cache # Run this once or if Dockerfile changes
+bash scripts/run_full_suite.sh
+```
+
+> [!NOTE]
+> Every time you run this script, it automatically creates a new timestamped folder (e.g., `benchmark-suite/metrics/run_20260503_150000/`) to prevent overwriting previous data.
+
+**Output:** All raw metrics, plots, and markdown reports are saved directly to the host inside the new timestamped folder. Inside this folder you will find:
+- `metrics/<experiment_id>/<run_id>/`: Raw parameters per-run (JSON + CSV)
+- `all_results.csv` & `stats_summary.csv`: Aggregated flat lists and statistical summaries.
+- `figures/`: Visual plots (throughput charts, latency CDFs, Pareto frontiers, etc.)
+- `thesis_summary.md`: Auto-generated markdown report summarizing the findings.
+
+---
+
+<details>
+<summary><strong>Advanced: Running Individual Components</strong></summary>
+
+If you want to run specific parts instead of the full suite, you can run the individual scripts directly:
+
+**Step 1 — Build the benchmark image** (once, or after Dockerfile changes):
+```bash
+docker compose --profile bench build benchmark --no-cache
+```
+
+**Step 2 — Run workload experiments** (rate, tx mix — no stack restart needed):
+```bash
+docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh --workload
+```
+
+**Step 3 — Run infrastructure experiments** (batch size, timeout, policy, DA mode, prover):
+```bash
+bash scripts/run_infra_matrix.sh
+```
+
+**Step 4 — Build the data tools image** (once, or after Dockerfile changes):
+```bash
+docker compose --profile report build data-tools --no-cache
+```
+
+**Step 5 — Generate Analytics Reports**:
+```bash
+docker compose --profile report run --rm data-tools
+```
+</details>
+
+<details>
+<summary><strong>Filtering to specific factors</strong></summary>
+
+**Workload factors** (run inside benchmark container):
+```bash
+docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh --filter rate
+docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh --filter tx_mix
+```
+
+**Infrastructure factors** (run on host):
+```bash
+bash scripts/run_infra_matrix.sh --filter batch_size
+bash scripts/run_infra_matrix.sh --filter policy
+bash scripts/run_infra_matrix.sh --filter da_mode
+
+# Preview what will run without executing
+bash scripts/run_infra_matrix.sh --dry-run
+
+# Skip the baseline (useful when resuming)
+bash scripts/run_infra_matrix.sh --filter da_mode --skip-baseline
+```
+
+</details>
+
+<details>
+<summary><strong>Running a quick smoke test</strong></summary>
+
+A short, pre-configured single-pass benchmark to validate end-to-end functionality:
+```bash
 bash scripts/smoke_benchmark.sh
 ```
 
-**Configuring Benchmarks:**
-The benchmarks are controlled via Environment Variables passed to the benchmark container. If you open `scripts/smoke_benchmark.sh`, you can tweak parameters like:
-- `RATE_TPS=10`: Increase or decrease load.
-- `DURATION_S=30`: Run the test for a longer period.
-- `TX_MIX=heavy`: Change the workload type (valid: `balanced`, `light`, `heavy`, `custom`).
-- `DA_MODE=blob`: Test different Data Availability modes.
-- `PROVER=groth16`: Change the prover backend.
+</details>
 
-Or, you can run specific workload scripts locally against the containerized sequencer exposed on port `3000`.
+<details>
+<summary><strong>Manual ad-hoc infrastructure runs</strong></summary>
 
-### 1.4 Generate Analytics Reports
-After the benchmarks finish, the raw per-run metrics (JSON + CSV) are stored in the Docker volume. To generate the aggregated analysis, plots, and markdown report, run the data-tools pipeline:
+For a one-off infrastructure test without the automated script, manually restart the stack:
 ```bash
-docker compose --profile report build data-tools --no-cache # Run this once or if data-tools/Dockerfile changes
-docker compose --profile report run --rm data-tools
+# 1. Tear down
+docker compose down -v --remove-orphans
+
+# 2. Restart with the new config (from the project root)
+SEQUENCER_BATCH_MAX_SIZE=25 docker compose --profile core up -d --build
+
+# 3. Verify health
+bash scripts/verify_stack.sh
+
+# 4. Run the benchmark
+docker compose --profile bench run --rm benchmark bash scripts/run_experiment.sh bs_025 1
 ```
 
-**What this produces (inside the Docker volume):**
-- `all_results.csv` — Aggregated metrics from all experiment runs
-- `stats_summary.csv` — Statistical summary (means, std, CI)
-- `figures/` — PNG plots (Pareto frontiers, throughput bars, latency CDF, fairness, cost heatmap, sensitivity)
-- `thesis_summary.md` — Auto-generated markdown report
+**Environment variable → factor mapping:**
 
-### 1.5 View the Results
+| Factor | Environment Variable | Default |
+|---|---|---|
+| `batch_size` | `SEQUENCER_BATCH_MAX_SIZE` | `100` |
+| `timeout_ms` | `SEQUENCER_BATCH_TIMEOUT_MS` | `5000` |
+| `policy` | `SEQUENCER_POLICY` | `FCFS` |
+| `da_mode` | `SUBMITTER_DA_MODE` | `offchain` |
+| `prover` | `SUBMITTER_PROOF_BACKEND` | `groth16` |
 
-Since metrics are stored inside a Docker volume, first extract them to the host filesystem:
-```bash
-mkdir -p ~/rollupx-metrics
-docker compose --profile report run --rm -v ~/rollupx-metrics:/out data-tools bash -c "cp -r /var/lib/rollupx/metrics/. /out/"
-```
+</details>
+
+<details>
+<summary><strong>Configurable parameters reference</strong></summary>
+
+All experiments are configured in `benchmark-suite/config/experiments.toml`. The following parameters can be set:
+- `rate_tps`: Target transaction input rate (e.g., 5, 10, 50).
+- `duration_s`: Test duration in seconds.
+- `warmup_s`: Warmup time before recording metrics.
+- `tx_mix`: Workload complexity (`light`, `balanced`, `heavy`).
+- `batch_size`: Max transactions per batch.
+- `timeout_ms`: Time limit (ms) to seal a batch.
+- `policy`: Sequencer scheduling policy (`FCFS`, `FeePriority`, `TimeBoost`, `FairBFT`).
+- `da_mode`: Data availability mode (`calldata`, `blob`, `offchain`).
+- `prover`: Prover backend (`groth16`, `plonk`).
+- `seeds`: Random seeds for reproducible workloads.
+- `repeats`: Number of iterations to run each experiment.
+
+</details>
+
+### 1.4 View the Results
+
+The metrics are saved in `benchmark-suite/metrics/run_<timestamp>/`.
 
 **Method 1: Through University VPN**
 
-The pipeline generates `.png` graphs and a `thesis_summary.md` inside the metrics folder. Since the VM is hosted on a university server behind a firewall, ports like `8080` might be blocked even on the VPN. The most reliable way to view the graphs is using **SSH Local Port Forwarding**.
+The pipeline generates `.png` graphs and a `thesis_summary.md`. Since the VM is hosted on a university server behind a firewall, ports like `8080` might be blocked even on the VPN. The most reliable way to view the graphs is using **SSH Local Port Forwarding**.
 
 1. **On your local machine** (your laptop/desktop), open a new terminal and create an SSH tunnel:
    ```bash
@@ -166,9 +265,10 @@ The pipeline generates `.png` graphs and a `thesis_summary.md` inside the metric
    ```
    *(Keep this terminal open as long as you want to view the files)*
 
-2. **On the VM terminal** (where you run your project), start a simple Python web server:
+2. **On the VM terminal** (where you run your project), start a simple Python web server serving your most recent run:
    ```bash
-   python3 -m http.server 8080 --directory ~/rollupx-metrics/
+   cd benchmark-suite/metrics
+   python3 -m http.server 8080 --directory "$(ls -td run_* | head -n 1)"
    ```
 
 3. **On your local machine**, open a web browser and navigate to:
@@ -182,9 +282,9 @@ Because of the SSH tunnel, your local browser will securely connect to the VM's 
 
 From a terminal on your **local machine** (your laptop/desktop):
 ```bash
-scp -r cseroot@10.15.94.170:~/rollupx-metrics <save_path>
+scp -r cseroot@10.15.94.170:~/rollupx-full-zk-rollup/benchmark-suite/metrics <save_path>
 ```
-*(Replace `<save_path>` with the directory on your computer where you want to save the files. For example: `C:\Users\Lishan\Downloads`)*
+*(Replace `<save_path>` with the directory on your computer where you want to save the files. For example: `C:\Users\Downloads`)*
 
 ---
 
@@ -415,6 +515,8 @@ Defines parameters for matrix runs like DA mode, provers, rates.
 
 | Symptom                                                                   | Cause                                   | Fix                                                                     |
 | ------------------------------------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------- |
+| `[WARN] Sequencer binary not found`                                       | Expected in Docker — no local binary    | Harmless; the script falls back to HTTP (`http://sequencer:3000`)        |
+| Infrastructure experiments (batch_size, policy, da_mode) don't change     | Matrix script can't restart containers  | Set env vars on `docker compose up` and restart the stack per config     |
 | `No such file or directory` from sequencer                                | Not running from `sequencer/` directory | `cd sequencer` before `cargo run`                                       |
 | `UNIQUE constraint failed: batches.batch_id`                              | Stale DB from previous run              | Delete `sequencer/sequencer.db` or use `reset_state.sh`                 |
 | Submitter can't reach executor gRPC                                       | Executor not running on `:50051`        | Start executor first; verify `EXECUTOR_URL` matches                     |
