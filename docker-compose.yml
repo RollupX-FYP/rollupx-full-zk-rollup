@@ -78,7 +78,7 @@ services:
       - executor_state:/var/lib/rollupx/executor/state_db
       - executor_traces:/var/lib/rollupx/executor/traces
       - executor_risc0:/var/lib/rollupx/executor/risc0
-      - metrics_data:/var/lib/rollupx/metrics
+      - ${METRICS_DIR:-./benchmark-suite/metrics/latest}:/var/lib/rollupx/metrics
       - runtime_config:/runtime:ro
     ports:
       - "${EXECUTOR_HOST_PORT:-50051}:50051"
@@ -112,7 +112,7 @@ services:
       EXPERIMENT_ID: compose_core
     volumes:
       - submitter_data:/var/lib/rollupx/submitter
-      - metrics_data:/var/lib/rollupx/metrics
+      - ${METRICS_DIR:-./benchmark-suite/metrics/latest}:/var/lib/rollupx/metrics
       - runtime_config:/runtime:ro
     ports:
       - "${SUBMITTER_METRICS_HOST_PORT:-9000}:9000"
@@ -173,7 +173,7 @@ services:
       L1_RPC_URL: ${L1_RPC_HTTP:-http://hardhat:8545}
     command: ["bash", "-lc", "sleep infinity"]
     volumes:
-      - metrics_data:/var/lib/rollupx/metrics
+      - ${METRICS_DIR:-./benchmark-suite/metrics/latest}:/var/lib/rollupx/metrics
       - runtime_config:/runtime:ro
     networks:
       - rollupx
@@ -187,7 +187,7 @@ services:
     environment:
       METRICS_ROOT: /var/lib/rollupx/metrics
     volumes:
-      - metrics_data:/var/lib/rollupx/metrics
+      - ${METRICS_DIR:-./benchmark-suite/metrics/latest}:/var/lib/rollupx/metrics
     networks:
       - rollupx
 
@@ -197,7 +197,6 @@ volumes:
   executor_traces:
   executor_risc0:
   submitter_data:
-  metrics_data:
   runtime_config:
 
 networks:
