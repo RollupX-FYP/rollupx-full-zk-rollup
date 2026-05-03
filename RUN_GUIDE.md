@@ -154,20 +154,21 @@ docker compose --profile bench build benchmark --no-cache # Run this once or if 
 docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh
 ```
 
-### 1.3.1 Measured Parameters & Benchmarking Outputs
-
-The benchmark framework gathers metrics at multiple levels and generates an automated report.
-
-**1. Raw Measured Parameters (Per-Run):**
-Stored inside `metrics/<experiment_id>/<run_id>/`:
+The benchmark framework gathers metrics at multiple levels and generates an automated report. The raw measured parameters (per-run) are stored inside `metrics/<experiment_id>/<run_id>/`:
 - `workload_<exp_id>.json`: Details of the generated workload.
 - `run_metadata.json`: Start/end timestamps, configuration snapshots.
 - `tx_log_<run_id>.csv`: Transaction-level metrics (submission time, batching time, proof time, L1 finalization time).
 - `submitter_metrics.json`: Submitter lifecycle and cost tracking.
 - `run_status.json`: Execution status.
 
-**2. Aggregated & Analytical Outputs (from data-tools):**
-When the `data-tools` pipeline is run, it aggregates the raw metrics across all runs and generates:
+### 1.4 Generate Analytics Reports
+After the benchmarks finish, the raw per-run metrics (JSON + CSV) are stored in the Docker volume. To generate the aggregated analysis, plots, and markdown report, run the data-tools pipeline:
+```bash
+docker compose --profile report build data-tools --no-cache # Run this once or if data-tools/Dockerfile changes
+docker compose --profile report run --rm data-tools
+```
+
+When the `data-tools` pipeline is run, it aggregates the raw metrics across all runs and generates (inside the Docker volume):
 - `all_results.csv`: Combined flat list of all experiment results.
 - `stats_summary.csv`: Statistical summaries across repeats (mean, standard deviation, confidence intervals).
 - `figures/`: Visual plots including:
@@ -177,19 +178,6 @@ When the `data-tools` pipeline is run, it aggregates the raw metrics across all 
   - Fairness metrics
   - Cost heatmaps and sensitivity analyses
 - `thesis_summary.md`: An auto-generated markdown report summarizing the findings.
-
-### 1.4 Generate Analytics Reports
-After the benchmarks finish, the raw per-run metrics (JSON + CSV) are stored in the Docker volume. To generate the aggregated analysis, plots, and markdown report, run the data-tools pipeline:
-```bash
-docker compose --profile report build data-tools --no-cache # Run this once or if data-tools/Dockerfile changes
-docker compose --profile report run --rm data-tools
-```
-
-**What this produces (inside the Docker volume):**
-- `all_results.csv` — Aggregated metrics from all experiment runs
-- `stats_summary.csv` — Statistical summary (means, std, CI)
-- `figures/` — PNG plots (Pareto frontiers, throughput bars, latency CDF, fairness, cost heatmap, sensitivity)
-- `thesis_summary.md` — Auto-generated markdown report
 
 ### 1.5 View the Results
 
