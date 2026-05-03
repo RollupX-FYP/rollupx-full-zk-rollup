@@ -18,6 +18,7 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --dry-run) DRY_RUN=true; shift ;;
         --filter)  FILTER="$2"; shift 2 ;;
+        --workload) FILTER="workload"; shift ;;
         *) echo "Unknown flag: $1"; exit 1 ;;
     esac
 done
@@ -41,7 +42,10 @@ experiments = cfg["experiments"]
 # always include the single true baseline first
 experiments_to_run = [{"id": "baseline", "factor": "baseline", **baseline}]
 for exp in experiments:
-    if filter_factor and exp.get("factor") != filter_factor:
+    factor = exp.get("factor")
+    if filter_factor == "workload" and factor not in ("rate", "tx_mix"):
+        continue
+    elif filter_factor and filter_factor != "workload" and factor != filter_factor:
         continue
     # merge with baseline: only override fields specified in the row
     merged = {**baseline, **exp}

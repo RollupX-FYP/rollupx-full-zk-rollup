@@ -129,7 +129,7 @@ docker compose --profile bench build benchmark --no-cache
 
 **Step 2 — Run workload experiments** (rate, tx mix — no stack restart needed):
 ```bash
-docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh
+docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh --workload
 ```
 
 **Step 3 — Run infrastructure experiments** (batch size, timeout, policy, DA mode, prover):
