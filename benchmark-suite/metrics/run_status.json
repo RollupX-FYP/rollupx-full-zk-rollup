@@ -1,8 +1,0 @@
-{
-  "run_id": "e2e_real_risc0_r00",
-  "experiment_id": "e2e_real_risc0",
-  "status": "pass",
-  "timestamp": "2026-04-30T04:53:35.546945+00:00",
-  "total_txs": 9,
-  "success_txs": 9
-}
