@@ -253,15 +253,16 @@ sys.exit(0 if not unhealthy else 1)
 FAILURES=0
 INDEX=0
 
-for ROW in $(echo "$EXPERIMENTS_JSON" | python3 -c "
+while read -r ROW; do
+    if [[ -z "$ROW" ]]; then continue; fi
+    INDEX=$((INDEX + 1))
+    run_single_experiment "$ROW" "$INDEX" || FAILURES=$((FAILURES + 1))
+done <<< "$(echo "$EXPERIMENTS_JSON" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
 for item in data:
     print(json.dumps(item))
-"); do
-    INDEX=$((INDEX + 1))
-    run_single_experiment "$ROW" "$INDEX" || FAILURES=$((FAILURES + 1))
-done
+")"
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 echo ""
