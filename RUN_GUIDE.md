@@ -267,7 +267,7 @@ The pipeline generates `.png` graphs and a `thesis_summary.md`. Since the VM is 
 
 2. **On the VM terminal** (where you run your project), start a simple Python web server serving your most recent run:
    ```bash
-   cd rollupx-full-zk-rollup/benchmark-suite/metrics
+   cd benchmark-suite/metrics
    python3 -m http.server 8080 --directory "$(ls -td run_* | head -n 1)"
    ```
 
