@@ -37,7 +37,7 @@ docker compose --profile bench build benchmark --no-cache
 # ── 3. Run workload experiments ──────────────────────────────────────────────
 echo ""
 echo "[step 2/4] Running workload experiments (rate, tx_mix)..."
-docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh --workload
+docker compose --profile core --profile bench run -T --rm benchmark bash scripts/run_matrix.sh --workload
 
 # ── 4. Run infrastructure experiments ────────────────────────────────────────
 echo ""
@@ -48,7 +48,7 @@ bash scripts/run_infra_matrix.sh
 echo ""
 echo "[step 4/4] Generating analytics reports..."
 docker compose --profile report build data-tools --no-cache
-docker compose --profile report run --rm data-tools
+docker compose --profile report run -T --rm data-tools
 
 echo ""
 echo "======================================================================"

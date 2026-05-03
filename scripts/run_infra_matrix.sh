@@ -224,7 +224,7 @@ sys.exit(0 if not unhealthy else 1)
         echo ""
         echo "  -- Run $i/$REPEATS  seed=$SEED  run_id=$RUN_ID"
 
-        docker compose --profile bench run --rm \
+        docker compose --profile bench run -T --rm \
             -e RATE_TPS="$RATE" \
             -e DURATION_S="$DURATION" \
             -e WARMUP_S="$WARMUP" \
