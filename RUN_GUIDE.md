@@ -118,66 +118,99 @@ Wait a few seconds for services to become healthy, then run the verification scr
 bash scripts/verify_stack.sh
 ```
 
-### 1.3 Configure and Run Benchmarks
+### 1.3 Run Benchmarks
 
-The benchmarking system is designed to evaluate the RollupX stack under various conditions. Benchmarks can be run as a single "smoke test" or as a comprehensive "matrix" of experiments.
+All commands below are run **from the project root** (`rollupx-full-zk-rollup/`) on the **host machine** (normal terminal) (not inside a container).
 
-**Where to configure benchmarks?**
-1. **Single/Quick Smoke Tests:** Configured in `scripts/smoke_benchmark.sh`. This script runs a quick, single-pass test by overriding environment variables passed directly to the `benchmark` docker container.
-2. **Full Benchmark Matrix:** Configured in `benchmark-suite/config/experiments.toml`. This TOML file defines a `[baseline]` scenario and multiple `[[experiments]]` blocks that vary specific factors one by one (e.g., changing batch sizes, DA modes, provers).
-
-**Configurable Parameters:**
-Whether set as environment variables (in `smoke_benchmark.sh`) or in `experiments.toml`, the following key parameters can be configured:
-- `RATE_TPS` / `rate_tps`: Target transaction input rate (e.g., 10, 50).
-- `DURATION_S` / `duration_s`: Test duration in seconds.
-- `WARMUP_S` / `warmup_s`: Warmup time before recording metrics.
-- `TX_MIX` / `tx_mix`: Workload complexity (`light`, `balanced`, `heavy`).
-- `MAX_BATCH_SIZE` / `batch_size`: Max transactions per batch.
-- `TIMEOUT_MS` / `timeout_ms`: Time limit (ms) to seal a batch.
-- `POLICY` / `policy`: Sequencer scheduling policy (`FCFS`, `FeePriority`, `TimeBoost`, `FairBFT`).
-- `DA_MODE` / `da_mode`: Data availability mode (`calldata`, `blob`, `offchain`).
-- `PROVER` / `prover`: Prover backend (`groth16`, `plonk`).
-- `SEED` / `seeds`: Random seeds for reproducible workloads.
-- `REPEAT` / `repeats`: Number of iterations to run each experiment.
-
-**Running a Smoke Test:**
-To trigger a pre-configured, short benchmark:
+**Step 1 — Build the benchmark image** (once, or after Dockerfile changes):
 ```bash
-docker compose --profile bench build benchmark --no-cache # Run this once or if Dockerfile changes
-bash scripts/smoke_benchmark.sh
+docker compose --profile bench build benchmark --no-cache
 ```
 
-**Running the Full Benchmark Suite (Matrix):**
-To run the full suite defined in `experiments.toml`:
+**Step 2 — Run workload experiments** (rate, tx mix — no stack restart needed):
 ```bash
-docker compose --profile bench build benchmark --no-cache # Run this once or if Dockerfile changes
 docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh
 ```
 
-> [!WARNING]
-> **Docker Matrix Limitation:** The benchmark container **cannot restart** the external sequencer or submitter containers. This means the matrix script can only dynamically change **workload factors** (parameters controlled by the Python workload generator running inside the benchmark container). **Infrastructure factors** require restarting the core stack with new environment variables (see below).
-
-| Category | Factors | Works via Matrix Script? |
-|---|---|---|
-| ✅ **Workload** | `rate_tps`, `tx_mix`, `duration_s`, `warmup_s` | **Yes** — controlled by the Python workload generator inside the benchmark container |
-| ❌ **Infrastructure** | `batch_size`, `timeout_ms`, `policy`, `da_mode`, `prover` | **No** — these require restarting sequencer/submitter containers to apply |
+**Step 3 — Run infrastructure experiments** (batch size, timeout, policy, DA mode, prover):
+```bash
+bash scripts/run_infra_matrix.sh
+```
 
 > [!NOTE]
-> If you see `[WARN] Sequencer binary not found` during a benchmark run, this is **expected and harmless**. It simply means the script detected it is running inside Docker (where there is no local sequencer binary) and correctly fell back to sending traffic to the remote sequencer container via HTTP (`http://sequencer:3000`).
+> Step 2 runs **inside** the benchmark container and sweeps workload factors automatically.
+> Step 3 runs **on the host** and automatically restarts the Docker Compose stack with different configurations for each infrastructure experiment.
+> If you see `[WARN] Sequencer binary not found` during Step 2, this is **expected and harmless** in Docker.
 
-**Running Workload-Only Experiments (No Stack Restart Needed):**
-To only sweep workload factors (rate, tx mix), use the `--filter` flag:
+---
+
+<details>
+<summary><strong>Why two separate commands?</strong></summary>
+
+The benchmark container cannot restart the external sequencer or submitter containers. This means:
+
+| Category | Factors | How they run |
+|---|---|---|
+| ✅ **Workload** | `rate_tps`, `tx_mix`, `duration_s`, `warmup_s` | Controlled by the Python workload generator **inside** the benchmark container → `run_matrix.sh` |
+| ⚙️ **Infrastructure** | `batch_size`, `timeout_ms`, `policy`, `da_mode`, `prover` | Require restarting the core stack with new env vars → `run_infra_matrix.sh` |
+
+</details>
+
+<details>
+<summary><strong>Filtering to specific factors</strong></summary>
+
+**Workload factors** (run inside benchmark container):
 ```bash
 docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh --filter rate
 docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh --filter tx_mix
 ```
 
-**Running Infrastructure Experiments (Stack Restart Required):**
-For factors that change the sequencer or submitter configuration (`batch_size`, `timeout`, `policy`, `da_mode`, `prover`), you must restart the core stack with new environment variables for **each** configuration, and then trigger a single benchmark run against it.
+**Infrastructure factors** (run on host):
+```bash
+bash scripts/run_infra_matrix.sh --filter batch_size
+bash scripts/run_infra_matrix.sh --filter policy
+bash scripts/run_infra_matrix.sh --filter da_mode
 
-The environment variables map to experiment factors as follows:
+# Preview what will run without executing
+bash scripts/run_infra_matrix.sh --dry-run
 
-| Factor | Environment Variable(s) | Default |
+# Skip the baseline (useful when resuming)
+bash scripts/run_infra_matrix.sh --filter da_mode --skip-baseline
+```
+
+</details>
+
+<details>
+<summary><strong>Running a quick smoke test</strong></summary>
+
+A short, pre-configured single-pass benchmark to validate end-to-end functionality:
+```bash
+bash scripts/smoke_benchmark.sh
+```
+
+</details>
+
+<details>
+<summary><strong>Manual ad-hoc infrastructure runs</strong></summary>
+
+For a one-off infrastructure test without the automated script, manually restart the stack:
+```bash
+# 1. Tear down
+docker compose down -v --remove-orphans
+
+# 2. Restart with the new config (from the project root)
+SEQUENCER_BATCH_MAX_SIZE=25 docker compose --profile core up -d --build
+
+# 3. Verify health
+bash scripts/verify_stack.sh
+
+# 4. Run the benchmark
+docker compose --profile bench run --rm benchmark bash scripts/run_experiment.sh bs_025 1
+```
+
+**Environment variable → factor mapping:**
+
+| Factor | Environment Variable | Default |
 |---|---|---|
 | `batch_size` | `SEQUENCER_BATCH_MAX_SIZE` | `100` |
 | `timeout_ms` | `SEQUENCER_BATCH_TIMEOUT_MS` | `5000` |
@@ -185,33 +218,27 @@ The environment variables map to experiment factors as follows:
 | `da_mode` | `SUBMITTER_DA_MODE` | `offchain` |
 | `prover` | `SUBMITTER_PROOF_BACKEND` | `groth16` |
 
-**Example: Benchmarking with `batch_size = 25`:**
-```bash
-# 1. Tear down the existing stack
-docker compose down -v --remove-orphans
+</details>
 
-# 2. Restart with the new config
-SEQUENCER_BATCH_MAX_SIZE=25 docker compose --profile core up -d --build
+<details>
+<summary><strong>Configurable parameters reference</strong></summary>
 
-# 3. Wait for the stack to be healthy
-bash scripts/verify_stack.sh
+All experiments are configured in `benchmark-suite/config/experiments.toml`. The following parameters can be set:
+- `rate_tps`: Target transaction input rate (e.g., 5, 10, 50).
+- `duration_s`: Test duration in seconds.
+- `warmup_s`: Warmup time before recording metrics.
+- `tx_mix`: Workload complexity (`light`, `balanced`, `heavy`).
+- `batch_size`: Max transactions per batch.
+- `timeout_ms`: Time limit (ms) to seal a batch.
+- `policy`: Sequencer scheduling policy (`FCFS`, `FeePriority`, `TimeBoost`, `FairBFT`).
+- `da_mode`: Data availability mode (`calldata`, `blob`, `offchain`).
+- `prover`: Prover backend (`groth16`, `plonk`).
+- `seeds`: Random seeds for reproducible workloads.
+- `repeats`: Number of iterations to run each experiment.
 
-# 4. Run the benchmark (workload-only factors from the baseline)
-docker compose --profile bench run --rm benchmark bash scripts/run_experiment.sh bs_025 1
-```
+</details>
 
-**Example: Benchmarking with `policy = FeePriority` and `da_mode = blob`:**
-```bash
-docker compose down -v --remove-orphans
-SEQUENCER_POLICY=FeePriority SUBMITTER_DA_MODE=blob \
-  docker compose --profile core up -d --build
-bash scripts/verify_stack.sh
-docker compose --profile bench run --rm benchmark bash scripts/run_experiment.sh pol_fee_da_blob 1
-```
-
-Repeat the **tear-down → reconfigure → restart → run** cycle for each infrastructure configuration you need to benchmark.
-
-The benchmark framework gathers metrics at multiple levels and generates an automated report. The raw measured parameters (per-run) are stored inside `metrics/<experiment_id>/<run_id>/`:
+**Output:** The raw metrics (per-run) are stored inside the Docker volume at `metrics/<experiment_id>/<run_id>/`:
 - `workload_<exp_id>.json`: Details of the generated workload.
 - `run_metadata.json`: Start/end timestamps, configuration snapshots.
 - `tx_log_<run_id>.csv`: Transaction-level metrics (submission time, batching time, proof time, L1 finalization time).
