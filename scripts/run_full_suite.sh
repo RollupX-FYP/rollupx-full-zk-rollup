@@ -14,7 +14,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # ── 1. Create a unique folder for this round of experiments ──────────────────
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+TIMESTAMP=$(TZ="Asia/Colombo" date +%Y%m%d_%H%M%S)
 SESSION_DIR="${PROJECT_ROOT}/benchmark-suite/metrics/run_${TIMESTAMP}"
 mkdir -p "$SESSION_DIR"
 

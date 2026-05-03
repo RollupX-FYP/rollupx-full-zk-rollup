@@ -143,6 +143,14 @@ bash scripts/run_full_suite.sh
 
 If you want to run specific parts instead of the full suite, you can run the individual scripts directly:
 
+> [!NOTE]
+> When running components directly via `docker compose run`, results are saved to `benchmark-suite/metrics/latest` by default (overwriting previous manual runs). To save them to a distinct folder like the full suite does, export `METRICS_DIR` first:
+> ```bash
+> export METRICS_DIR="$(pwd)/benchmark-suite/metrics/run_$(date +%Y%m%d_%H%M%S)"
+> mkdir -p "$METRICS_DIR"
+> ```
+> *(Note: `scripts/run_infra_matrix.sh` automatically sets this up for you if not provided).*
+
 **Step 1 — Build the benchmark image** (once, or after Dockerfile changes):
 ```bash
 docker compose --profile bench build benchmark --no-cache
@@ -270,6 +278,7 @@ The pipeline generates `.png` graphs and a `thesis_summary.md`. Since the VM is 
    cd benchmark-suite/metrics
    python3 -m http.server 8080 --directory "$(ls -td run_* | head -n 1)"
    ```
+   *(Optional: If you want to view the **entire** metrics folder containing all previous runs, omit the `--directory` argument: `python3 -m http.server 8080`)*
 
 3. **On your local machine**, open a web browser and navigate to:
    ```text

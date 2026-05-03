@@ -42,6 +42,17 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# ── Auto-setup METRICS_DIR if not provided ──────────────────────────────────────
+if [[ -z "${METRICS_DIR:-}" ]]; then
+    export METRICS_DIR="${PROJECT_ROOT}/benchmark-suite/metrics/run_$(date +%Y%m%d_%H%M%S)"
+    mkdir -p "$METRICS_DIR"
+    echo "======================================================================"
+    echo " No METRICS_DIR provided. Creating new session directory:"
+    echo "   $METRICS_DIR"
+    echo "======================================================================"
+    echo ""
+fi
+
 # ── Infra factors that require a stack restart ────────────────────────────────
 INFRA_FACTORS="batch_size timeout policy da_mode prover"
 
