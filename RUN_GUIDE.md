@@ -146,7 +146,7 @@ If you want to run specific parts instead of the full suite, you can run the ind
 > [!NOTE]
 > When running components directly via `docker compose run`, results are saved to `benchmark-suite/metrics/latest` by default (overwriting previous manual runs). To save them to a distinct folder like the full suite does, export `METRICS_DIR` first:
 > ```bash
-> export METRICS_DIR="$(pwd)/benchmark-suite/metrics/run_$(date +%Y%m%d_%H%M%S)"
+> export METRICS_DIR="$(pwd)/benchmark-suite/metrics/run_$(TZ="Asia/Colombo" date +%Y%m%d_%H%M%S)"
 > mkdir -p "$METRICS_DIR"
 > ```
 > *(Note: `scripts/run_infra_matrix.sh` automatically sets this up for you if not provided).*

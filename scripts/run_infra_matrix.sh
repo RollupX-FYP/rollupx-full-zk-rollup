@@ -44,7 +44,7 @@ done
 
 # ── Auto-setup METRICS_DIR if not provided ──────────────────────────────────────
 if [[ -z "${METRICS_DIR:-}" ]]; then
-    export METRICS_DIR="${PROJECT_ROOT}/benchmark-suite/metrics/run_$(date +%Y%m%d_%H%M%S)"
+    export METRICS_DIR="${PROJECT_ROOT}/benchmark-suite/metrics/run_$(TZ="Asia/Colombo" date +%Y%m%d_%H%M%S)"
     mkdir -p "$METRICS_DIR"
     echo "======================================================================"
     echo " No METRICS_DIR provided. Creating new session directory:"
@@ -264,11 +264,11 @@ sys.exit(0 if not unhealthy else 1)
 FAILURES=0
 INDEX=0
 
-while read -r ROW; do
+while read -u 3 -r ROW; do
     if [[ -z "$ROW" ]]; then continue; fi
     INDEX=$((INDEX + 1))
     run_single_experiment "$ROW" "$INDEX" || FAILURES=$((FAILURES + 1))
-done <<< "$(echo "$EXPERIMENTS_JSON" | python3 -c "
+done 3<<< "$(echo "$EXPERIMENTS_JSON" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
 for item in data:
