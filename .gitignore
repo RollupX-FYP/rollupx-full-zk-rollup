@@ -28,6 +28,7 @@
 /tmp/
 
 # Benchmark and local test outputs
+/benchmark-suite/metrics/
 /benchmark-suite/metrics/e2e/
 /benchmark-suite/metrics/tx_log_*.csv
 /benchmark-suite/metrics/workload_*.json
