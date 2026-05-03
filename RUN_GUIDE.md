@@ -265,7 +265,12 @@ The pipeline generates `.png` graphs and a `thesis_summary.md`. Since the VM is 
    cd benchmark-suite/metrics
    python3 -m http.server 8080 --directory "$(ls -td run_* | head -n 1)"
    ```
-   *(Optional: If you want to view the **entire** metrics folder containing all previous runs, omit the `--directory` argument: `python3 -m http.server 8080`)*
+   If you want to view the **entire** metrics folder containing all previous runs, omit the `--directory` argument:
+
+   ```bash
+   cd benchmark-suite/metrics
+   python3 -m http.server 8080
+   ```
 
 3. **On your local machine**, open a web browser and navigate to:
    ```text
