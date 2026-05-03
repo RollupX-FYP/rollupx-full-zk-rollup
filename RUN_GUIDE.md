@@ -151,7 +151,7 @@ bash scripts/smoke_benchmark.sh
 To run the full suite defined in `experiments.toml`:
 ```bash
 docker compose --profile bench build benchmark --no-cache # Run this once or if Dockerfile changes
-docker compose --profile core --profile bench run --rm benchmark bash /app/scripts/run_pipeline.sh
+docker compose --profile core --profile bench run --rm benchmark bash scripts/run_matrix.sh
 ```
 
 ### 1.3.1 Measured Parameters & Benchmarking Outputs
