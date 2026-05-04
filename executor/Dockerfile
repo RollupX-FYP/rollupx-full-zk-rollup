@@ -1,6 +1,6 @@
 FROM public.ecr.aws/docker/library/rust:1.90-bookworm AS builder
 WORKDIR /app
-ARG RISC0_R0VM_VERSION=2.3.0
+ARG RISC0_R0VM_VERSION=2.3.1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -42,7 +42,7 @@ RUN cargo build --release \
 
 FROM public.ecr.aws/docker/library/debian:bookworm-slim
 WORKDIR /app
-ARG RISC0_R0VM_VERSION=2.3.0
+ARG RISC0_R0VM_VERSION=2.3.1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
