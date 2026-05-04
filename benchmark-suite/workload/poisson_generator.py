@@ -292,7 +292,18 @@ class PoissonWorkloadGenerator:
         )
         try:
             with urllib.request.urlopen(req, timeout=5) as resp:
-                resp.read()
+                body = resp.read()
+                try:
+                    decoded = json.loads(body.decode("utf-8"))
+                    status = decoded.get("status")
+                    if status == "Accepted":
+                        return "success", None
+                    if isinstance(status, dict) and "Rejected" in status:
+                        return "error", f"Rejected: {status['Rejected']}"
+                    if status not in (None, "Accepted"):
+                        return "error", f"Unexpected confirmation status: {status}"
+                except json.JSONDecodeError:
+                    pass
             return "success", None
         except urllib.error.HTTPError as e:
             return "error", f"HTTP {e.code}: {e.reason}"
