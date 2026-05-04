@@ -48,6 +48,27 @@ export CLEAN_STATE_BEFORE_RUN=${CLEAN_STATE_BEFORE_RUN:-1}
 
 METRICS_ROOT="${METRICS_ROOT:-metrics}/${EXP_ID}/${RUN_ID}"
 export METRICS_ROOT
+SHARED_METRICS_DIR="${SHARED_METRICS_DIR:-metrics/latest}"
+export SHARED_METRICS_DIR
+
+copy_component_metrics() {
+    local copied=0
+    local src
+    for src in \
+        "${SHARED_METRICS_DIR}/sequencer_batch_metrics.jsonl" \
+        "${SHARED_METRICS_DIR}/executor_batch_metrics.jsonl" \
+        "${SHARED_METRICS_DIR}/submitter_metrics.json"; do
+        if [[ -f "$src" ]]; then
+            cp "$src" "${METRICS_ROOT}/$(basename "$src")"
+            copied=$((copied + 1))
+        fi
+    done
+    if [[ "$copied" -gt 0 ]]; then
+        echo "[metrics] copied ${copied} component metric file(s) from ${SHARED_METRICS_DIR}"
+    else
+        echo "[metrics] no component metric files found in ${SHARED_METRICS_DIR}"
+    fi
+}
 
 # ── traps — always clean up sequencer ─────────────────────────────────────────
 SEQ_PID=""
@@ -62,8 +83,14 @@ trap cleanup EXIT INT TERM
 
 # ── 1. Prepare output directory ───────────────────────────────────────────────
 mkdir -p "$METRICS_ROOT"
+mkdir -p "$SHARED_METRICS_DIR"
 LOGFILE="$METRICS_ROOT/run.log"
 exec > >(tee -a "$LOGFILE") 2>&1
+
+# reset shared component metric files so each run gets isolated snapshots
+rm -f "${SHARED_METRICS_DIR}/sequencer_batch_metrics.jsonl" \
+      "${SHARED_METRICS_DIR}/executor_batch_metrics.jsonl" \
+      "${SHARED_METRICS_DIR}/submitter_metrics.json"
 
 # ── optional: reset local runtime state for controlled experiments ───────────
 if [[ "$CLEAN_STATE_BEFORE_RUN" == "1" || "$CLEAN_STATE_BEFORE_RUN" == "true" ]]; then
@@ -148,6 +175,9 @@ for _ in $(seq 1 "$SUBMITTER_WAIT_MAX"); do
         fi
     fi
 done
+
+# Copy component-level metrics produced by sequencer / executor / submitter.
+copy_component_metrics
 
 # ── 7. Update timestamp_end in metadata ───────────────────────────────────────
 END_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")

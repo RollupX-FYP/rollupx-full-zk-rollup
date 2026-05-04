@@ -141,7 +141,10 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command:
       - cp /runtime/sequencer.default.toml /app/config/default.toml && exec /usr/local/bin/sequencer
+    environment:
+      METRICS_ROOT: /var/lib/rollupx/metrics
     volumes:
+      - ${METRICS_DIR:-./benchmark-suite/metrics/latest}:/var/lib/rollupx/metrics
       - sequencer_db:/var/lib/rollupx/sequencer
       - runtime_config:/runtime:ro
     ports:
