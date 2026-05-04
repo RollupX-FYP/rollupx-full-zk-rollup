@@ -47,6 +47,7 @@ export VALIDITY_EXECUTION_SCOPE=${VALIDITY_EXECUTION_SCOPE:-transfer_centric_stf
 export VALIDITY_PROOF_MODE_POLICY=${VALIDITY_PROOF_MODE_POLICY:-groth16_only}
 export VALIDITY_COST_INTERPRETATION=${VALIDITY_COST_INTERPRETATION:-comparative_not_market_representative}
 export CLEAN_STATE_BEFORE_RUN=${CLEAN_STATE_BEFORE_RUN:-1}
+export CLEAN_METRICS_BEFORE_RUN=${CLEAN_METRICS_BEFORE_RUN:-1}
 export USE_DOCKER_STACK=${USE_DOCKER_STACK:-1}
 
 METRICS_ROOT="${METRICS_ROOT:-metrics}/${EXP_ID}/${RUN_ID}"
@@ -144,6 +145,34 @@ component_metrics_size() {
     echo "$total"
 }
 
+metric_rows() {
+    local src="$1"
+    if [[ -f "$src" ]]; then
+        wc -l < "$src"
+    else
+        echo 0
+    fi
+}
+
+component_metric_counts() {
+    local seq exe sub
+    seq=$(metric_rows "${METRICS_ROOT}/sequencer_batch_metrics.jsonl")
+    exe=$(metric_rows "${METRICS_ROOT}/executor_batch_metrics.jsonl")
+    sub=$(metric_rows "${METRICS_ROOT}/submitter_metrics.json")
+    echo "$seq $exe $sub"
+}
+
+component_metrics_caught_up() {
+    local seq exe sub
+    read -r seq exe sub < <(component_metric_counts)
+
+    [[ "$seq" -gt 0 ]] || return 1
+    [[ "$exe" -gt 0 ]] || return 1
+    [[ "$sub" -gt 0 ]] || return 1
+    [[ "$exe" -ge "$seq" ]] || return 1
+    [[ "$sub" -ge "$exe" ]] || return 1
+}
+
 summarize_component_metrics() {
     local missing=0
     local src
@@ -161,6 +190,55 @@ summarize_component_metrics() {
     done
     if [[ "$missing" -gt 0 ]]; then
         echo "[metrics] WARNING: ${missing} component metric file(s) missing; inspect docker compose logs for executor/submitter pipeline errors."
+    fi
+}
+
+validate_component_metrics() {
+    local require="${REQUIRE_COMPONENT_METRICS:-}"
+    if [[ -z "$require" ]]; then
+        require="$USED_DOCKER_STACK"
+    fi
+    if [[ "$require" != "1" && "$require" != "true" ]]; then
+        return 0
+    fi
+
+    local seq exe sub
+    read -r seq exe sub < <(component_metric_counts)
+    local failed=0
+
+    if [[ "$seq" -eq 0 ]]; then
+        echo "[metrics] ERROR: missing sequencer batch metrics"
+        failed=1
+    fi
+    if [[ "$exe" -eq 0 ]]; then
+        echo "[metrics] ERROR: missing executor batch metrics"
+        failed=1
+    fi
+    if [[ "$sub" -eq 0 ]]; then
+        echo "[metrics] ERROR: missing submitter metrics"
+        failed=1
+    fi
+    if [[ "$exe" -lt "$seq" ]]; then
+        echo "[metrics] ERROR: executor metrics lag sequencer metrics (${exe} < ${seq})"
+        failed=1
+    fi
+    if [[ "$sub" -lt "$exe" ]]; then
+        echo "[metrics] ERROR: submitter metrics lag executor metrics (${sub} < ${exe})"
+        failed=1
+    fi
+
+    return "$failed"
+}
+
+validate_workload_status() {
+    local status_file="${METRICS_ROOT}/run_status.json"
+    if [[ ! -f "$status_file" ]]; then
+        echo "[workload] ERROR: missing run_status.json"
+        return 1
+    fi
+    if ! grep -Eq '"status"[[:space:]]*:[[:space:]]*"pass"' "$status_file"; then
+        echo "[workload] ERROR: workload status is not pass"
+        return 1
     fi
 }
 
@@ -202,6 +280,9 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # ── 1. Prepare output directory ───────────────────────────────────────────────
+if [[ "$CLEAN_METRICS_BEFORE_RUN" == "1" || "$CLEAN_METRICS_BEFORE_RUN" == "true" ]]; then
+    rm -rf "$METRICS_ROOT"
+fi
 mkdir -p "$METRICS_ROOT"
 mkdir -p "$SHARED_METRICS_DIR"
 LOGFILE="$METRICS_ROOT/run.log"
@@ -280,19 +361,22 @@ python3 workload/poisson_generator.py \
     --port          "$SEQ_PORT"
 
 # ── 6. Wait for submitter to flush final batch ────────────────────────────────
-# Poll component metrics until they stop growing.
+# Poll component metrics until executor/submitter have caught up and files stop growing.
 echo "[wait] waiting for component metrics to flush ..."
 PREV_SIZE=0
 STABLE_COUNT=0
 
-SUBMITTER_WAIT_MAX=${SUBMITTER_WAIT_MAX:-40}
-for _ in $(seq 1 "$SUBMITTER_WAIT_MAX"); do
+SUBMITTER_WAIT_MAX=${SUBMITTER_WAIT_MAX:-120}
+for poll in $(seq 1 "$SUBMITTER_WAIT_MAX"); do
     sleep 3
     CURR_SIZE=$(component_metrics_size)
+    read -r SEQ_ROWS EXE_ROWS SUB_ROWS < <(component_metric_counts)
+    echo "[wait] poll=${poll}/${SUBMITTER_WAIT_MAX} rows: sequencer=${SEQ_ROWS} executor=${EXE_ROWS} submitter=${SUB_ROWS} bytes=${CURR_SIZE}"
+
     if [[ "$CURR_SIZE" -eq "$PREV_SIZE" ]]; then
         STABLE_COUNT=$((STABLE_COUNT + 1))
-        if [[ "$STABLE_COUNT" -ge 5 ]]; then
-            echo "[wait] component metrics appear idle (stable for 15s)"
+        if [[ "$STABLE_COUNT" -ge 5 ]] && component_metrics_caught_up; then
+            echo "[wait] component metrics caught up and idle (stable for 15s)"
             break
         fi
     else
@@ -309,6 +393,8 @@ summarize_component_metrics
 if [[ "$USED_DOCKER_STACK" == "1" ]]; then
     collect_docker_diagnostics "final"
 fi
+validate_component_metrics
+validate_workload_status
 
 # ── 7. Update timestamp_end in metadata ───────────────────────────────────────
 END_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")

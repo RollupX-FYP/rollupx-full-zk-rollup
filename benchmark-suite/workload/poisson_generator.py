@@ -116,7 +116,7 @@ class PoissonWorkloadGenerator:
         print(f"\n[DONE] total={total}  success={success}  failed={total - success}")
 
         self._save_metrics()
-        self._save_status(success=total > 0 and success > 0)
+        self._save_status(success=total > 0 and success == total)
 
     # ── internal send loop ────────────────────────────────────────────────────
 
@@ -246,13 +246,18 @@ class PoissonWorkloadGenerator:
 
     def _save_status(self, success: bool):
         metrics_root = os.environ.get("METRICS_ROOT", "metrics")
+        success_txs = sum(1 for s in self.stats if s["status"] == "success")
+        total_txs = len(self.stats)
+        failed_txs = total_txs - success_txs
         status = {
             "run_id":        self.run_id,
             "experiment_id": self.experiment_id,
             "status":        "pass" if success else "fail",
             "timestamp":     datetime.now(timezone.utc).isoformat(),
-            "total_txs":     len(self.stats),
-            "success_txs":   sum(1 for s in self.stats if s["status"] == "success"),
+            "total_txs":     total_txs,
+            "success_txs":   success_txs,
+            "failed_txs":    failed_txs,
+            "success_rate":  success_txs / total_txs if total_txs else 0,
         }
         path = os.path.join(metrics_root, "run_status.json")
         with open(path, "w") as f:
