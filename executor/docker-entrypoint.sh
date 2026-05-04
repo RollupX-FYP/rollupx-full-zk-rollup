@@ -11,6 +11,7 @@ if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
     exit 0
 fi
 
+export PATH="/root/.risc0/bin:${PATH}"
 echo "[executor-entrypoint] PROVER_BACKEND=${PROVER_BACKEND:-unset}"
 echo "[executor-entrypoint] RISC0_HOST_BIN=${RISC0_HOST_BIN:-unset}"
 if [ -n "${RISC0_GUEST_ELF:-}" ]; then
@@ -22,6 +23,12 @@ if [ "${PROVER_BACKEND:-}" = "risc0" ]; then
         exit 1
     fi
     ls -lh "${RISC0_HOST_BIN:-/usr/local/bin/rollup_host}"
+    if command -v r0vm >/dev/null 2>&1; then
+        echo "[executor-entrypoint] r0vm=$(command -v r0vm)"
+    else
+        echo "[executor-entrypoint] ERROR: r0vm is not available on PATH" >&2
+        exit 1
+    fi
 fi
 
 exec /usr/local/bin/zksync_state_machine

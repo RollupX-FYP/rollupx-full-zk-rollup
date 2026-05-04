@@ -57,7 +57,12 @@ COPY --from=builder /app/risc0_prover/target/release/rollup_host /usr/local/bin/
 COPY --from=builder /root/.risc0 /root/.risc0
 COPY executor/docker-entrypoint.sh /usr/local/bin/executor-entrypoint
 
-RUN chmod +x /usr/local/bin/executor-entrypoint
+RUN set -eux; \
+    risc0_ext="$(find /root/.risc0/extensions -maxdepth 1 -type d -name '*cargo-risczero*' | head -n1)"; \
+    test -n "$risc0_ext"; \
+    ln -sf "$risc0_ext/r0vm" /root/.risc0/bin/r0vm; \
+    ln -sf "$risc0_ext/cargo-risczero" /root/.risc0/bin/cargo-risczero; \
+    chmod +x /usr/local/bin/executor-entrypoint
 
 ENV PROVER_BACKEND=risc0
 ENV RISC0_HOST_BIN=/usr/local/bin/rollup_host
