@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     clang \
     cmake \
+    curl \
     git \
     libssl-dev \
     nasm \
@@ -14,6 +15,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN rustup toolchain install nightly-2024-08-01 && \
     rustup component add rustfmt --toolchain nightly-2024-08-01
+
+RUN curl -L https://risczero.com/install | bash
+ENV PATH="/root/.risc0/bin:${PATH}"
+RUN rzup install
 
 COPY executor ./executor
 COPY proto ./proto
