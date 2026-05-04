@@ -32,6 +32,7 @@ export RATE_TPS=${RATE_TPS:-10}
 export DURATION_S=${DURATION_S:-120}
 export WARMUP_S=${WARMUP_S:-15}
 export WORKLOAD_CONCURRENCY=${WORKLOAD_CONCURRENCY:-1}
+export WORKLOAD_TARGET_TXS=${WORKLOAD_TARGET_TXS:-0}
 export TX_MIX=${TX_MIX:-balanced}
 export SEED=${SEED:-42}
 export SEQ_HOST=${SEQ_HOST:-localhost}
@@ -307,7 +308,7 @@ echo "  RUN: $RUN_ID"
 echo "  Exp: $EXP_ID  |  Repeat: $REPEAT  |  Seed: $SEED"
 echo "  Name: $EXPERIMENT_NAME"
 echo "  batch_size=$MAX_BATCH_SIZE  timeout=${TIMEOUT_MS}ms  policy=$POLICY"
-echo "  da=$DA_MODE  prover=$PROVER  rate=${RATE_TPS}tps  mix=$TX_MIX  concurrency=$WORKLOAD_CONCURRENCY"
+echo "  da=$DA_MODE  prover=$PROVER  rate=${RATE_TPS}tps  mix=$TX_MIX  concurrency=$WORKLOAD_CONCURRENCY  target_txs=$WORKLOAD_TARGET_TXS"
 echo "======================================================================"
 
 # ── 2. Collect environment metadata ──────────────────────────────────────────
@@ -360,7 +361,8 @@ python3 workload/poisson_generator.py \
     --prover_backend "$PROVER" \
     --host          "$SEQ_HOST" \
     --port          "$SEQ_PORT" \
-    --concurrency   "$WORKLOAD_CONCURRENCY"
+    --concurrency   "$WORKLOAD_CONCURRENCY" \
+    --target_txs    "$WORKLOAD_TARGET_TXS"
 
 # ── 6. Wait for submitter to flush final batch ────────────────────────────────
 # Poll component metrics until executor/submitter have caught up and files stop growing.

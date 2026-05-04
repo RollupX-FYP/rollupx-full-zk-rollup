@@ -59,6 +59,7 @@ class PoissonWorkloadGenerator:
         host: str = "localhost",
         port: int = 3000,
         concurrency: int = 1,
+        target_txs: int = 0,
     ):
         self.rate          = rate
         self.duration      = duration
@@ -70,6 +71,7 @@ class PoissonWorkloadGenerator:
         self.tx_mix        = tx_mix
         self.base_url      = f"http://{host}:{port}"
         self.concurrency   = max(1, concurrency)
+        self.target_txs    = max(0, target_txs)
 
         # seeded RNG — separate instance for type sampling vs inter-arrival
         self.rng_arrival = random.Random(seed)
@@ -92,6 +94,8 @@ class PoissonWorkloadGenerator:
         print(f"  seed={self.seed}  mix=A{self.tx_mix[0]:.0%}/B{self.tx_mix[1]:.0%}/C{self.tx_mix[2]:.0%}")
         print(f"  target={self.base_url}")
         print(f"  sender_concurrency={self.concurrency}")
+        if self.target_txs > 0:
+            print(f"  fixed_target_txs={self.target_txs}")
 
         nonce = 0
 
@@ -107,13 +111,22 @@ class PoissonWorkloadGenerator:
             print(f"[WARMUP] complete — {len(self.warmup_stats)} txs sent (discarded)")
 
         # ── timed measurement phase ───────────────────────────────────────────
-        print(f"\n[RUN] {self.duration}s timed measurement")
-        nonce = self._send_phase(
-            phase_duration=self.duration,
-            start_nonce=nonce,
-            record_to=self.stats,
-            label="RUN",
-        )
+        if self.target_txs > 0:
+            print(f"\n[RUN] fixed-count burst measurement ({self.target_txs} txs)")
+            nonce = self._send_count_concurrent(
+                count=self.target_txs,
+                start_nonce=nonce,
+                record_to=self.stats,
+                label="RUN",
+            )
+        else:
+            print(f"\n[RUN] {self.duration}s timed measurement")
+            nonce = self._send_phase(
+                phase_duration=self.duration,
+                start_nonce=nonce,
+                record_to=self.stats,
+                label="RUN",
+            )
 
         total = len(self.stats)
         success = sum(1 for s in self.stats if s["status"] == "success")
@@ -239,6 +252,38 @@ class PoissonWorkloadGenerator:
             "error":    err,
         }
 
+    def _send_count_concurrent(
+        self,
+        count: int,
+        start_nonce: int,
+        record_to: list,
+        label: str,
+    ) -> int:
+        nonce = start_nonce
+        prepared = []
+        for i in range(count):
+            tx_type = self.rng_factory.choices(
+                ["A", "B", "C"], weights=self.tx_mix, k=1
+            )[0]
+            tx = self.factory.make(tx_type, nonce)
+            prepared.append((tx, nonce, tx_type))
+            nonce += 1
+            if i % 250 == 0:
+                print(f"  [{label}] prepared {i} txs ...")
+
+        with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
+            futures = [
+                executor.submit(self._post_tx_record, tx, tx_nonce, tx_type)
+                for tx, tx_nonce, tx_type in prepared
+            ]
+            for index, future in enumerate(as_completed(futures), start=1):
+                record_to.append(future.result())
+                if index % 250 == 0:
+                    print(f"  [{label}] completed {index} txs ...")
+
+        record_to.sort(key=lambda item: item["tx_id"])
+        return nonce
+
     def _post_tx(self, tx: dict) -> tuple[str, str | None]:
         url  = f"{self.base_url}/tx"
         data = json.dumps(tx).encode("utf-8")
@@ -360,6 +405,8 @@ def parse_args():
                    help="Unique run identifier (default: <exp_id>_r00)")
     p.add_argument("--concurrency", type=int, default=1,
                    help="Number of concurrent HTTP sender workers")
+    p.add_argument("--target_txs", type=int, default=0,
+                   help="If >0, send this many txs as a fixed-count concurrent burst")
 
     # tx mix
     mix_group = p.add_argument_group("Transaction mix")
@@ -398,6 +445,7 @@ def main():
         host          = args.host,
         port          = args.port,
         concurrency   = args.concurrency,
+        target_txs    = args.target_txs,
     )
     gen.run()
 
