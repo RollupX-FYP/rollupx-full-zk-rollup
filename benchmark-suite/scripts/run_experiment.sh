@@ -367,6 +367,7 @@ PREV_SIZE=0
 STABLE_COUNT=0
 
 SUBMITTER_WAIT_MAX=${SUBMITTER_WAIT_MAX:-120}
+COMPONENT_STABLE_POLLS=${COMPONENT_STABLE_POLLS:-$((TIMEOUT_MS / 3000 + 5))}
 for poll in $(seq 1 "$SUBMITTER_WAIT_MAX"); do
     sleep 3
     CURR_SIZE=$(component_metrics_size)
@@ -375,8 +376,8 @@ for poll in $(seq 1 "$SUBMITTER_WAIT_MAX"); do
 
     if [[ "$CURR_SIZE" -eq "$PREV_SIZE" ]]; then
         STABLE_COUNT=$((STABLE_COUNT + 1))
-        if [[ "$STABLE_COUNT" -ge 5 ]] && component_metrics_caught_up; then
-            echo "[wait] component metrics caught up and idle (stable for 15s)"
+        if [[ "$STABLE_COUNT" -ge "$COMPONENT_STABLE_POLLS" ]] && component_metrics_caught_up; then
+            echo "[wait] component metrics caught up and idle (stable for $((COMPONENT_STABLE_POLLS * 3))s)"
             break
         fi
     else
