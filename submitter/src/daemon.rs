@@ -18,6 +18,8 @@ use ethers::utils::hex;
 use std::io::Write;
 use serde::Serialize;
 
+const BLOB_SIZE_BYTES: usize = 131_072;
+
 #[derive(Serialize)]
 struct SubmitterMetrics {
     experiment_id: String,
@@ -29,6 +31,89 @@ struct SubmitterMetrics {
     confirmation_blocks: u64,
     da_mode: String,
     proof_metadata_hash: String,
+    tx_count: u32,
+    batch_data_bytes: usize,
+    proof_bytes: usize,
+    compressed_bytes: Option<usize>,
+    compression_time_ms: Option<u64>,
+    compression_ratio: Option<f64>,
+    blob_count: u64,
+    blob_utilization: f64,
+    l1_gas_used: Option<u64>,
+    fee_proxy_wei: String,
+}
+
+fn parse_hex_u128(s: &str) -> Option<u128> {
+    let cleaned = s.trim_start_matches("0x");
+    u128::from_str_radix(cleaned, 16).ok()
+}
+
+fn estimate_fee_proxy_wei(batch_data: &[u8]) -> u128 {
+    let parsed = serde_json::from_slice::<Vec<serde_json::Value>>(batch_data);
+    let Ok(items) = parsed else {
+        return 0;
+    };
+    let mut total = 0u128;
+    for item in items {
+        let inner = if let Some(normal) = item.get("Normal") {
+            normal
+        } else if let Some(forced) = item.get("Forced") {
+            forced
+        } else {
+            &item
+        };
+        let gas_limit = inner.get("gas_limit").and_then(|v| v.as_u64()).unwrap_or(0) as u128;
+        let gas_price = if let Some(raw) = inner.get("gas_price") {
+            if let Some(s) = raw.as_str() {
+                parse_hex_u128(s).unwrap_or(0)
+            } else if let Some(n) = raw.as_u64() {
+                n as u128
+            } else {
+                0
+            }
+        } else {
+            0
+        };
+        total = total.saturating_add(gas_limit.saturating_mul(gas_price));
+    }
+    total
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{estimate_fee_proxy_wei, parse_hex_u128};
+
+    #[test]
+    fn parse_hex_u128_parses_prefixed_and_plain_hex() {
+        assert_eq!(parse_hex_u128("0x10"), Some(16));
+        assert_eq!(parse_hex_u128("10"), Some(16));
+        assert_eq!(parse_hex_u128("0xzz"), None);
+    }
+
+    #[test]
+    fn estimate_fee_proxy_wei_handles_normal_forced_and_flat_payloads() {
+        let payload = serde_json::json!([
+            {
+                "Normal": {
+                    "gas_limit": 21000,
+                    "gas_price": "0x3b9aca00"
+                }
+            },
+            {
+                "Forced": {
+                    "gas_limit": 10000
+                }
+            },
+            {
+                "gas_limit": 5000,
+                "gas_price": 2
+            }
+        ]);
+        let raw = serde_json::to_vec(&payload).unwrap();
+        let fee = estimate_fee_proxy_wei(&raw);
+        let expected = 21000u128 * 1_000_000_000u128 + 5000u128 * 2u128;
+        assert_eq!(fee, expected);
+    }
 }
 
 pub async fn run(config_path: PathBuf) -> Result<()> {
@@ -312,6 +397,8 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
 
                 // Proof handling based on Verifier ID
                 let proof_bytes = crate::domain::proof::format_proof_for_verifier(fetched.proof.to_vec(), verifier_id);
+                let batch_data_bytes = fetched.batch_data.len();
+                let fee_proxy_wei: u128 = estimate_fee_proxy_wei(&fetched.batch_data);
 
                 let proof_hex = format!("0x{}", hex::encode(&proof_bytes));
                 
@@ -349,9 +436,19 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                         confirmation_blocks: 0,
                         da_mode: format!("{:?}", cfg.da.mode),
                         proof_metadata_hash: "offchain".to_string(),
+                        tx_count,
+                        batch_data_bytes,
+                        proof_bytes: proof_bytes.len(),
+                        compressed_bytes: None,
+                        compression_time_ms: None,
+                        compression_ratio: None,
+                        blob_count: 0,
+                        blob_utilization: 0.0,
+                        l1_gas_used: None,
+                        fee_proxy_wei: fee_proxy_wei.to_string(),
                     };
 
-                    if let Ok(json) = serde_json::to_string_pretty(&metrics) {
+                    if let Ok(json) = serde_json::to_string(&metrics) {
                          let metrics_root = std::env::var("METRICS_ROOT").unwrap_or_else(|_| "metrics".to_string());
                          let metrics_path = std::path::Path::new(&metrics_root).join("submitter_metrics.json");
                          
@@ -466,9 +563,30 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                             confirmation_blocks: confirmations,
                             da_mode: format!("{:?}", cfg.da.mode),
                             proof_metadata_hash: "mock_proof_meta_hash".to_string(),
+                            tx_count,
+                            batch_data_bytes,
+                            proof_bytes: proof_bytes.len(),
+                            compressed_bytes: result.compressed_bytes,
+                            compression_time_ms: None,
+                            compression_ratio: result.compression_ratio,
+                            blob_count: if cfg.da.mode == DaMode::Blob {
+                                ((result.compressed_bytes.unwrap_or(batch_data_bytes) + BLOB_SIZE_BYTES - 1)
+                                    / BLOB_SIZE_BYTES) as u64
+                            } else {
+                                0
+                            },
+                            blob_utilization: if cfg.da.mode == DaMode::Blob {
+                                let used = result.compressed_bytes.unwrap_or(batch_data_bytes);
+                                let blobs = ((used + BLOB_SIZE_BYTES - 1) / BLOB_SIZE_BYTES).max(1);
+                                used as f64 / (blobs * BLOB_SIZE_BYTES) as f64
+                            } else {
+                                0.0
+                            },
+                            l1_gas_used: result.gas_used,
+                            fee_proxy_wei: fee_proxy_wei.to_string(),
                         };
 
-                        if let Ok(json) = serde_json::to_string_pretty(&metrics) {
+                        if let Ok(json) = serde_json::to_string(&metrics) {
                              // Append to a metrics file
                              let metrics_root = std::env::var("METRICS_ROOT").unwrap_or_else(|_| "metrics".to_string());
                              let metrics_path = std::path::Path::new(&metrics_root).join("submitter_metrics.json");

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Write;
 use std::path::PathBuf;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -31,11 +32,45 @@ struct ExecutorMetrics {
     received_tx_count: u64,
     forwarded_batch_count: u64,
     duration_s: u64,
+    execution_times_ms: Vec<u64>,
     proof_generation_times_ms: Vec<u64>,
     total_proved_txs: u64,
     trace_id: String,
     #[serde(skip)]
     start_time: Instant,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+struct ExecutorBatchMetricsRow {
+    experiment_id: String,
+    batch_id: String,
+    trace_id: String,
+    tx_count: u64,
+    batch_data_bytes: usize,
+    state_diff_count: usize,
+    state_diff_bytes: usize,
+    unique_touched_accounts: usize,
+    repeated_touched_accounts: usize,
+    total_gas_limit: u64,
+    total_gas_price_wei: u64,
+    fee_proxy_wei: u128,
+    execution_time_ms: u64,
+    proof_time_ms: u64,
+    proof_bytes: usize,
+    journal_bytes: usize,
+}
+
+fn touched_account_stats(
+    diffs: &[crate::types::StateDiff],
+) -> (usize, usize) {
+    let mut touched_account_counts: HashMap<[u8; 20], usize> = HashMap::new();
+    for diff in diffs {
+        let entry = touched_account_counts.entry(diff.account).or_insert(0);
+        *entry += 1;
+    }
+    let unique_touched_accounts = touched_account_counts.len();
+    let repeated_touched_accounts = touched_account_counts.values().filter(|v| **v > 1).count();
+    (unique_touched_accounts, repeated_touched_accounts)
 }
 
 #[derive(Clone)]
@@ -96,6 +131,7 @@ impl RollupService for ExecutorGrpcService {
             .await
             .execute_batch(&batch_id, txs)
             .map_err(|e| Status::internal(format!("execution failure: {e}")))?;
+        let execution_ms = execution_start.elapsed().as_millis() as u64;
 
         append_lifecycle(&self.trace_root, &trace, TraceLifecycleStatus::Generated, None, None)
             .map_err(|e| Status::internal(format!("trace lifecycle(generated) failure: {e}")))?;
@@ -115,8 +151,13 @@ impl RollupService for ExecutorGrpcService {
         )
         .map_err(|e| Status::internal(format!("trace lifecycle(persisted) failure: {e}")))?;
 
+        let proof_start = Instant::now();
         let artifacts = generate_artifacts(&trace, &self.prover_backend)
             .map_err(|e| Status::internal(format!("proof generation failure: {e}")))?;
+        let proof_ms = proof_start.elapsed().as_millis() as u64;
+        let proof_bytes = artifacts.proof_bytes;
+        let journal_bytes = artifacts.journal_bytes;
+        let batch_data_len = payload.batch_data.len();
 
         append_lifecycle(
             &self.trace_root,
@@ -127,8 +168,20 @@ impl RollupService for ExecutorGrpcService {
         )
         .map_err(|e| Status::internal(format!("trace lifecycle(proved) failure: {e}")))?;
 
-        let execution_ms = execution_start.elapsed().as_millis() as u64;
         let proved_txs = trace.executed_transactions.len() as u64;
+        let total_gas_limit: u64 = trace.executed_transactions.iter().map(|tx| tx.gas_limit).sum();
+        let total_gas_price_wei: u64 =
+            trace.executed_transactions.iter().map(|tx| tx.gas_price).sum();
+        let fee_proxy_wei: u128 = trace
+            .executed_transactions
+            .iter()
+            .map(|tx| (tx.gas_price as u128).saturating_mul(tx.gas_limit as u128))
+            .sum();
+        let (unique_touched_accounts, repeated_touched_accounts) =
+            touched_account_stats(&trace.state_diffs);
+        let state_diff_bytes = serde_json::to_vec(&trace.state_diffs)
+            .map(|v| v.len())
+            .unwrap_or_default();
 
         let enriched = build_enriched_payload(payload, &trace, artifacts.da_commitment, artifacts.proof);
 
@@ -148,6 +201,37 @@ impl RollupService for ExecutorGrpcService {
         info!("Executed and published batch {batch_id} with {proved_txs} transactions (trace_id={})", trace.trace_id);
 
         if !experiment_id.is_empty() {
+            let batch_row = ExecutorBatchMetricsRow {
+                experiment_id: experiment_id.clone(),
+                batch_id: batch_id.clone(),
+                trace_id: trace.trace_id.clone(),
+                tx_count: proved_txs,
+                batch_data_bytes: batch_data_len,
+                state_diff_count: trace.state_diffs.len(),
+                state_diff_bytes,
+                unique_touched_accounts,
+                repeated_touched_accounts,
+                total_gas_limit,
+                total_gas_price_wei,
+                fee_proxy_wei,
+                execution_time_ms: execution_ms,
+                proof_time_ms: proof_ms,
+                proof_bytes,
+                journal_bytes,
+            };
+            let metrics_root = std::env::var("METRICS_ROOT").unwrap_or_else(|_| "metrics".to_string());
+            let batch_metrics_path = std::path::PathBuf::from(&metrics_root).join("executor_batch_metrics.jsonl");
+            if let Some(parent) = batch_metrics_path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            if let Ok(line) = serde_json::to_string(&batch_row) {
+                let _ = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(batch_metrics_path)
+                    .and_then(|mut f| writeln!(f, "{line}"));
+            }
+
             let metrics_clone = self.metrics.clone();
             let prover_backend = backend_label(&self.prover_backend).to_string();
             let trace_id = trace.trace_id.clone();
@@ -163,6 +247,7 @@ impl RollupService for ExecutorGrpcService {
                         received_tx_count: 0,
                         forwarded_batch_count: 0,
                         duration_s: 0,
+                        execution_times_ms: vec![],
                         proof_generation_times_ms: vec![],
                         total_proved_txs: 0,
                         trace_id,
@@ -173,7 +258,8 @@ impl RollupService for ExecutorGrpcService {
                 metrics.received_tx_count += proved_txs;
                 metrics.forwarded_batch_count += 1;
                 metrics.total_proved_txs += proved_txs;
-                metrics.proof_generation_times_ms.push(execution_ms);
+                metrics.execution_times_ms.push(execution_ms);
+                metrics.proof_generation_times_ms.push(proof_ms);
                 metrics.duration_s = metrics.start_time.elapsed().as_secs();
 
                 let metrics_root = std::env::var("METRICS_ROOT").unwrap_or_else(|_| "metrics".to_string());
@@ -197,6 +283,53 @@ impl RollupService for ExecutorGrpcService {
             accepted: true,
             message: "batch executed and accepted".to_string(),
         }))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::touched_account_stats;
+    use crate::types::{StateDiff, WitnessPathElement};
+
+    #[test]
+    fn touched_account_stats_counts_unique_and_repeated_accounts() {
+        let a = [1u8; 20];
+        let b = [2u8; 20];
+        let diffs = vec![
+            StateDiff {
+                account: a,
+                old_balance: 0,
+                new_balance: 1,
+                old_nonce: 0,
+                new_nonce: 1,
+                merkle_proof: vec![],
+                witness_path: Vec::<WitnessPathElement>::new(),
+                leaf_encoding: "default".to_string(),
+            },
+            StateDiff {
+                account: a,
+                old_balance: 1,
+                new_balance: 2,
+                old_nonce: 1,
+                new_nonce: 2,
+                merkle_proof: vec![],
+                witness_path: Vec::<WitnessPathElement>::new(),
+                leaf_encoding: "default".to_string(),
+            },
+            StateDiff {
+                account: b,
+                old_balance: 0,
+                new_balance: 3,
+                old_nonce: 0,
+                new_nonce: 1,
+                merkle_proof: vec![],
+                witness_path: Vec::<WitnessPathElement>::new(),
+                leaf_encoding: "default".to_string(),
+            },
+        ];
+        let (unique, repeated) = touched_account_stats(&diffs);
+        assert_eq!(unique, 2);
+        assert_eq!(repeated, 1);
     }
 }
 

@@ -116,6 +116,7 @@ impl<M: Middleware + 'static> DaStrategy for OffChainStrategy<M> {
             block_number: receipt.block_number.unwrap_or_default().as_u64(),
             latency_ms: latency,
             compression_ratio: None,
+            compressed_bytes: Some(batch_data.len()),
             gas_saved: None,
             gas_used: None,
         })

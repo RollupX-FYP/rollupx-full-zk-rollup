@@ -164,6 +164,7 @@ impl<M: Middleware + 'static> DaStrategy for BlobStrategy<M> {
             block_number: receipt.block_number.unwrap_or_default().as_u64(),
             latency_ms: latency,
             compression_ratio: Some(metrics.compression_ratio),
+            compressed_bytes: Some(metrics.compressed_size),
             gas_saved: Some(metrics.gas_saved),
             gas_used,
         })

@@ -12,6 +12,7 @@ pub struct SubmissionResult {
     pub block_number: u64,
     pub latency_ms: u64,
     pub compression_ratio: Option<f64>,
+    pub compressed_bytes: Option<usize>,
     pub gas_saved: Option<u64>,
     pub gas_used: Option<u64>,
 }

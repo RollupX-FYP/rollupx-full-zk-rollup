@@ -21,6 +21,8 @@ pub enum ProverBackendKind {
 pub struct ProofArtifacts {
     pub proof: Vec<u8>,
     pub da_commitment: Vec<u8>,
+    pub journal_bytes: usize,
+    pub proof_bytes: usize,
 }
 
 #[derive(Debug, Deserialize)]
@@ -167,6 +169,8 @@ fn generate_risc0_artifacts(
     Ok(ProofArtifacts {
         proof,
         da_commitment,
+        journal_bytes: meta.journal_bytes,
+        proof_bytes: meta.proof_bytes,
     })
 }
 

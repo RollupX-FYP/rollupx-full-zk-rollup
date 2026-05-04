@@ -22,7 +22,8 @@ RUN_ID="${EXP_ID}_r$(printf '%02d' "$REPEAT")"
 
 # ── defaults for env vars (override via environment) ──────────────────────────
 export MAX_BATCH_SIZE=${MAX_BATCH_SIZE:-50}
-export TIMEOUT_MS=${TIMEOUT_MS:-5000}
+export TIMEOUT_MS=${TIMEOUT_MS:-30000}
+export MIN_BATCH_SIZE=${MIN_BATCH_SIZE:-1}
 export POLICY=${POLICY:-FCFS}
 export DA_MODE=${DA_MODE:-calldata}
 export PROVER=${PROVER:-groth16}

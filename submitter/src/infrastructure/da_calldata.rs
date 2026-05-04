@@ -91,6 +91,7 @@ impl<M: Middleware + 'static> DaStrategy for CalldataStrategy<M> {
         new_root_arr.copy_from_slice(&root_bytes);
 
         let da_meta = self.encode_da_meta(batch)?;
+        let compressed_len = batch_data.len();
 
         let bridge = self.bridge.clone();
         let call = bridge.commit_batch(
@@ -126,6 +127,7 @@ impl<M: Middleware + 'static> DaStrategy for CalldataStrategy<M> {
             block_number: receipt.block_number.unwrap_or_default().as_u64(),
             latency_ms: latency,
             compression_ratio: None,
+            compressed_bytes: Some(compressed_len),
             gas_saved: None,
             gas_used,
         })

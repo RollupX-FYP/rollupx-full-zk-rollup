@@ -29,6 +29,9 @@ import sys, os, json, subprocess, tomllib
 
 filter_factor = sys.argv[1] if sys.argv[1] else None
 dry_run       = sys.argv[2] == "True"
+d_override = int(os.environ["DURATION_S_OVERRIDE"]) if "DURATION_S_OVERRIDE" in os.environ else None
+w_override = int(os.environ["WARMUP_S_OVERRIDE"]) if "WARMUP_S_OVERRIDE" in os.environ else None
+r_override = int(os.environ["REPEATS_OVERRIDE"]) if "REPEATS_OVERRIDE" in os.environ else None
 
 with open("config/experiments.toml", "rb") as f:
     cfg = tomllib.load(f)
@@ -36,6 +39,8 @@ with open("config/experiments.toml", "rb") as f:
 baseline = cfg["baseline"]
 seeds    = baseline["seeds"]
 repeats  = baseline["repeats"]
+if r_override is not None:
+    repeats = r_override
 
 experiments = cfg["experiments"]
 
@@ -73,12 +78,13 @@ for exp in experiments_to_run:
         env.update({
             "MAX_BATCH_SIZE": str(exp["batch_size"]),
             "TIMEOUT_MS":     str(exp["timeout_ms"]),
+            "MIN_BATCH_SIZE": str(exp.get("min_batch_size", 1)),
             "POLICY":         exp["policy"],
             "DA_MODE":        exp["da_mode"],
             "PROVER":         exp["prover"],
             "RATE_TPS":       str(exp["rate_tps"]),
-            "DURATION_S":     str(exp["duration_s"]),
-            "WARMUP_S":       str(exp.get("warmup_s", 15)),
+            "DURATION_S":     str(d_override if d_override is not None else exp["duration_s"]),
+            "WARMUP_S":       str(w_override if w_override is not None else exp.get("warmup_s", 15)),
             "TX_MIX":         exp["tx_mix"],
             "SEED":           str(seed),
             "RUN_ID":         run_id,

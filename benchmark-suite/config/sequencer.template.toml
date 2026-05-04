@@ -1,7 +1,7 @@
 [batch]
 max_batch_size     = ${MAX_BATCH_SIZE}
 timeout_interval_ms = ${TIMEOUT_MS}
-min_batch_size     = 5
+min_batch_size     = ${MIN_BATCH_SIZE}
 max_gas_limit      = 30000000
 
 [scheduling]
