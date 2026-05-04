@@ -157,6 +157,7 @@ class PoissonWorkloadGenerator:
         metrics = {
             "experiment_id": self.experiment_id,
             "source": "workload",
+            "rate": self.rate,
             "prover_backend": self.prover_backend,
             "da_mode": "n/a",
             "latency_metrics": {

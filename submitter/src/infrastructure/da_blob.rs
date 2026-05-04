@@ -111,17 +111,22 @@ impl<M: Middleware + 'static> DaStrategy for BlobStrategy<M> {
         let proof_bytes = ethers::utils::hex::decode(proof_hex.trim_start_matches("0x"))
             .map_err(|e| DomainError::Da(format!("Invalid proof hex: {}", e)))?;
         let proof = Bytes::from(proof_bytes);
+        let proof_len = proof.len();
 
         let root_bytes = ethers::utils::hex::decode(batch.new_root.trim_start_matches("0x"))
             .map_err(|e| DomainError::Da(format!("Invalid new root hex: {}", e)))?;
-        
+
         let mut new_root_arr = [0u8; 32];
         if root_bytes.len() != 32 {
-             return Err(DomainError::Da(format!("New Root must be 32 bytes, got {}", root_bytes.len())));
+            return Err(DomainError::Da(format!(
+                "New Root must be 32 bytes, got {}",
+                root_bytes.len()
+            )));
         }
         new_root_arr.copy_from_slice(&root_bytes);
 
         let da_meta = self.encode_da_meta(batch)?;
+        let da_meta_len = da_meta.len();
 
         let call = self.bridge.commit_batch(
             self.da_id(),
@@ -166,6 +171,10 @@ impl<M: Middleware + 'static> DaStrategy for BlobStrategy<M> {
             compression_ratio: Some(metrics.compression_ratio),
             gas_saved: Some(metrics.gas_saved),
             gas_used,
+            calldata_bytes: Some(metrics.original_size),
+            compressed_bytes: Some(metrics.compressed_size),
+            da_meta_bytes: Some(da_meta_len),
+            proof_bytes: Some(proof_len),
         })
     }
 

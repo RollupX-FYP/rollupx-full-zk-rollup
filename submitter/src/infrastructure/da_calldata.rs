@@ -69,6 +69,7 @@ impl<M: Middleware + 'static> DaStrategy for CalldataStrategy<M> {
 
         let mut batch_data = fs::read(&batch.data_file)
             .map_err(|e| DomainError::Da(format!("Failed to read batch file: {}", e)))?;
+        let original_size = batch_data.len();
 
         if self.compression_mode.is_some() {
             let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
@@ -79,18 +80,29 @@ impl<M: Middleware + 'static> DaStrategy for CalldataStrategy<M> {
                 .finish()
                 .map_err(|e| DomainError::Da(format!("Compression failed: {}", e)))?;
         }
+        let compressed_size = batch_data.len();
+        let compression_ratio = if compressed_size > 0 {
+            Some(original_size as f64 / compressed_size as f64)
+        } else {
+            None
+        };
 
         // Correctly parse hex string into [u8; 32] to avoid padding issues with H256/U256
         let root_bytes = ethers::utils::hex::decode(batch.new_root.trim_start_matches("0x"))
             .map_err(|e| DomainError::Da(format!("Invalid new root hex: {}", e)))?;
-        
+
         let mut new_root_arr = [0u8; 32];
         if root_bytes.len() != 32 {
-             return Err(DomainError::Da(format!("New Root must be 32 bytes, got {}", root_bytes.len())));
+            return Err(DomainError::Da(format!(
+                "New Root must be 32 bytes, got {}",
+                root_bytes.len()
+            )));
         }
         new_root_arr.copy_from_slice(&root_bytes);
 
         let da_meta = self.encode_da_meta(batch)?;
+        let da_meta_len = da_meta.len();
+        let proof_len = proof.len();
 
         let bridge = self.bridge.clone();
         let call = bridge.commit_batch(
@@ -125,9 +137,13 @@ impl<M: Middleware + 'static> DaStrategy for CalldataStrategy<M> {
             tx_hash: format!("{:?}", tx_hash),
             block_number: receipt.block_number.unwrap_or_default().as_u64(),
             latency_ms: latency,
-            compression_ratio: None,
+            compression_ratio,
             gas_saved: None,
             gas_used,
+            calldata_bytes: Some(original_size),
+            compressed_bytes: Some(compressed_size),
+            da_meta_bytes: Some(da_meta_len),
+            proof_bytes: Some(proof_len),
         })
     }
 

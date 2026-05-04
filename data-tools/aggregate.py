@@ -41,6 +41,23 @@ def _load_jsonl(path: str) -> list[dict]:
     return rows
 
 
+def _numeric_values(rows: list[dict], key: str) -> list[float]:
+    vals = []
+    for row in rows:
+        val = row.get(key)
+        if val in (None, "", "n/a", "N/A"):
+            continue
+        try:
+            vals.append(float(val))
+        except (TypeError, ValueError):
+            continue
+    return vals
+
+
+def _mean_or_none(vals: list[float]) -> float | None:
+    return statistics.mean(vals) if vals else None
+
+
 def _load_run(run_dir: str) -> dict | None:
     """
     Load one run directory and return a flat dict of all metrics.
@@ -90,7 +107,8 @@ def _load_run(run_dir: str) -> dict | None:
         details = wl.get("details", {})
         _wl_duration = details.get("duration", 120)
         row.update({
-            "tps_offered":   wl.get("rate", 0),
+            "tps_offered":   wl.get("rate", details.get("rate", 0)),
+            "tps_generated": details.get("total_txs", 0) / max(details.get("duration", 1), 1),
             "total_txs":     details.get("total_txs", 0),
             "success_txs":   details.get("successful_txs", 0),
             "failed_txs":    details.get("failed_txs", 0),
@@ -124,11 +142,18 @@ def _load_run(run_dir: str) -> dict | None:
             "p95_prove_ms":      _percentile(prove_times, 95),
             "max_prove_ms":      max(prove_times) if prove_times else 0,
             "batch_count":       ex.get("batch_count", 0),
+            "avg_execution_ms":   _mean_or_none(ex.get("execution_times_ms", [])),
+            "avg_trace_persist_ms": _mean_or_none(ex.get("trace_persist_times_ms", [])),
+            "avg_executor_total_ms": _mean_or_none(ex.get("total_processing_times_ms", [])),
+            "avg_sealed_to_proved_ms": _mean_or_none(ex.get("sealed_to_proved_times_ms", [])),
+            "avg_sealed_to_published_ms": _mean_or_none(ex.get("sealed_to_published_times_ms", [])),
+            "avg_proof_size_bytes": _mean_or_none(ex.get("proof_sizes_bytes", [])),
+            "avg_journal_size_bytes": _mean_or_none(ex.get("journal_sizes_bytes", [])),
         })
         bc = ex.get("batch_count", 1)
         # tps_committed: total proved txs / duration
         total_proved = ex.get("total_proved_txs")  # None if absent
-        duration = ex.get("duration_s", 120)
+        duration = row.get("duration_s_actual") or ex.get("duration_s", 120)
         if total_proved is not None:
             row["tps_committed"] = total_proved / max(duration, 1)
         else:
@@ -139,34 +164,45 @@ def _load_run(run_dir: str) -> dict | None:
     if os.path.exists(sub_file):
         batches = _load_jsonl(sub_file)
         if batches:
-            l2_l1    = [b.get("l2_l1_latency_ms", 0) or 0  for b in batches]
-            gas_s    = [b.get("gas_saved", 0) or 0          for b in batches]
-            comp_r   = [b.get("compression_ratio", 0) or 0  for b in batches]
-            gas_used = [b.get("gas_used_per_batch", 0) or 0 for b in batches]
-            gas_tx   = [b.get("gas_used_per_tx", 0) or 0    for b in batches]
-            cdata_b  = [b.get("calldata_bytes", 0) or 0      for b in batches]
-            comp_b   = [b.get("compressed_bytes", 0) or 0    for b in batches]
-            retries  = [b.get("retries", 0) or 0             for b in batches]
-            failed   = [b.get("failed", False)               for b in batches]
+            successful_batches = [b for b in batches if not b.get("failed", False)]
+            l2_l1    = _numeric_values(successful_batches, "l2_l1_latency_ms")
+            submit_l = _numeric_values(successful_batches, "submission_latency_ms")
+            gas_s    = _numeric_values(successful_batches, "gas_saved")
+            comp_r   = _numeric_values(successful_batches, "compression_ratio")
+            gas_used = _numeric_values(successful_batches, "gas_used_per_batch")
+            gas_tx   = _numeric_values(successful_batches, "gas_used_per_tx")
+            cdata_b  = _numeric_values(successful_batches, "calldata_bytes")
+            comp_b   = _numeric_values(successful_batches, "compressed_bytes")
+            proof_b  = _numeric_values(successful_batches, "proof_bytes")
+            da_meta_b = _numeric_values(successful_batches, "da_meta_bytes")
+            sealed_tx_count = _numeric_values(successful_batches, "sealed_tx_count")
+            sealed_gas_sum = _numeric_values(successful_batches, "sealed_gas_limit_sum")
+            retries  = _numeric_values(batches, "retries")
+            failed   = [b.get("failed", False) for b in batches]
 
             _wl_duration = row.get("duration_s_actual") or 120  # set earlier from workload JSON
             row.update({
                 "da_mode_actual":       batches[0].get("da_mode", "unknown"),
-                "avg_l2_l1_ms":         statistics.mean(l2_l1),
-                "p50_l2_l1_ms":         statistics.median(l2_l1),
-                "p95_l2_l1_ms":         _percentile(l2_l1, 95),
-                "p99_l2_l1_ms":         _percentile(l2_l1, 99),
-                "avg_gas_saved":        statistics.mean(gas_s),
-                "avg_comp_ratio":       statistics.mean(comp_r),
-                "avg_gas_per_batch":    statistics.mean(gas_used),
-                "avg_gas_per_tx":       statistics.mean(gas_tx),
-                "avg_calldata_bytes":   statistics.mean(cdata_b),
-                "avg_compressed_bytes": statistics.mean(comp_b),
-                "total_retries":        sum(retries),
+                "avg_submit_l1_ms":     _mean_or_none(submit_l),
+                "avg_l2_l1_ms":         _mean_or_none(l2_l1),
+                "p50_l2_l1_ms":         statistics.median(l2_l1) if l2_l1 else None,
+                "p95_l2_l1_ms":         _percentile(l2_l1, 95) if l2_l1 else None,
+                "p99_l2_l1_ms":         _percentile(l2_l1, 99) if l2_l1 else None,
+                "avg_gas_saved":        _mean_or_none(gas_s),
+                "avg_comp_ratio":       _mean_or_none(comp_r),
+                "avg_gas_per_batch":    _mean_or_none(gas_used),
+                "avg_gas_per_tx":       _mean_or_none(gas_tx),
+                "avg_calldata_bytes":   _mean_or_none(cdata_b),
+                "avg_compressed_bytes": _mean_or_none(comp_b),
+                "avg_proof_bytes":      _mean_or_none(proof_b),
+                "avg_da_meta_bytes":    _mean_or_none(da_meta_b),
+                "avg_sealed_tx_count":  _mean_or_none(sealed_tx_count),
+                "avg_sealed_gas_limit_sum": _mean_or_none(sealed_gas_sum),
+                "total_retries":        sum(retries) if retries else 0,
                 "failed_batches":       sum(1 for f in failed if f),
                 "total_batches":        len(batches),
                 "tps_finalized":        sum(
-                    b.get("tx_count", 0) for b in batches
+                    b.get("tx_count", 0) for b in successful_batches
                 ) / max(_wl_duration, 1),
             })
 
@@ -262,7 +298,7 @@ def aggregate(metrics_root: str, output: str, include_failed: bool = False) -> p
 
         if row.get("run_status") != "pass" and not include_failed:
             n_failed += 1
-            print(f"  [SKIP] {row['run_id']} — status={row.get('run_status')}")
+            print(f"  [SKIP] {row['run_id']} - status={row.get('run_status')}")
             continue
 
         rows.append(row)
@@ -277,7 +313,7 @@ def aggregate(metrics_root: str, output: str, include_failed: bool = False) -> p
     df.to_csv(output, index=False)
 
     print(f"[aggregate] {len(df)} valid runs  |  {n_failed} skipped")
-    print(f"[aggregate] written → {output}")
+    print(f"[aggregate] written -> {output}")
     return df
 
 

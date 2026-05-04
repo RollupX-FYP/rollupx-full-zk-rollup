@@ -18,5 +18,9 @@ pub fn build_enriched_payload(
         da_commitment,
         proof,
         experiment_id: input.experiment_id,
+        run_id: input.run_id,
+        sealed_at_unix_ms: input.sealed_at_unix_ms,
+        sealed_tx_count: input.sealed_tx_count,
+        sealed_gas_limit_sum: input.sealed_gas_limit_sum,
     }
 }

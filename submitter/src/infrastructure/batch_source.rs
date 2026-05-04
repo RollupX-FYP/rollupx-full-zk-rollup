@@ -19,6 +19,10 @@ pub struct FetchedBatch {
     pub da_commitment: String,
     pub proof: Bytes,
     pub experiment_id: Option<String>,
+    pub run_id: Option<String>,
+    pub sealed_at_unix_ms: u64,
+    pub sealed_tx_count: u64,
+    pub sealed_gas_limit_sum: u64,
 }
 
 #[async_trait]
@@ -49,6 +53,10 @@ struct JsonBatchOutput {
     da_commitment: String,
     proof: String,
     experiment_id: Option<String>,
+    run_id: Option<String>,
+    sealed_at_unix_ms: Option<u64>,
+    sealed_tx_count: Option<u64>,
+    sealed_gas_limit_sum: Option<u64>,
 }
 
 #[async_trait]
@@ -75,6 +83,10 @@ impl BatchSource for FileBatchSource {
                             da_commitment: output.da_commitment,
                             proof,
                             experiment_id: output.experiment_id,
+                            run_id: output.run_id,
+                            sealed_at_unix_ms: output.sealed_at_unix_ms.unwrap_or(0),
+                            sealed_tx_count: output.sealed_tx_count.unwrap_or(0),
+                            sealed_gas_limit_sum: output.sealed_gas_limit_sum.unwrap_or(0),
                         });
                     }
                 }
@@ -180,6 +192,11 @@ impl BatchSource for GrpcBatchSource {
                         } else {
                             Some(payload.experiment_id)
                         };
+                        let run_id = if payload.run_id.is_empty() {
+                            None
+                        } else {
+                            Some(payload.run_id)
+                        };
 
                         return Ok(FetchedBatch {
                             batch_id: payload.batch_id,
@@ -189,6 +206,10 @@ impl BatchSource for GrpcBatchSource {
                             da_commitment,
                             proof,
                             experiment_id,
+                            run_id,
+                            sealed_at_unix_ms: payload.sealed_at_unix_ms,
+                            sealed_tx_count: payload.sealed_tx_count,
+                            sealed_gas_limit_sum: payload.sealed_gas_limit_sum,
                         });
                     }
                     Ok(None) => {

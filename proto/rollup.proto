@@ -23,6 +23,13 @@ message BatchPayload {
 
   // Research experiment ID
   string experiment_id = 7;
+
+  // Benchmark run identity and sealed-batch metadata. These make downstream
+  // executor/submitter metrics attributable to the exact run directory.
+  string run_id = 8;
+  uint64 sealed_at_unix_ms = 9;
+  uint64 sealed_tx_count = 10;
+  uint64 sealed_gas_limit_sum = 11;
 }
 
 message PublishBatchResponse {

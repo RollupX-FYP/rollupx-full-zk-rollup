@@ -9,7 +9,7 @@
 
 use ethers::types::{Address, U256, Signature, H256};
 use ethers::utils::keccak256;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::str::FromStr;
 
 /// User transaction submitted to L2
@@ -206,7 +206,7 @@ pub struct AccountState {
 /// - `batch_id`: Unique identifier for this batch (sequential)
 /// - `transactions`: All transactions in this batch (normal + forced)
 /// - `prev_state_root`: State root hash before this batch (for verification)
-/// - `timestamp`: When this batch was sealed
+/// - `timestamp`: Unix milliseconds when this batch was sealed
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Batch {
     pub batch_id: u64,
@@ -224,7 +224,7 @@ pub struct Batch {
 /// - `batch_id`: Unique identifier for this batch
 /// - `tx_count`: Total number of transactions (normal + forced)
 /// - `forced_tx_count`: Number of forced transactions from L1
-/// - `timestamp`: When the batch was created
+/// - `timestamp`: Unix milliseconds when the batch was created
 /// - `scheduling_policy`: Which policy was used ("FCFS" or "FeePriority")
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BatchMetadata {

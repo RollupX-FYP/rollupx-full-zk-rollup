@@ -14,6 +14,10 @@ pub struct SubmissionResult {
     pub compression_ratio: Option<f64>,
     pub gas_saved: Option<u64>,
     pub gas_used: Option<u64>,
+    pub calldata_bytes: Option<usize>,
+    pub compressed_bytes: Option<usize>,
+    pub da_meta_bytes: Option<usize>,
+    pub proof_bytes: Option<usize>,
 }
 
 #[cfg_attr(test, mockall::automock)]

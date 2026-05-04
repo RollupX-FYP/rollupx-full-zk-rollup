@@ -24,18 +24,49 @@
 //! 3. **Timeout**: Seal after `timeout_interval_ms` if transactions are available
 
 use crate::{
-    pool::{ForcedQueue, TransactionPool},
-    scheduler::{Scheduler, SchedulingPolicyType, create_policy},
-    batch::{BatchEngine, trigger::BatchTrigger},
-    registry::Registry,
-    proto::rollup::{BatchPayload, PublishBatchResponse, rollup_service_client::RollupServiceClient},
-    config::BatchConfig,
     Batch, BatchMetadata, Transaction,
+    batch::{BatchEngine, trigger::BatchTrigger},
+    config::BatchConfig,
+    pool::{ForcedQueue, TransactionPool},
+    proto::rollup::{
+        BatchPayload, PublishBatchResponse, rollup_service_client::RollupServiceClient,
+    },
+    registry::Registry,
+    scheduler::{Scheduler, SchedulingPolicyType, create_policy},
 };
+use serde::Deserialize;
+use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tokio::time::{sleep, Duration, Instant};
-use tracing::{info, debug, warn, error};
+use tokio::time::{Duration, Instant, sleep};
+use tracing::{debug, error, info, warn};
+
+#[derive(Debug, Default, Deserialize)]
+struct CurrentRun {
+    experiment_id: Option<String>,
+    run_id: Option<String>,
+}
+
+fn active_run_identity() -> (String, String) {
+    let mut experiment_id = std::env::var("EXPERIMENT_ID").unwrap_or_default();
+    let mut run_id = std::env::var("RUN_ID").unwrap_or_default();
+
+    let metrics_root =
+        std::env::var("METRICS_ROOT").unwrap_or_else(|_| "/var/lib/rollupx/metrics".to_string());
+    let current_run_path = PathBuf::from(metrics_root).join("current_run.json");
+    if let Ok(bytes) = std::fs::read(current_run_path) {
+        if let Ok(current) = serde_json::from_slice::<CurrentRun>(&bytes) {
+            if experiment_id.is_empty() {
+                experiment_id = current.experiment_id.unwrap_or_default();
+            }
+            if run_id.is_empty() {
+                run_id = current.run_id.unwrap_or_default();
+            }
+        }
+    }
+
+    (experiment_id, run_id)
+}
 
 /// Batch orchestrator
 ///
@@ -90,11 +121,8 @@ impl BatchOrchestrator {
         let policy = create_policy(scheduling_policy);
 
         // Create the batch trigger with access to both pools
-        let trigger = BatchTrigger::new(
-            batch_config.clone(),
-            tx_pool.clone(),
-            forced_queue.clone(),
-        );
+        let trigger =
+            BatchTrigger::new(batch_config.clone(), tx_pool.clone(), forced_queue.clone());
 
         Self {
             forced_queue,
@@ -108,9 +136,14 @@ impl BatchOrchestrator {
         }
     }
 
-    async fn publish_batch_to_executor(&self, batch: &Batch) -> anyhow::Result<PublishBatchResponse> {
+    async fn publish_batch_to_executor(
+        &self,
+        batch: &Batch,
+    ) -> anyhow::Result<PublishBatchResponse> {
         let batch_data = serde_json::to_vec(&batch.transactions)
             .map_err(|e| anyhow::anyhow!("serialize batch transactions for gRPC: {e}"))?;
+        let (experiment_id, run_id) = active_run_identity();
+        let sealed_gas_limit_sum = batch.transactions.iter().map(|tx| tx.gas_limit()).sum();
 
         let payload = BatchPayload {
             batch_id: batch.batch_id.to_string(),
@@ -120,12 +153,18 @@ impl BatchOrchestrator {
             post_state_root: batch.prev_state_root.as_bytes().to_vec(),
             da_commitment: Vec::new(),
             proof: Vec::new(),
-            experiment_id: std::env::var("EXPERIMENT_ID").unwrap_or_default(),
+            experiment_id,
+            run_id,
+            sealed_at_unix_ms: batch.timestamp,
+            sealed_tx_count: batch.transactions.len() as u64,
+            sealed_gas_limit_sum,
         };
 
         let mut client = RollupServiceClient::connect(self.executor_grpc_url.clone())
             .await
-            .map_err(|e| anyhow::anyhow!("connect executor gRPC {}: {e}", self.executor_grpc_url))?;
+            .map_err(|e| {
+                anyhow::anyhow!("connect executor gRPC {}: {e}", self.executor_grpc_url)
+            })?;
 
         let response = client
             .publish_batch(tonic::Request::new(payload))
@@ -192,15 +231,19 @@ impl BatchOrchestrator {
                 None => continue, // No trigger fired — wait for next cycle
             };
 
-            debug!("Batch trigger fired: {} ({}ms since last batch)",
-                   trigger_reason,
-                   last_batch_time.elapsed().as_millis());
+            debug!(
+                "Batch trigger fired: {} ({}ms since last batch)",
+                trigger_reason,
+                last_batch_time.elapsed().as_millis()
+            );
 
             // Attempt to produce a batch
             match self.produce_batch().await {
                 Ok(Some(batch)) => {
                     let tx_count = batch.transactions.len();
-                    let forced_count = batch.transactions.iter()
+                    let forced_count = batch
+                        .transactions
+                        .iter()
                         .filter(|tx| matches!(tx, Transaction::Forced(_)))
                         .count();
 
@@ -232,23 +275,19 @@ impl BatchOrchestrator {
                         Ok(response) if response.accepted => {
                             info!(
                                 "Published batch #{} to executor over gRPC ({})",
-                                batch.batch_id,
-                                self.executor_grpc_url
+                                batch.batch_id, self.executor_grpc_url
                             );
                         }
                         Ok(response) => {
                             warn!(
                                 "Executor rejected batch #{} over gRPC: {}",
-                                batch.batch_id,
-                                response.message
+                                batch.batch_id, response.message
                             );
                         }
                         Err(e) => {
                             warn!(
                                 "Failed to publish batch #{} to executor gRPC {}: {:?}",
-                                batch.batch_id,
-                                self.executor_grpc_url,
-                                e
+                                batch.batch_id, self.executor_grpc_url, e
                             );
                         }
                     }
@@ -320,7 +359,9 @@ impl BatchOrchestrator {
 
         // Step 2: Pull normal transactions from pool with size limit enforcement.
         // Leave room for forced txs that were already accepted.
-        let max_normal_txs = self.config.max_batch_size
+        let max_normal_txs = self
+            .config
+            .max_batch_size
             .saturating_sub(accepted_forced_txs.len());
 
         let normal_txs = self.tx_pool.get_pending(max_normal_txs).await;
@@ -364,14 +405,16 @@ impl BatchOrchestrator {
         //     (FCFS, FeePriority, TimeBoost, or FairBFT)
 
         // Extract the inner types from the Transaction enum for the scheduler
-        let forced_inner: Vec<_> = accepted_forced_txs.into_iter()
+        let forced_inner: Vec<_> = accepted_forced_txs
+            .into_iter()
             .filter_map(|tx| match tx {
                 Transaction::Forced(inner) => Some(inner),
                 _ => None,
             })
             .collect();
 
-        let normal_inner: Vec<_> = accepted_normal_txs.into_iter()
+        let normal_inner: Vec<_> = accepted_normal_txs
+            .into_iter()
             .filter_map(|tx| match tx {
                 Transaction::Normal(inner) => Some(inner),
                 _ => None,
@@ -383,7 +426,10 @@ impl BatchOrchestrator {
 
         // Calculate and log total gas for the batch
         let total_gas: u64 = ordered_txs.iter().map(|tx| tx.gas_limit()).sum();
-        debug!("Batch total gas: {} / {}", total_gas, self.config.max_gas_limit);
+        debug!(
+            "Batch total gas: {} / {}",
+            total_gas, self.config.max_gas_limit
+        );
 
         // Step 4: Create the sealed batch via the batch engine
         let mut engine = self.batch_engine.write().await;

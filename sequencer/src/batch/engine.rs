@@ -45,7 +45,7 @@ impl BatchEngine {
             batch_id: self.next_batch_id,
             transactions,
             prev_state_root: H256::zero(), // TODO: Track actual state root
-            timestamp: chrono::Utc::now().timestamp() as u64,
+            timestamp: chrono::Utc::now().timestamp_millis() as u64,
         };
         
         // Increment ID for next batch

@@ -100,11 +100,16 @@ def section_results_table(df: pd.DataFrame) -> str:
         ("da_mode",         "DA Mode"),
         ("policy",          "Policy"),
         ("batch_size",      "Batch"),
+        ("tps_offered",     "TPS Offered"),
+        ("tps_generated",   "TPS Generated"),
+        ("tps_accepted",    "TPS Accepted"),
         ("tps_committed",   "TPS Committed"),
+        ("tps_finalized",   "TPS Finalized"),
         ("avg_l2_l1_ms",    "L2→L1 (ms)"),
         ("p95_l2_l1_ms",    "P95 L2→L1"),
         ("avg_prove_ms",    "Prove (ms)"),
         ("avg_gas_per_tx",  "Gas/tx"),
+        ("avg_sealed_gas_limit_sum", "L2 Gas/Batch"),
         ("avg_comp_ratio",  "Comp Ratio"),
         ("jains_fairness",  "Fairness"),
     ]
@@ -138,6 +143,7 @@ def section_rankings(df: pd.DataFrame) -> str:
 
     categories = [
         ("tps_committed",   "Best Throughput (TPS Committed)",        False),
+        ("tps_finalized",   "Best Throughput (TPS Finalized)",        False),
         ("avg_l2_l1_ms",    "Lowest Latency (Avg L2→L1 ms)",          True),
         ("avg_gas_per_tx",  "Lowest Cost (Avg Gas/tx)",               True),
         ("jains_fairness",  "Best Fairness (Jain's Index)",           False),
@@ -165,7 +171,9 @@ def section_baseline_comparison(df: pd.DataFrame) -> str:
         return "## 4. Baseline Comparison\n\n*No baseline experiment found.*\n\n"
 
     metrics = [
+        ("tps_accepted",    "TPS Accepted",         False),
         ("tps_committed",   "TPS Committed",        False),
+        ("tps_finalized",   "TPS Finalized",        False),
         ("avg_l2_l1_ms",    "Avg L2→L1 (ms)",       True),
         ("p95_l2_l1_ms",    "P95 L2→L1 (ms)",       True),
         ("avg_prove_ms",    "Avg Prove (ms)",         True),

@@ -199,6 +199,7 @@ class PoissonWorkloadGenerator:
             "experiment_id": self.experiment_id,
             "run_id":        self.run_id,
             "source":        "workload",
+            "rate":          self.rate,
             "prover_backend": self.prover_backend,
             "da_mode":       "n/a",
             "seed":          self.seed,

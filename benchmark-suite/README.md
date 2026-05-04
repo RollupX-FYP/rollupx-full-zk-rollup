@@ -42,6 +42,8 @@ bash scripts/run_matrix.sh --filter batch_size
 
 For controlled runs, `scripts/run_experiment.sh` now calls `scripts/reset_state.sh` by default
 (`CLEAN_STATE_BEFORE_RUN=1`) to avoid cross-run contamination from local SQLite/trace/prover artifacts.
+It also writes `current_run.json` at the metrics session root so the sequencer, executor,
+and submitter attach lifecycle metrics to the same `<exp_id>/<run_id>` directory.
 
 ## Output layout
 
@@ -57,3 +59,17 @@ metrics/
         ├── run_status.json           # pass / fail / partial
         └── run.log                   # full stdout/stderr
 ```
+
+## Lifecycle metrics
+
+Containerized runs now emit the metrics needed for full rollup lifecycle analysis:
+
+- executor: committed/proved transaction counts, batch count, execution time, proof time,
+  sealed-to-proved latency, sealed-to-published latency, proof size, and journal size
+- submitter: finalized batch count, sealed-to-L1 receipt latency, submit-to-receipt latency,
+  receipt gas used, gas per tx, sealed L2 gas-limit sum, DA payload bytes, compressed bytes,
+  proof bytes, retries, and failed batch records
+- workload: configured offered rate (`tps_offered`), generated rate, accepted TPS,
+  per-class latency, fairness, and starvation
+
+These fields are merged into `all_results.csv` by `data-tools/aggregate.py`.

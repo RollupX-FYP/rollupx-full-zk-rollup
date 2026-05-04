@@ -47,6 +47,8 @@ export CLEAN_STATE_BEFORE_RUN=${CLEAN_STATE_BEFORE_RUN:-1}
 
 METRICS_ROOT="${METRICS_ROOT:-metrics}/${EXP_ID}/${RUN_ID}"
 export METRICS_ROOT
+METRICS_SESSION_ROOT="$(dirname "$(dirname "$METRICS_ROOT")")"
+export METRICS_SESSION_ROOT
 
 # ── traps — always clean up sequencer ─────────────────────────────────────────
 SEQ_PID=""
@@ -61,8 +63,20 @@ trap cleanup EXIT INT TERM
 
 # ── 1. Prepare output directory ───────────────────────────────────────────────
 mkdir -p "$METRICS_ROOT"
+mkdir -p "$METRICS_SESSION_ROOT"
 LOGFILE="$METRICS_ROOT/run.log"
 exec > >(tee -a "$LOGFILE") 2>&1
+
+cat > "${METRICS_SESSION_ROOT}/current_run.json" <<EOF
+{
+  "experiment_id": "${EXP_ID}",
+  "run_id": "${RUN_ID}",
+  "metrics_root": "${METRICS_ROOT}",
+  "started_at": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+}
+EOF
+rm -f "$METRICS_ROOT/submitter_metrics.json" "$METRICS_ROOT/executor_${EXP_ID}.json"
+echo "[metrics] current run manifest → ${METRICS_SESSION_ROOT}/current_run.json"
 
 # ── optional: reset local runtime state for controlled experiments ───────────
 if [[ "$CLEAN_STATE_BEFORE_RUN" == "1" || "$CLEAN_STATE_BEFORE_RUN" == "true" ]]; then

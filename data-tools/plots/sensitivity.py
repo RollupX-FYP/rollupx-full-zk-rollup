@@ -36,9 +36,11 @@ FACTOR_PREFIXES: dict[str, list[str]] = {
 # Metrics to include in sensitivity analysis (col, display_label, lower_is_better)
 SENSITIVITY_METRICS: list[tuple[str, str, bool]] = [
     ("tps_committed",   "TPS Committed",        False),
+    ("tps_finalized",   "TPS Finalized",        False),
     ("avg_l2_l1_ms",    "Avg L2→L1 (ms)",       True),
     ("p95_l2_l1_ms",    "P95 L2→L1 (ms)",       True),
     ("avg_prove_ms",    "Avg Prove (ms)",         True),
+    ("avg_submit_l1_ms","Avg Submit→Receipt (ms)", True),
     ("avg_gas_per_tx",  "Avg Gas/tx",            True),
     ("avg_comp_ratio",  "Compression Ratio",     False),
     ("jains_fairness",  "Jain's Fairness",       False),

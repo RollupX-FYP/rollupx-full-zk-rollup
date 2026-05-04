@@ -64,6 +64,10 @@ async fn test_3_1_b_optimistic_mode_proof_bypass() {
         da_commitment: vec![2; 32],
         proof: vec![], // explicitly empty byte array from executor optimistic mode
         experiment_id: "test_3_1_b".to_string(),
+        run_id: "test_3_1_b_r01".to_string(),
+        sealed_at_unix_ms: 0,
+        sealed_tx_count: 1,
+        sealed_gas_limit_sum: 21_000,
     };
 
     let batch = Batch::new(

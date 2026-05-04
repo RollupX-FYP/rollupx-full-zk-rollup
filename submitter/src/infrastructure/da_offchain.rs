@@ -53,6 +53,7 @@ impl<M: Middleware + 'static> DaStrategy for OffChainStrategy<M> {
         // 1. Off-load Data
         let batch_data = fs::read(&batch.data_file)
             .map_err(|e| DomainError::Da(format!("Failed to read batch file: {}", e)))?;
+        let original_size = batch_data.len();
 
         let cid = keccak256(&batch_data);
         let cid_hex = hex::encode(cid);
@@ -74,6 +75,7 @@ impl<M: Middleware + 'static> DaStrategy for OffChainStrategy<M> {
         let proof_bytes = hex::decode(proof_hex.trim_start_matches("0x"))
             .map_err(|e| DomainError::Da(format!("Invalid proof hex: {}", e)))?;
         let proof = Bytes::from(proof_bytes);
+        let proof_len = proof.len();
 
         let new_root: H256 = batch
             .new_root
@@ -81,6 +83,7 @@ impl<M: Middleware + 'static> DaStrategy for OffChainStrategy<M> {
             .map_err(|e| DomainError::Da(format!("Invalid new root: {}", e)))?;
 
         let da_meta = self.encode_da_meta(batch)?;
+        let da_meta_len = da_meta.len();
 
         // Send empty batchData to save gas
         let empty_batch_data = Bytes::new();
@@ -110,6 +113,7 @@ impl<M: Middleware + 'static> DaStrategy for OffChainStrategy<M> {
             .ok_or(DomainError::Da("Dropped".to_string()))?;
 
         let latency = start_time.elapsed().as_millis() as u64;
+        let gas_used = receipt.gas_used.map(|g| g.as_u64());
 
         Ok(SubmissionResult {
             tx_hash: format!("{:?}", tx_hash),
@@ -117,7 +121,11 @@ impl<M: Middleware + 'static> DaStrategy for OffChainStrategy<M> {
             latency_ms: latency,
             compression_ratio: None,
             gas_saved: None,
-            gas_used: None,
+            gas_used,
+            calldata_bytes: Some(original_size),
+            compressed_bytes: Some(0),
+            da_meta_bytes: Some(da_meta_len),
+            proof_bytes: Some(proof_len),
         })
     }
 

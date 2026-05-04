@@ -1,5 +1,5 @@
 """
-plots/throughput_bar.py — Grouped bar chart comparing offered vs accepted vs committed TPS.
+plots/throughput_bar.py — Grouped bar chart comparing rollup pipeline TPS stages.
 
 Reads:  metrics/all_results.csv  (or --input)
 Writes: figures/throughput_by_<factor>.png
@@ -17,15 +17,24 @@ import pandas as pd
 
 THROUGHPUT_COLS = [
     ("tps_offered",   "TPS Offered",   "#4C72B0"),
+    ("tps_generated", "TPS Generated", "#8172B3"),
     ("tps_accepted",  "TPS Accepted",  "#55A868"),
     ("tps_committed", "TPS Committed", "#C44E52"),
+    ("tps_finalized", "TPS Finalized", "#CCB974"),
 ]
 
 FACTOR_GROUPS = {
     "policy":     "policy",
     "batch_size": "batch_size",
     "da_mode":    "da_mode",
-    "rate":       "tps_offered",
+    "rate":       "rate_tps",
+}
+
+FACTOR_PREFIXES = {
+    "policy":     ("pol_",),
+    "batch_size": ("bs_",),
+    "da_mode":    ("da_",),
+    "rate":       ("tps_",),
 }
 
 
@@ -47,17 +56,20 @@ def plot_throughput(df: pd.DataFrame, group_col: str, output_dir: str, label: st
         agg = agg.sort_values("_sort")
 
     x = np.arange(len(agg))
-    width = 0.25
+    series_count = max(len(cols_to_agg), 1)
+    width = min(0.8 / series_count, 0.22)
 
     fig, ax = plt.subplots(figsize=(max(8, len(agg) * 1.5), 5))
 
-    for i, (col, lbl, color) in enumerate(THROUGHPUT_COLS):
+    visible_series = [(col, lbl, color) for col, lbl, color in THROUGHPUT_COLS if col in agg.columns]
+    for i, (col, lbl, color) in enumerate(visible_series):
         if col in agg.columns:
             vals = agg[col].fillna(0)
-            bars = ax.bar(x + i * width, vals, width, label=lbl, color=color, alpha=0.85)
+            offset = (i - (len(visible_series) - 1) / 2) * width
+            bars = ax.bar(x + offset, vals, width, label=lbl, color=color, alpha=0.85)
             ax.bar_label(bars, fmt="%.1f", fontsize=7, padding=2)
 
-    ax.set_xticks(x + width)
+    ax.set_xticks(x)
     ax.set_xticklabels(agg["experiment_id"], rotation=30, ha="right", fontsize=8)
     ax.set_ylabel("Transactions per Second")
     ax.set_title(f"Throughput Comparison — grouped by {label}")
@@ -94,10 +106,11 @@ def main():
     for factor_name, col in factors_to_plot.items():
         if col in df.columns or col in df.select_dtypes(include="number").columns:
             # filter to relevant experiments
-            factor_df = df[
-                df["experiment_id"].str.startswith(factor_name[:3]) |
-                (df["experiment_id"] == "baseline")
-            ]
+            prefixes = FACTOR_PREFIXES.get(factor_name, (factor_name[:3],))
+            mask = df["experiment_id"].eq("baseline")
+            for prefix in prefixes:
+                mask = mask | df["experiment_id"].str.startswith(prefix)
+            factor_df = df[mask]
             if not factor_df.empty:
                 plot_throughput(factor_df, col, args.output_dir, factor_name)
         else:
