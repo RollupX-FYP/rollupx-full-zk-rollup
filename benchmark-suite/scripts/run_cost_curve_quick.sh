@@ -2,19 +2,21 @@
 set -euo pipefail
 
 # Quick cost-curve run for the economic-sealer report.
-# Designed for a ~30 minute window by using one repeat and high enough traffic
-# to fill larger batches more often than the default 10 TPS feasibility run.
+# Designed for a ~30 minute window. It uses higher traffic so 500/1000-sized
+# batches are size-dominant, and a shorter timeout so final partial batches
+# flush quickly.
 
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT_DIR/benchmark-suite"
 
 export REPEATS_OVERRIDE=${REPEATS_OVERRIDE:-1}
-export DURATION_S_OVERRIDE=${DURATION_S_OVERRIDE:-45}
+export DURATION_S_OVERRIDE=${DURATION_S_OVERRIDE:-30}
 export WARMUP_S_OVERRIDE=${WARMUP_S_OVERRIDE:-5}
-export RATE_TPS_OVERRIDE=${RATE_TPS_OVERRIDE:-80}
-export SUBMITTER_WAIT_MAX=${SUBMITTER_WAIT_MAX:-80}
+export RATE_TPS_OVERRIDE=${RATE_TPS_OVERRIDE:-120}
+export TIMEOUT_MS_OVERRIDE=${TIMEOUT_MS_OVERRIDE:-10000}
+export SUBMITTER_WAIT_MAX=${SUBMITTER_WAIT_MAX:-60}
 export DOCKER_UP_BUILD=${DOCKER_UP_BUILD:-0}
-export RUN_BATCH_SIZES=${RUN_BATCH_SIZES:-"25 50 100 250 500"}
+export RUN_BATCH_SIZES=${RUN_BATCH_SIZES:-"50 100 250 500 1000"}
 
 index=0
 for batch_size in $RUN_BATCH_SIZES; do
@@ -42,6 +44,7 @@ done
 
 python3 scripts/analyze_cost_curve.py metrics \
   --out metrics/cost_curve_quick_analysis \
+  --experiment-prefix exp_cc_ \
   --prover-hour-usd "${PROVER_HOUR_USD:-30.0}" \
   --l1-gas-gwei "${L1_GAS_GWEI:-25}" \
   --eth-usd "${ETH_USD:-3000}" \

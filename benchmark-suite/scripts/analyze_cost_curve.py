@@ -267,6 +267,49 @@ def plot_curves(summary: pd.DataFrame, out_dir: Path, args: argparse.Namespace) 
     plt.close()
 
 
+def plot_batch_scatter(df: pd.DataFrame, out_dir: Path) -> None:
+    fig_dir = out_dir / "figures"
+    fig_dir.mkdir(parents=True, exist_ok=True)
+
+    plt.figure(figsize=(9, 5))
+    plt.scatter(
+        df["actual_tx_count"],
+        df["calibrated_total_cost_usd"],
+        c=df["configured_batch_size"],
+        cmap="viridis",
+        alpha=0.75,
+        edgecolors="none",
+    )
+    plt.xlabel("Actual tx count in sealed batch")
+    plt.ylabel("Estimated full batch cost (USD)")
+    plt.title("Actual Batch Size vs Estimated Full Cost")
+    plt.grid(True, alpha=0.3)
+    cbar = plt.colorbar()
+    cbar.set_label("Configured batch size")
+    plt.tight_layout()
+    plt.savefig(fig_dir / "actual_tx_count_vs_estimated_full_cost.png", dpi=160)
+    plt.close()
+
+    plt.figure(figsize=(9, 5))
+    plt.scatter(
+        df["actual_tx_count"],
+        df["calibrated_cost_per_tx_usd"],
+        c=df["configured_batch_size"],
+        cmap="viridis",
+        alpha=0.75,
+        edgecolors="none",
+    )
+    plt.xlabel("Actual tx count in sealed batch")
+    plt.ylabel("Estimated cost per tx (USD)")
+    plt.title("Actual Batch Size vs Estimated Cost Per Transaction")
+    plt.grid(True, alpha=0.3)
+    cbar = plt.colorbar()
+    cbar.set_label("Configured batch size")
+    plt.tight_layout()
+    plt.savefig(fig_dir / "actual_tx_count_vs_estimated_cost_per_tx.png", dpi=160)
+    plt.close()
+
+
 def write_report(df: pd.DataFrame, summary: pd.DataFrame, args: argparse.Namespace, out_dir: Path) -> None:
     usable_runs = df["run_id"].nunique()
     usable_batches = len(df)
@@ -306,6 +349,8 @@ def write_report(df: pd.DataFrame, summary: pd.DataFrame, args: argparse.Namespa
         "- `figures/batch_size_vs_estimated_cost_per_tx.png`",
         "- `figures/cost_components_calibrated.png`",
         "- `figures/proof_time_cost_input.png`",
+        "- `figures/actual_tx_count_vs_estimated_full_cost.png`",
+        "- `figures/actual_tx_count_vs_estimated_cost_per_tx.png`",
     ]
     (out_dir / "cost_curve_report.md").write_text("\n".join(report) + "\n", encoding="utf-8")
 
@@ -319,6 +364,7 @@ def main() -> None:
     df.to_csv(out_dir / "joined_batch_costs.csv", index=False)
     summary.to_csv(out_dir / "batch_size_cost_summary.csv", index=False)
     plot_curves(summary, out_dir, args)
+    plot_batch_scatter(df, out_dir)
     write_report(df, summary, args, out_dir)
     print(f"Wrote cost curve analysis to {out_dir}")
     print(mark_minimum(summary, "mean_empirical_cost_per_tx_usd"))
