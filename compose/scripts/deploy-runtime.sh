@@ -28,6 +28,9 @@ echo "[contracts-deployer] deploying contracts against ${L1_RPC_HTTP}"
 npx hardhat run scripts/deploy-local.ts --network host_docker | tee "${DEPLOY_LOG}"
 
 MOCK_VERIFIER_ADDRESS="$(awk '/MockVerifier:/ {print $2}' "${DEPLOY_LOG}" | tail -n 1)"
+CALLDATA_DA_ADDRESS="$(awk '/CalldataDA:/ {print $2}' "${DEPLOY_LOG}" | tail -n 1)"
+TEST_BLOB_DA_ADDRESS="$(awk '/TestBlobDA:/ {print $2}' "${DEPLOY_LOG}" | tail -n 1)"
+OFFCHAIN_DA_ADDRESS="$(awk '/OffChainDA:/ {print $2}' "${DEPLOY_LOG}" | tail -n 1)"
 BRIDGE_ADDRESS="$(awk '/ZKRollupBridge:/ {print $2}' "${DEPLOY_LOG}" | tail -n 1)"
 GENESIS_ROOT="$(awk '/GenesisRoot:/ {print $2}' "${DEPLOY_LOG}" | tail -n 1)"
 
@@ -38,6 +41,9 @@ fi
 
 cat > "${RUNTIME_DIR}/contracts.env" <<EOF
 MOCK_VERIFIER_ADDRESS=${MOCK_VERIFIER_ADDRESS}
+CALLDATA_DA_ADDRESS=${CALLDATA_DA_ADDRESS}
+TEST_BLOB_DA_ADDRESS=${TEST_BLOB_DA_ADDRESS}
+OFFCHAIN_DA_ADDRESS=${OFFCHAIN_DA_ADDRESS}
 BRIDGE_ADDRESS=${BRIDGE_ADDRESS}
 GENESIS_ROOT=${GENESIS_ROOT}
 L1_RPC_HTTP=${L1_RPC_HTTP}
@@ -49,6 +55,9 @@ EOF
 cat > "${RUNTIME_DIR}/contracts.json" <<EOF
 {
   "mock_verifier": "${MOCK_VERIFIER_ADDRESS}",
+  "calldata_da": "${CALLDATA_DA_ADDRESS}",
+  "test_blob_da": "${TEST_BLOB_DA_ADDRESS}",
+  "offchain_da": "${OFFCHAIN_DA_ADDRESS}",
   "bridge": "${BRIDGE_ADDRESS}",
   "genesis_root": "${GENESIS_ROOT}",
   "l1_rpc_http": "${L1_RPC_HTTP}",
