@@ -187,23 +187,6 @@ impl RollupService for ExecutorGrpcService {
             .map(|v| v.len())
             .unwrap_or_default();
 
-        let enriched = build_enriched_payload(payload, &trace, artifacts.da_commitment, artifacts.proof);
-
-        self.tx.send(enriched).map_err(|e| {
-            Status::unavailable(format!("no stream subscribers available to receive batch: {e}"))
-        })?;
-
-        append_lifecycle(
-            &self.trace_root,
-            &trace,
-            TraceLifecycleStatus::Published,
-            Some(&persisted.trace_path),
-            Some(&persisted.sha256_hex),
-        )
-        .map_err(|e| Status::internal(format!("trace lifecycle(published) failure: {e}")))?;
-
-        info!("Executed and published batch {batch_id} with {proved_txs} transactions (trace_id={})", trace.trace_id);
-
         let batch_row = ExecutorBatchMetricsRow {
             experiment_id: experiment_id.clone(),
             batch_id: batch_id.clone(),
@@ -225,14 +208,31 @@ impl RollupService for ExecutorGrpcService {
         let metrics_root = std::env::var("METRICS_ROOT").unwrap_or_else(|_| "metrics".to_string());
         let batch_metrics_path = std::path::PathBuf::from(&metrics_root).join("executor_batch_metrics.jsonl");
         if let Some(parent) = batch_metrics_path.parent() {
-            let _ = std::fs::create_dir_all(parent);
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                warn!("Failed to create executor metrics directory {}: {e}", parent.display());
+            }
         }
-        if let Ok(line) = serde_json::to_string(&batch_row) {
-            let _ = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(batch_metrics_path)
-                .and_then(|mut f| writeln!(f, "{line}"));
+        match serde_json::to_string(&batch_row) {
+            Ok(line) => {
+                if let Err(e) = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&batch_metrics_path)
+                    .and_then(|mut f| writeln!(f, "{line}"))
+                {
+                    warn!(
+                        "Failed to write executor batch metrics to {}: {e}",
+                        batch_metrics_path.display()
+                    );
+                } else {
+                    info!(
+                        "Wrote executor batch metrics for batch {} to {}",
+                        batch_id,
+                        batch_metrics_path.display()
+                    );
+                }
+            }
+            Err(e) => warn!("Failed to serialize executor batch metrics for batch {batch_id}: {e}"),
         }
 
         let metrics_clone = self.metrics.clone();
@@ -280,6 +280,23 @@ impl RollupService for ExecutorGrpcService {
                 }
             }
         });
+
+        let enriched = build_enriched_payload(payload, &trace, artifacts.da_commitment, artifacts.proof);
+
+        self.tx.send(enriched).map_err(|e| {
+            Status::unavailable(format!("no stream subscribers available to receive batch: {e}"))
+        })?;
+
+        append_lifecycle(
+            &self.trace_root,
+            &trace,
+            TraceLifecycleStatus::Published,
+            Some(&persisted.trace_path),
+            Some(&persisted.sha256_hex),
+        )
+        .map_err(|e| Status::internal(format!("trace lifecycle(published) failure: {e}")))?;
+
+        info!("Executed and published batch {batch_id} with {proved_txs} transactions (trace_id={})", trace.trace_id);
 
         Ok(Response::new(PublishBatchResponse {
             accepted: true,

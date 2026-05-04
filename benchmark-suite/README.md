@@ -167,6 +167,7 @@ tx_log_<run_id>.csv
 sequencer_batch_metrics.jsonl
 executor_batch_metrics.jsonl
 submitter_metrics.json
+diagnostics/
 ```
 
 The workload files come from the Python generator. The component JSONL files
@@ -177,6 +178,20 @@ sequencer_batch_metrics.jsonl   # sealed batch metrics
 executor_batch_metrics.jsonl    # execution/proof/state-diff metrics
 submitter_metrics.json          # DA/L1 submission metrics, JSONL rows
 ```
+
+Each Docker run also writes diagnostics:
+
+```text
+diagnostics/after_start/compose_ps.txt
+diagnostics/final/sequencer.log
+diagnostics/final/executor.log
+diagnostics/final/submitter.log
+diagnostics/final/*_metrics_env.txt
+```
+
+Use these files first when a component metric is missing. They capture container
+health, recent service logs, and the `METRICS_ROOT`/`EXPERIMENT_ID` seen by each
+container.
 
 ## Checking Metrics
 

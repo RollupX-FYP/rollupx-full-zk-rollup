@@ -100,14 +100,25 @@ impl BatchOrchestrator {
         let metrics_root = std::env::var("METRICS_ROOT").unwrap_or_else(|_| "metrics".to_string());
         let path = std::path::PathBuf::from(metrics_root).join("sequencer_batch_metrics.jsonl");
         if let Some(parent) = path.parent() {
-            let _ = std::fs::create_dir_all(parent);
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                warn!("Failed to create sequencer metrics directory {}: {e}", parent.display());
+                return;
+            }
         }
-        if let Ok(line) = serde_json::to_string(row) {
-            let _ = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(path)
-                .and_then(|mut f| writeln!(f, "{line}"));
+        match serde_json::to_string(row) {
+            Ok(line) => {
+                if let Err(e) = std::fs::OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&path)
+                    .and_then(|mut f| writeln!(f, "{line}"))
+                {
+                    warn!("Failed to write sequencer batch metrics to {}: {e}", path.display());
+                } else {
+                    debug!("Wrote sequencer batch metrics to {}", path.display());
+                }
+            }
+            Err(e) => warn!("Failed to serialize sequencer batch metrics: {e}"),
         }
     }
 

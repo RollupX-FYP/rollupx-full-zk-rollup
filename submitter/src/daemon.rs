@@ -22,6 +22,8 @@ const BLOB_SIZE_BYTES: usize = 131_072;
 
 #[derive(Serialize)]
 struct SubmitterMetrics {
+    submission_status: String,
+    error: Option<String>,
     experiment_id: String,
     batch_id: String,
     tx_hash: String,
@@ -41,6 +43,39 @@ struct SubmitterMetrics {
     blob_utilization: f64,
     l1_gas_used: Option<u64>,
     fee_proxy_wei: String,
+}
+
+fn write_submitter_metrics(metrics: &SubmitterMetrics) {
+    let metrics_root = std::env::var("METRICS_ROOT").unwrap_or_else(|_| "metrics".to_string());
+    let metrics_path = std::path::Path::new(&metrics_root).join("submitter_metrics.json");
+
+    if let Some(parent) = metrics_path.parent() {
+        if let Err(e) = std::fs::create_dir_all(parent) {
+            warn!("Failed to create submitter metrics directory {}: {}", parent.display(), e);
+            return;
+        }
+    }
+
+    match serde_json::to_string(metrics) {
+        Ok(json) => {
+            if let Err(e) = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&metrics_path)
+                .and_then(|mut f| writeln!(f, "{}", json))
+            {
+                warn!("Failed to write submitter metrics to {}: {}", metrics_path.display(), e);
+            } else {
+                info!(
+                    "Wrote submitter metrics for batch {} with status {} to {}",
+                    metrics.batch_id,
+                    metrics.submission_status,
+                    metrics_path.display()
+                );
+            }
+        }
+        Err(e) => warn!("Failed to serialize submitter metrics for batch {}: {}", metrics.batch_id, e),
+    }
 }
 
 fn parse_hex_u128(s: &str) -> Option<u128> {
@@ -427,6 +462,8 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
 
                     // Save Metrics (Simulated)
                     let metrics = SubmitterMetrics {
+                        submission_status: "offchain_simulated".to_string(),
+                        error: None,
                         experiment_id: std::env::var("EXPERIMENT_ID").unwrap_or_else(|_| "default_experiment".to_string()),
                         batch_id: fetched.batch_id.clone(),
                         tx_hash: "0x_offchain_simulated".to_string(),
@@ -448,20 +485,7 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                         fee_proxy_wei: fee_proxy_wei.to_string(),
                     };
 
-                    if let Ok(json) = serde_json::to_string(&metrics) {
-                         let metrics_root = std::env::var("METRICS_ROOT").unwrap_or_else(|_| "metrics".to_string());
-                         let metrics_path = std::path::Path::new(&metrics_root).join("submitter_metrics.json");
-                         
-                         if let Some(parent) = metrics_path.parent() {
-                             let _ = std::fs::create_dir_all(parent);
-                         }
-
-                         let _ = std::fs::OpenOptions::new()
-                            .create(true)
-                            .append(true)
-                            .open(metrics_path)
-                            .and_then(|mut f| writeln!(f, "{}", json));
-                    }
+                    write_submitter_metrics(&metrics);
                     
                     if let Ok(Some(record)) = outbox.get_record(&fetched.batch_id) {
                         if let Some(data_json) = record.batch_data {
@@ -554,6 +578,8 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
 
                         // Save Metrics
                         let metrics = SubmitterMetrics {
+                            submission_status: "submitted".to_string(),
+                            error: None,
                             experiment_id: std::env::var("EXPERIMENT_ID").unwrap_or_else(|_| "default_experiment".to_string()),
                             batch_id: fetched.batch_id.clone(),
                             tx_hash: result.tx_hash.clone(),
@@ -586,21 +612,7 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                             fee_proxy_wei: fee_proxy_wei.to_string(),
                         };
 
-                        if let Ok(json) = serde_json::to_string(&metrics) {
-                             // Append to a metrics file
-                             let metrics_root = std::env::var("METRICS_ROOT").unwrap_or_else(|_| "metrics".to_string());
-                             let metrics_path = std::path::Path::new(&metrics_root).join("submitter_metrics.json");
-                             
-                             if let Some(parent) = metrics_path.parent() {
-                                 let _ = std::fs::create_dir_all(parent);
-                             }
-
-                             let _ = std::fs::OpenOptions::new()
-                                .create(true)
-                                .append(true)
-                                .open(metrics_path)
-                                .and_then(|mut f| writeln!(f, "{}", json));
-                        }
+                        write_submitter_metrics(&metrics);
                         
                         if let Ok(Some(record)) = outbox.get_record(&fetched.batch_id) {
                             if let Some(data_json) = record.batch_data {
@@ -653,6 +665,31 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                     }
                     Err(e) => {
                         error!("Failed to submit batch: {}", e);
+                        let latency = start_submit.elapsed();
+                        let metrics = SubmitterMetrics {
+                            submission_status: "submit_failed".to_string(),
+                            error: Some(e.to_string()),
+                            experiment_id: std::env::var("EXPERIMENT_ID").unwrap_or_else(|_| "default_experiment".to_string()),
+                            batch_id: fetched.batch_id.clone(),
+                            tx_hash: String::new(),
+                            submission_latency_ms: latency.as_millis() as u64,
+                            l2_l1_latency_ms: 0,
+                            l1_block_number: 0,
+                            confirmation_blocks: 0,
+                            da_mode: format!("{:?}", cfg.da.mode),
+                            proof_metadata_hash: "submit_failed".to_string(),
+                            tx_count,
+                            batch_data_bytes,
+                            proof_bytes: proof_bytes.len(),
+                            compressed_bytes: None,
+                            compression_time_ms: None,
+                            compression_ratio: None,
+                            blob_count: 0,
+                            blob_utilization: 0.0,
+                            l1_gas_used: None,
+                            fee_proxy_wei: fee_proxy_wei.to_string(),
+                        };
+                        write_submitter_metrics(&metrics);
                     }
                 }
             }

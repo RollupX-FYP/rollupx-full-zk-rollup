@@ -108,6 +108,7 @@ restart_docker_stack_for_run() {
         fi
     )
     bash "$(dirname "$0")/wait_for_sequencer.sh" "$SEQ_HOST" "$SEQ_PORT" 60
+    collect_docker_diagnostics "after_start"
 }
 
 copy_component_metrics() {
@@ -141,6 +142,52 @@ component_metrics_size() {
         fi
     done
     echo "$total"
+}
+
+summarize_component_metrics() {
+    local missing=0
+    local src
+    echo "[metrics] component metric files:"
+    for src in \
+        "${METRICS_ROOT}/sequencer_batch_metrics.jsonl" \
+        "${METRICS_ROOT}/executor_batch_metrics.jsonl" \
+        "${METRICS_ROOT}/submitter_metrics.json"; do
+        if [[ -f "$src" ]]; then
+            echo "  [OK] $(basename "$src") ($(wc -l < "$src") rows, $(wc -c < "$src") bytes)"
+        else
+            echo "  [MISS] $(basename "$src")"
+            missing=$((missing + 1))
+        fi
+    done
+    if [[ "$missing" -gt 0 ]]; then
+        echo "[metrics] WARNING: ${missing} component metric file(s) missing; inspect docker compose logs for executor/submitter pipeline errors."
+    fi
+}
+
+collect_docker_diagnostics() {
+    local phase="${1:-final}"
+    local metrics_abs
+    metrics_abs="$(cd "$METRICS_ROOT" && pwd)"
+    local diag_dir="${metrics_abs}/diagnostics/${phase}"
+    mkdir -p "$diag_dir"
+
+    if ! command -v docker >/dev/null 2>&1; then
+        echo "[diagnostics] docker not available; skipping docker diagnostics"
+        return
+    fi
+
+    echo "[diagnostics] collecting docker diagnostics (${phase}) -> ${diag_dir}"
+    (
+        cd "$ROOT_DIR"
+        docker compose --profile core ps > "${diag_dir}/compose_ps.txt" 2>&1 || true
+        docker compose --profile core logs --no-color --tail=500 sequencer > "${diag_dir}/sequencer.log" 2>&1 || true
+        docker compose --profile core logs --no-color --tail=500 executor > "${diag_dir}/executor.log" 2>&1 || true
+        docker compose --profile core logs --no-color --tail=500 submitter > "${diag_dir}/submitter.log" 2>&1 || true
+        docker compose --profile core logs --no-color --tail=300 contracts-deployer > "${diag_dir}/contracts-deployer.log" 2>&1 || true
+        docker exec rollupx-full-zk-rollup-sequencer-1 sh -lc 'echo "METRICS_ROOT=$METRICS_ROOT"; echo "EXPERIMENT_ID=$EXPERIMENT_ID"; ls -lah /var/lib/rollupx/metrics' > "${diag_dir}/sequencer_metrics_env.txt" 2>&1 || true
+        docker exec rollupx-full-zk-rollup-executor-1 sh -lc 'echo "METRICS_ROOT=$METRICS_ROOT"; echo "EXPERIMENT_ID=$EXPERIMENT_ID"; ls -lah /var/lib/rollupx/metrics' > "${diag_dir}/executor_metrics_env.txt" 2>&1 || true
+        docker exec rollupx-full-zk-rollup-submitter-1 sh -lc 'echo "METRICS_ROOT=$METRICS_ROOT"; echo "EXPERIMENT_ID=$EXPERIMENT_ID"; ls -lah /var/lib/rollupx/metrics' > "${diag_dir}/submitter_metrics_env.txt" 2>&1 || true
+    )
 }
 
 # ── traps — always clean up sequencer ─────────────────────────────────────────
@@ -257,6 +304,10 @@ done
 # Copy component-level metrics from the legacy shared directory if a non-Docker run used it.
 if [[ "$USED_DOCKER_STACK" != "1" && "$SHARED_METRICS_DIR" != "$METRICS_ROOT" ]]; then
     copy_component_metrics
+fi
+summarize_component_metrics
+if [[ "$USED_DOCKER_STACK" == "1" ]]; then
+    collect_docker_diagnostics "final"
 fi
 
 # ── 7. Update timestamp_end in metadata ───────────────────────────────────────
