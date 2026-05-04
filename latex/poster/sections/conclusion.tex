@@ -1,10 +1,41 @@
 % --- LAYER 3: THE BOTTOM ANCHORS ---
-\headerbox{6. Conclusions}{name=conclusion,column=1,below=progress,span=2}{
+\headerbox{6. Dynamic Batching Model}{name=conclusion,column=1,below=arch,span=2}{
+\vspace{-2.4em}
 
-\begin{itemize}[leftmargin=1pt,itemsep=0.25em,topsep=0pt]
-    \item \textbf{Experimental Framework:} The prototype provides a controlled environment for studying how batching, sequencing, and DA choices shift throughput, latency, and cost trade-offs.
-    \item \textbf{Key Finding:} Preliminary synthetic benchmarks show that blob-based DA reduces cost per transaction compared to calldata, highlighting the impact of EIP-4844-style data posting.
-    \item \textbf{Future Work:} Integrate full cryptographic prover benchmarking, extend evaluation with trace-driven workloads, and explore decentralized sequencing.
-\end{itemize}
+\noindent\hspace*{-0.05\linewidth}%
+\includegraphics[width=1.1\linewidth]{poster/images/dynamic.png}
 
+\vspace{-2.65em}
+
+
+% \[
+% N^*=\arg\min_{N_{\min}\leq N\leq N_{\max}} U(N)
+% \]
+
+% \vspace{-0.6em}
+
+% \[
+% U(N)=Cost(N)+\gamma \cdot Latency(N)
+% \]
+
+% \vspace{-0.6em}
+
+% \[
+% Cost(N)=\frac{C_{\mathrm{fixed}}+\mathrm{BlobCost}(N)}{N}
+% \]
+
+% \vspace{-0.6em}
+
+% \[
+% Latency(N)=\frac{N}{2\lambda}+P(N)+T_{L1}
+% \]
+
+% \vspace{-0.5em}
+
+% \begin{itemize}[leftmargin=0.8em,itemsep=0.1em,topsep=0pt]
+%     \item Balances L1 cost, blob DA cost, waiting time, and proof delay.
+%     \item Captures blob step-costs when batches cross blob-size limits.
+%     \item Analytical model for benchmarking, not a production optimizer.
+% \end{itemize} 
 }
+

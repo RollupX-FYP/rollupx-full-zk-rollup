@@ -1,33 +1,56 @@
-\headerbox{7. Dynamic Batching Model}{name=dynamicbatch,column=0,below=background,span=1}{ 
-\small 
+\headerbox{7. Dynamic Batching Cost Model}{name=dynamicbatch,column=0,below=background,span=1}{ 
+\scriptsize
+
+\textbf{Goal:} choose the batch size that gives the best balance between
+\textbf{low cost} and \textbf{low latency}.
+
+\vspace{-0.5em}
 
 \[
 N^*=\arg\min_{N_{\min}\leq N\leq N_{\max}} U(N)
 \]
 
-\vspace{-0.6em}
+\vspace{-0.8em}
 
 \[
-U(N)=Cost(N)+\gamma \cdot Latency(N)
+\small
+U(N)=
+\underbrace{
+\frac{C_{\mathrm{fixed}}+
+F_{\mathrm{blob}}
+\left\lceil
+\frac{N b_{\mathrm{tx}}}{B_{\mathrm{blob}}}
+\right\rceil}{N}
+}_{\text{cost per tx}}
++
+\gamma
+\underbrace{
+\left(
+\frac{N}{2\lambda}+P(N)+T_{L1}
+\right)
+}_{\text{latency penalty}}
 \]
 
 \vspace{-0.6em}
 
-\[
-Cost(N)=\frac{C_{\mathrm{fixed}}+\mathrm{BlobCost}(N)}{N}
-\]
-
-\vspace{-0.6em}
-
-\[
-Latency(N)=\frac{N}{2\lambda}+P(N)+T_{L1}
-\]
+\begin{center}
+\begin{tabular}{ll}
+\textbf{$N$} & candidate batch size \\
+\textbf{$\lambda$} & transaction arrival rate \\
+\textbf{$P(N)$} & proof-delay model \\
+\textbf{$\gamma$} & latency importance factor \\
+\end{tabular}
+\end{center}
 
 \vspace{-0.5em}
 
-\begin{itemize}[leftmargin=0.8em,itemsep=0.1em,topsep=0pt]
-    \item Balances L1 cost, blob DA cost, waiting time, and proof delay.
-    \item Captures blob step-costs when batches cross blob-size limits.
-    \item Analytical model for benchmarking, not a production optimizer.
-\end{itemize} 
+\begin{itemize}[leftmargin=0.8em,itemsep=0.08em,topsep=0pt]
+    \item \textbf{Large batches:} lower cost per transaction, but higher waiting/proof delay.
+    \item \textbf{Small batches:} faster finality, but higher amortized L1 cost.
+    \item \textbf{Blob cost:} increases in steps when batch data crosses blob-size limits.
+\end{itemize}
+
+\vspace{-0.4em}
+
+\textbf{Key insight:} the model finds the operating point where batching is cheap enough without making users wait too long.
 }
