@@ -54,12 +54,14 @@ RUN mkdir -p /var/lib/rollupx/executor/traces \
 
 COPY --from=builder /app/executor/target/release/zksync_state_machine /usr/local/bin/zksync_state_machine
 COPY --from=builder /app/risc0_prover/target/release/rollup_host /usr/local/bin/rollup_host
+COPY --from=builder /root/.risc0 /root/.risc0
 COPY executor/docker-entrypoint.sh /usr/local/bin/executor-entrypoint
 
 RUN chmod +x /usr/local/bin/executor-entrypoint
 
 ENV PROVER_BACKEND=risc0
 ENV RISC0_HOST_BIN=/usr/local/bin/rollup_host
+ENV PATH="/root/.risc0/bin:${PATH}"
 ENV EXECUTOR_GRPC_ADDR=0.0.0.0:50051
 ENV TRACE_ROOT=/var/lib/rollupx/executor/traces
 ENV STATE_DB_PATH=/var/lib/rollupx/executor/state_db
