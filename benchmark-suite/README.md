@@ -47,6 +47,10 @@ Common presets:
 # 1 repeat, 30s measured run, 5s warmup, batch-size sweep.
 bash benchmark-suite/scripts/run_matrix.sh --phase smoke
 
+# 3 repeats, 90s measured run, 5s warmup, batch-size sweep.
+# Recommended first feasibility pass: much faster, same batch-size variables.
+bash benchmark-suite/scripts/run_matrix.sh --phase feasibility-lite
+
 # 5 repeats, 120s measured run, 15s warmup, batch-size sweep.
 bash benchmark-suite/scripts/run_matrix.sh --phase feasibility
 
@@ -88,6 +92,7 @@ Compatibility wrappers:
 
 ```bash
 bash benchmark-suite/scripts/run_smoke_batchsize.sh
+bash benchmark-suite/scripts/run_feasibility_lite_batchsize.sh
 bash benchmark-suite/scripts/run_feasibility_batchsize.sh
 bash benchmark-suite/scripts/run_model_quality_batchsize.sh
 ```

@@ -12,6 +12,7 @@ Usage:
 
 Common presets:
   --phase smoke           1 repeat, 30s run, 5s warmup, batch-size sweep
+  --phase feasibility-lite 3 repeats, 90s run, 5s warmup, batch-size sweep
   --phase feasibility     5 repeats, 120s run, 15s warmup, batch-size sweep
   --phase model-quality   30 repeats, 120s run, 15s warmup, batch-size sweep
 
@@ -70,6 +71,12 @@ case "$PHASE" in
         FILTER="${FILTER:-batch_size}"
         REPEATS="${REPEATS:-1}"
         DURATION="${DURATION:-30}"
+        WARMUP="${WARMUP:-5}"
+        ;;
+    feasibility-lite)
+        FILTER="${FILTER:-batch_size}"
+        REPEATS="${REPEATS:-3}"
+        DURATION="${DURATION:-90}"
         WARMUP="${WARMUP:-5}"
         ;;
     feasibility)
