@@ -256,6 +256,20 @@ docker compose --profile core down -v
 docker compose --profile core build --no-cache sequencer executor submitter
 ```
 
+If executor logs show `Elf parse error: Could not read bytes in range [0x0, 0x10)`,
+the executor image is using a bad RISC0 host build. Rebuild the executor image
+from current sources:
+
+```bash
+docker compose --profile core down -v
+docker compose --profile core build --no-cache executor
+docker compose --profile core up -d
+docker compose --profile core logs --tail=50 executor
+```
+
+The executor startup log should print `PROVER_BACKEND=risc0` and a non-empty
+`/usr/local/bin/rollup_host`.
+
 If Python dependency errors mention `eth-account`:
 
 ```bash

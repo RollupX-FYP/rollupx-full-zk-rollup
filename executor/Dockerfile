@@ -26,8 +26,12 @@ RUN cargo +nightly-2024-08-01 build --release \
     -p zksync_state_machine \
     --ignore-rust-version
 
-RUN RISC0_SKIP_BUILD=1 cargo build --release \
-    --manifest-path risc0_prover/host/Cargo.toml
+# Build the RISC Zero host through the workspace so risc0-build compiles and
+# embeds a real guest ELF. Do not set RISC0_SKIP_BUILD here: an empty embedded
+# method image causes the runtime "Elf parse error" seen during proof generation.
+RUN cargo build --release \
+    --manifest-path risc0_prover/Cargo.toml \
+    -p rollup_host
 
 FROM public.ecr.aws/docker/library/debian:bookworm-slim
 WORKDIR /app

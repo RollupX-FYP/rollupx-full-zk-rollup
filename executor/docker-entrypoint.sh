@@ -11,4 +11,17 @@ if [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]; then
     exit 0
 fi
 
+echo "[executor-entrypoint] PROVER_BACKEND=${PROVER_BACKEND:-unset}"
+echo "[executor-entrypoint] RISC0_HOST_BIN=${RISC0_HOST_BIN:-unset}"
+if [ -n "${RISC0_GUEST_ELF:-}" ]; then
+    echo "[executor-entrypoint] RISC0_GUEST_ELF=${RISC0_GUEST_ELF}"
+fi
+if [ "${PROVER_BACKEND:-}" = "risc0" ]; then
+    if [ ! -x "${RISC0_HOST_BIN:-/usr/local/bin/rollup_host}" ]; then
+        echo "[executor-entrypoint] ERROR: RISC0 host binary is missing or not executable" >&2
+        exit 1
+    fi
+    ls -lh "${RISC0_HOST_BIN:-/usr/local/bin/rollup_host}"
+fi
+
 exec /usr/local/bin/zksync_state_machine
