@@ -23,7 +23,8 @@ export MAX_DURATION_S=${MAX_DURATION_S:-22}
 
 index=0
 for batch_size in $RUN_BATCH_SIZES; do
-  exp_id="$(printf 'exp_cc_%03d_batch_size_bs%03d_calldata_balanced_%stps_c%02d' "$index" "$batch_size" "$RATE_TPS_OVERRIDE" "$WORKLOAD_CONCURRENCY")"
+  tx_mix="${TX_MIX_OVERRIDE:-balanced}"
+  exp_id="$(printf 'exp_cc_%03d_batch_size_bs%03d_calldata_%s_%stps_c%02d' "$index" "$batch_size" "$tx_mix" "$RATE_TPS_OVERRIDE" "$WORKLOAD_CONCURRENCY")"
   target_txs=$((batch_size * TARGET_FULL_BATCHES + batch_size / 5))
   duration_s=$(((target_txs + RATE_TPS_OVERRIDE - 1) / RATE_TPS_OVERRIDE))
   if [[ "$duration_s" -lt "$MIN_DURATION_S" ]]; then
@@ -42,7 +43,7 @@ for batch_size in $RUN_BATCH_SIZES; do
   export RATE_TPS="$RATE_TPS_OVERRIDE"
   export DURATION_S="${DURATION_S_OVERRIDE:-$duration_s}"
   export WARMUP_S="$WARMUP_S_OVERRIDE"
-  export TX_MIX="${TX_MIX_OVERRIDE:-balanced}"
+  export TX_MIX="$tx_mix"
   export SEED="${SEED_OVERRIDE:-42}"
   export WORKLOAD_TARGET_TXS="${WORKLOAD_TARGET_TXS_OVERRIDE:-$((batch_size * TARGET_FULL_BATCHES))}"
   export EXPERIMENT_NAME="$exp_id"
