@@ -21,6 +21,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
 try:
@@ -57,6 +58,7 @@ class PoissonWorkloadGenerator:
         tx_mix: tuple[float, float, float],
         host: str = "localhost",
         port: int = 3000,
+        concurrency: int = 1,
     ):
         self.rate          = rate
         self.duration      = duration
@@ -67,6 +69,7 @@ class PoissonWorkloadGenerator:
         self.prover_backend= prover_backend
         self.tx_mix        = tx_mix
         self.base_url      = f"http://{host}:{port}"
+        self.concurrency   = max(1, concurrency)
 
         # seeded RNG — separate instance for type sampling vs inter-arrival
         self.rng_arrival = random.Random(seed)
@@ -88,6 +91,7 @@ class PoissonWorkloadGenerator:
         print(f"  rate={self.rate} tx/s  warmup={self.warmup}s  duration={self.duration}s")
         print(f"  seed={self.seed}  mix=A{self.tx_mix[0]:.0%}/B{self.tx_mix[1]:.0%}/C{self.tx_mix[2]:.0%}")
         print(f"  target={self.base_url}")
+        print(f"  sender_concurrency={self.concurrency}")
 
         nonce = 0
 
@@ -127,6 +131,14 @@ class PoissonWorkloadGenerator:
         record_to: list,
         label: str,
     ) -> int:
+        if self.concurrency > 1:
+            return self._send_phase_concurrent(
+                phase_duration=phase_duration,
+                start_nonce=start_nonce,
+                record_to=record_to,
+                label=label,
+            )
+
         end_time = time.time() + phase_duration
         nonce = start_nonce
         tx_count = 0
@@ -167,6 +179,65 @@ class PoissonWorkloadGenerator:
             print(f"\n[{label}] interrupted at tx #{tx_count}")
 
         return nonce
+
+    def _send_phase_concurrent(
+        self,
+        phase_duration: int,
+        start_nonce: int,
+        record_to: list,
+        label: str,
+    ) -> int:
+        end_time = time.time() + phase_duration
+        nonce = start_nonce
+        tx_count = 0
+        futures = []
+
+        with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
+            try:
+                next_send = time.time()
+                while time.time() < end_time:
+                    wait = self.rng_arrival.expovariate(self.rate)
+                    next_send += wait
+                    sleep_for = next_send - time.time()
+                    if sleep_for > 0:
+                        time.sleep(sleep_for)
+
+                    if time.time() >= end_time:
+                        break
+
+                    tx_type = self.rng_factory.choices(
+                        ["A", "B", "C"], weights=self.tx_mix, k=1
+                    )[0]
+                    tx = self.factory.make(tx_type, nonce)
+                    futures.append(executor.submit(self._post_tx_record, tx, nonce, tx_type))
+
+                    if tx_count % 100 == 0:
+                        print(f"  [{label}] scheduled {tx_count} txs ...")
+
+                    nonce += 1
+                    tx_count += 1
+
+            except KeyboardInterrupt:
+                print(f"\n[{label}] interrupted at tx #{tx_count}")
+
+            for future in as_completed(futures):
+                record_to.append(future.result())
+
+        record_to.sort(key=lambda item: item["tx_id"])
+        return nonce
+
+    def _post_tx_record(self, tx: dict, nonce: int, tx_type: str) -> dict:
+        ts_start = time.time()
+        status, err = self._post_tx(tx)
+        latency = time.time() - ts_start
+        return {
+            "tx_id":    nonce,
+            "tx_type":  tx_type,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "latency":  latency,
+            "status":   status,
+            "error":    err,
+        }
 
     def _post_tx(self, tx: dict) -> tuple[str, str | None]:
         url  = f"{self.base_url}/tx"
@@ -287,6 +358,8 @@ def parse_args():
                    help="Warm-up seconds (traffic sent but not recorded)")
     p.add_argument("--run_id", type=str,   default=None,
                    help="Unique run identifier (default: <exp_id>_r00)")
+    p.add_argument("--concurrency", type=int, default=1,
+                   help="Number of concurrent HTTP sender workers")
 
     # tx mix
     mix_group = p.add_argument_group("Transaction mix")
@@ -324,6 +397,7 @@ def main():
         tx_mix        = tx_mix,
         host          = args.host,
         port          = args.port,
+        concurrency   = args.concurrency,
     )
     gen.run()
 

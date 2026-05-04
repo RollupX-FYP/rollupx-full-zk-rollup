@@ -11,7 +11,8 @@ cd "$ROOT_DIR/benchmark-suite"
 
 export REPEATS_OVERRIDE=${REPEATS_OVERRIDE:-1}
 export WARMUP_S_OVERRIDE=${WARMUP_S_OVERRIDE:-0}
-export RATE_TPS_OVERRIDE=${RATE_TPS_OVERRIDE:-120}
+export RATE_TPS_OVERRIDE=${RATE_TPS_OVERRIDE:-250}
+export WORKLOAD_CONCURRENCY=${WORKLOAD_CONCURRENCY:-64}
 export TIMEOUT_MS_OVERRIDE=${TIMEOUT_MS_OVERRIDE:-10000}
 export SUBMITTER_WAIT_MAX=${SUBMITTER_WAIT_MAX:-60}
 export DOCKER_UP_BUILD=${DOCKER_UP_BUILD:-0}
@@ -22,7 +23,7 @@ export MAX_DURATION_S=${MAX_DURATION_S:-22}
 
 index=0
 for batch_size in $RUN_BATCH_SIZES; do
-  exp_id="$(printf 'exp_cc_%03d_batch_size_bs%03d_calldata_balanced_%stps' "$index" "$batch_size" "$RATE_TPS_OVERRIDE")"
+  exp_id="$(printf 'exp_cc_%03d_batch_size_bs%03d_calldata_balanced_%stps_c%02d' "$index" "$batch_size" "$RATE_TPS_OVERRIDE" "$WORKLOAD_CONCURRENCY")"
   target_txs=$((batch_size * TARGET_FULL_BATCHES + batch_size / 5))
   duration_s=$(((target_txs + RATE_TPS_OVERRIDE - 1) / RATE_TPS_OVERRIDE))
   if [[ "$duration_s" -lt "$MIN_DURATION_S" ]]; then
