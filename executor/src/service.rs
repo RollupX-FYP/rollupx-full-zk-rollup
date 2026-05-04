@@ -117,7 +117,11 @@ impl RollupService for ExecutorGrpcService {
     ) -> Result<Response<PublishBatchResponse>, Status> {
         let payload = request.into_inner();
         let batch_id = payload.batch_id.clone();
-        let experiment_id = payload.experiment_id.clone();
+        let experiment_id = if payload.experiment_id.is_empty() {
+            std::env::var("EXPERIMENT_ID").unwrap_or_else(|_| "default".to_string())
+        } else {
+            payload.experiment_id.clone()
+        };
 
         let parsed_txs: Vec<SequencerTransaction> = serde_json::from_slice(&payload.batch_data)
             .map_err(|e| Status::invalid_argument(format!("invalid batch_data JSON: {e}")))?;
@@ -200,84 +204,82 @@ impl RollupService for ExecutorGrpcService {
 
         info!("Executed and published batch {batch_id} with {proved_txs} transactions (trace_id={})", trace.trace_id);
 
-        if !experiment_id.is_empty() {
-            let batch_row = ExecutorBatchMetricsRow {
-                experiment_id: experiment_id.clone(),
-                batch_id: batch_id.clone(),
-                trace_id: trace.trace_id.clone(),
-                tx_count: proved_txs,
-                batch_data_bytes: batch_data_len,
-                state_diff_count: trace.state_diffs.len(),
-                state_diff_bytes,
-                unique_touched_accounts,
-                repeated_touched_accounts,
-                total_gas_limit,
-                total_gas_price_wei,
-                fee_proxy_wei,
-                execution_time_ms: execution_ms,
-                proof_time_ms: proof_ms,
-                proof_bytes,
-                journal_bytes,
-            };
-            let metrics_root = std::env::var("METRICS_ROOT").unwrap_or_else(|_| "metrics".to_string());
-            let batch_metrics_path = std::path::PathBuf::from(&metrics_root).join("executor_batch_metrics.jsonl");
-            if let Some(parent) = batch_metrics_path.parent() {
-                let _ = std::fs::create_dir_all(parent);
-            }
-            if let Ok(line) = serde_json::to_string(&batch_row) {
-                let _ = std::fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(batch_metrics_path)
-                    .and_then(|mut f| writeln!(f, "{line}"));
-            }
-
-            let metrics_clone = self.metrics.clone();
-            let prover_backend = backend_label(&self.prover_backend).to_string();
-            let trace_id = trace.trace_id.clone();
-            tokio::spawn(async move {
-                let mut metrics_guard = metrics_clone.lock().await;
-                let metrics = metrics_guard
-                    .entry(experiment_id.clone())
-                    .or_insert_with(|| ExecutorMetrics {
-                        mode: "grpc_executor".to_string(),
-                        execution_performed: true,
-                        prover_backend,
-                        batch_count: 0,
-                        received_tx_count: 0,
-                        forwarded_batch_count: 0,
-                        duration_s: 0,
-                        execution_times_ms: vec![],
-                        proof_generation_times_ms: vec![],
-                        total_proved_txs: 0,
-                        trace_id,
-                        start_time: Instant::now(),
-                    });
-
-                metrics.batch_count += 1;
-                metrics.received_tx_count += proved_txs;
-                metrics.forwarded_batch_count += 1;
-                metrics.total_proved_txs += proved_txs;
-                metrics.execution_times_ms.push(execution_ms);
-                metrics.proof_generation_times_ms.push(proof_ms);
-                metrics.duration_s = metrics.start_time.elapsed().as_secs();
-
-                let metrics_root = std::env::var("METRICS_ROOT").unwrap_or_else(|_| "metrics".to_string());
-                let filename = format!("executor_{}.json", experiment_id);
-                let filepath = std::path::PathBuf::from(&metrics_root).join(filename);
-
-                if let Err(e) = tokio::fs::create_dir_all(&metrics_root).await {
-                    error!("Failed to create metrics directory {}: {}", metrics_root, e);
-                    return;
-                }
-
-                if let Ok(json) = serde_json::to_string_pretty(metrics) {
-                    if let Err(e) = tokio::fs::write(&filepath, json).await {
-                        error!("Failed to write executor metrics to {}: {}", filepath.display(), e);
-                    }
-                }
-            });
+        let batch_row = ExecutorBatchMetricsRow {
+            experiment_id: experiment_id.clone(),
+            batch_id: batch_id.clone(),
+            trace_id: trace.trace_id.clone(),
+            tx_count: proved_txs,
+            batch_data_bytes: batch_data_len,
+            state_diff_count: trace.state_diffs.len(),
+            state_diff_bytes,
+            unique_touched_accounts,
+            repeated_touched_accounts,
+            total_gas_limit,
+            total_gas_price_wei,
+            fee_proxy_wei,
+            execution_time_ms: execution_ms,
+            proof_time_ms: proof_ms,
+            proof_bytes,
+            journal_bytes,
+        };
+        let metrics_root = std::env::var("METRICS_ROOT").unwrap_or_else(|_| "metrics".to_string());
+        let batch_metrics_path = std::path::PathBuf::from(&metrics_root).join("executor_batch_metrics.jsonl");
+        if let Some(parent) = batch_metrics_path.parent() {
+            let _ = std::fs::create_dir_all(parent);
         }
+        if let Ok(line) = serde_json::to_string(&batch_row) {
+            let _ = std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(batch_metrics_path)
+                .and_then(|mut f| writeln!(f, "{line}"));
+        }
+
+        let metrics_clone = self.metrics.clone();
+        let prover_backend = backend_label(&self.prover_backend).to_string();
+        let trace_id = trace.trace_id.clone();
+        tokio::spawn(async move {
+            let mut metrics_guard = metrics_clone.lock().await;
+            let metrics = metrics_guard
+                .entry(experiment_id.clone())
+                .or_insert_with(|| ExecutorMetrics {
+                    mode: "grpc_executor".to_string(),
+                    execution_performed: true,
+                    prover_backend,
+                    batch_count: 0,
+                    received_tx_count: 0,
+                    forwarded_batch_count: 0,
+                    duration_s: 0,
+                    execution_times_ms: vec![],
+                    proof_generation_times_ms: vec![],
+                    total_proved_txs: 0,
+                    trace_id,
+                    start_time: Instant::now(),
+                });
+
+            metrics.batch_count += 1;
+            metrics.received_tx_count += proved_txs;
+            metrics.forwarded_batch_count += 1;
+            metrics.total_proved_txs += proved_txs;
+            metrics.execution_times_ms.push(execution_ms);
+            metrics.proof_generation_times_ms.push(proof_ms);
+            metrics.duration_s = metrics.start_time.elapsed().as_secs();
+
+            let metrics_root = std::env::var("METRICS_ROOT").unwrap_or_else(|_| "metrics".to_string());
+            let filename = format!("executor_{}.json", experiment_id);
+            let filepath = std::path::PathBuf::from(&metrics_root).join(filename);
+
+            if let Err(e) = tokio::fs::create_dir_all(&metrics_root).await {
+                error!("Failed to create metrics directory {}: {}", metrics_root, e);
+                return;
+            }
+
+            if let Ok(json) = serde_json::to_string_pretty(metrics) {
+                if let Err(e) = tokio::fs::write(&filepath, json).await {
+                    error!("Failed to write executor metrics to {}: {}", filepath.display(), e);
+                }
+            }
+        });
 
         Ok(Response::new(PublishBatchResponse {
             accepted: true,

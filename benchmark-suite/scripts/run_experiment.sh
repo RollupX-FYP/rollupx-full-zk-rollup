@@ -152,9 +152,9 @@ python3 workload/poisson_generator.py \
     --port          "$SEQ_PORT"
 
 # ── 6. Wait for submitter to flush final batch ────────────────────────────────
-# Poll for submitter idle: check that submitter_metrics.json stops growing.
+# Poll for submitter idle: check shared submitter_metrics.json stops growing.
 echo "[wait] waiting for submitter to flush ..."
-SUBMITTER_METRICS="${METRICS_ROOT}/submitter_metrics.json"
+SUBMITTER_METRICS="${SHARED_METRICS_DIR}/submitter_metrics.json"
 PREV_SIZE=0
 STABLE_COUNT=0
 
