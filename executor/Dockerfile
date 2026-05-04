@@ -1,5 +1,6 @@
 FROM public.ecr.aws/docker/library/rust:1.90-bookworm AS builder
 WORKDIR /app
+ARG RISC0_R0VM_VERSION=2.3.1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
@@ -19,6 +20,7 @@ RUN rustup toolchain install nightly-2024-08-01 && \
 RUN curl -L https://risczero.com/install | bash
 ENV PATH="/root/.risc0/bin:${PATH}"
 RUN rzup install
+RUN rzup install r0vm "${RISC0_R0VM_VERSION}"
 
 COPY executor ./executor
 COPY proto ./proto
@@ -40,6 +42,7 @@ RUN cargo build --release \
 
 FROM public.ecr.aws/docker/library/debian:bookworm-slim
 WORKDIR /app
+ARG RISC0_R0VM_VERSION=2.3.1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
@@ -58,7 +61,7 @@ COPY --from=builder /root/.risc0 /root/.risc0
 COPY executor/docker-entrypoint.sh /usr/local/bin/executor-entrypoint
 
 RUN set -eux; \
-    risc0_ext="$(find /root/.risc0/extensions -maxdepth 1 -type d -name '*cargo-risczero*' | head -n1)"; \
+    risc0_ext="$(find /root/.risc0/extensions -maxdepth 1 -type d -name "v${RISC0_R0VM_VERSION}-cargo-risczero*" | head -n1)"; \
     test -n "$risc0_ext"; \
     ln -sf "$risc0_ext/r0vm" /root/.risc0/bin/r0vm; \
     ln -sf "$risc0_ext/cargo-risczero" /root/.risc0/bin/cargo-risczero; \
