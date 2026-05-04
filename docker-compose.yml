@@ -158,7 +158,7 @@ services:
       test:
         [
           "CMD-SHELL",
-          'curl -fsS -H ''Content-Type: application/json'' -d ''{"jsonrpc":"2.0","method":"sendTransaction","params":{},"id":1}'' http://127.0.0.1:3000/ >/dev/null',
+          "curl -fsS http://127.0.0.1:3000/health >/dev/null",
         ]
       interval: 10s
       timeout: 3s

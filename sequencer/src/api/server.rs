@@ -28,7 +28,7 @@ use crate::{
     SoftConfirmation,
     ConfirmationStatus,
 };
-use axum::{Router, routing::post, Json, extract::State};
+use axum::{Router, routing::{get, post}, Json, extract::State};
 use ethers::types::U256;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -104,6 +104,7 @@ impl Server {
         // Create the router with separate JSON-RPC and REST endpoints
         let app = Router::new()
             .route("/", post(handle_rpc))
+            .route("/health", get(handle_health))
             .route("/tx", post(handle_rest_tx))
             .with_state(self.state);
 
@@ -187,6 +188,12 @@ async fn handle_rpc(
     // Route to the appropriate handler based on the method name
     match request.method.as_str() {
         "sendTransaction" => handle_send_transaction(state, request).await,
+        "rollup_health" => Json(JsonRpcResponse {
+            jsonrpc: "2.0".to_string(),
+            result: Some(serde_json::json!({"status": "ok"})),
+            error: None,
+            id: request.id,
+        }),
         // Return "Method not found" error for unsupported methods
         _ => Json(JsonRpcResponse {
             jsonrpc: "2.0".to_string(),
@@ -198,6 +205,10 @@ async fn handle_rpc(
             id: request.id,
         }),
     }
+}
+
+async fn handle_health() -> Json<Value> {
+    Json(serde_json::json!({"status": "ok"}))
 }
 
 /// Handles the "sendTransaction" RPC method
