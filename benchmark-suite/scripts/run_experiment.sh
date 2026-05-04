@@ -19,6 +19,7 @@ set -euo pipefail
 EXP_ID=${1:?Usage: run_experiment.sh <experiment_id> <repeat_index>}
 REPEAT=${2:?Usage: run_experiment.sh <experiment_id> <repeat_index>}
 RUN_ID="${EXP_ID}_r$(printf '%02d' "$REPEAT")"
+ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 
 # ── defaults for env vars (override via environment) ──────────────────────────
 export MAX_BATCH_SIZE=${MAX_BATCH_SIZE:-50}
@@ -39,17 +40,75 @@ export BRIDGE_ADDRESS=${BRIDGE_ADDRESS:-0x00000000000000000000000000000000000000
 export START_BLOCK=${START_BLOCK:-0}
 export RUN_ID="$RUN_ID"
 export EXPERIMENT_ID="$EXP_ID"
+export EXPERIMENT_NAME=${EXPERIMENT_NAME:-$EXP_ID}
 export VALIDITY_ENVIRONMENT=${VALIDITY_ENVIRONMENT:-local_hardhat}
 export VALIDITY_NETWORK_MODEL=${VALIDITY_NETWORK_MODEL:-single_node_local}
 export VALIDITY_EXECUTION_SCOPE=${VALIDITY_EXECUTION_SCOPE:-transfer_centric_stf}
 export VALIDITY_PROOF_MODE_POLICY=${VALIDITY_PROOF_MODE_POLICY:-groth16_only}
 export VALIDITY_COST_INTERPRETATION=${VALIDITY_COST_INTERPRETATION:-comparative_not_market_representative}
 export CLEAN_STATE_BEFORE_RUN=${CLEAN_STATE_BEFORE_RUN:-1}
+export USE_DOCKER_STACK=${USE_DOCKER_STACK:-1}
 
 METRICS_ROOT="${METRICS_ROOT:-metrics}/${EXP_ID}/${RUN_ID}"
 export METRICS_ROOT
 SHARED_METRICS_DIR="${SHARED_METRICS_DIR:-metrics/latest}"
 export SHARED_METRICS_DIR
+
+should_use_docker_stack() {
+    if [[ "$USE_DOCKER_STACK" == "1" || "$USE_DOCKER_STACK" == "true" ]]; then
+        return 0
+    fi
+    if [[ "$USE_DOCKER_STACK" == "0" || "$USE_DOCKER_STACK" == "false" ]]; then
+        return 1
+    fi
+    [[ -f "${ROOT_DIR}/docker-compose.yml" ]] && command -v docker >/dev/null 2>&1
+}
+
+restart_docker_stack_for_run() {
+    local metrics_abs
+    metrics_abs="$(cd "$(dirname "$METRICS_ROOT")" && pwd)/$(basename "$METRICS_ROOT")"
+
+    echo "[docker] recreating core stack for ${RUN_ID}"
+    echo "[docker] metrics dir: ${metrics_abs}"
+    (
+        cd "$ROOT_DIR"
+        METRICS_DIR="$metrics_abs" \
+        EXPERIMENT_ID="$EXP_ID" \
+        EXPERIMENT_NAME="$EXPERIMENT_NAME" \
+        SEQUENCER_BATCH_MAX_SIZE="$MAX_BATCH_SIZE" \
+        SEQUENCER_BATCH_TIMEOUT_MS="$TIMEOUT_MS" \
+        SEQUENCER_BATCH_MIN_SIZE="$MIN_BATCH_SIZE" \
+        SEQUENCER_POLICY="$POLICY" \
+        SUBMITTER_DA_MODE="$DA_MODE" \
+        SUBMITTER_PROOF_BACKEND="$PROVER" \
+        docker compose --profile core down -v --remove-orphans
+
+        if [[ "${DOCKER_UP_BUILD:-1}" == "1" || "${DOCKER_UP_BUILD:-1}" == "true" ]]; then
+            METRICS_DIR="$metrics_abs" \
+            EXPERIMENT_ID="$EXP_ID" \
+            EXPERIMENT_NAME="$EXPERIMENT_NAME" \
+            SEQUENCER_BATCH_MAX_SIZE="$MAX_BATCH_SIZE" \
+            SEQUENCER_BATCH_TIMEOUT_MS="$TIMEOUT_MS" \
+            SEQUENCER_BATCH_MIN_SIZE="$MIN_BATCH_SIZE" \
+            SEQUENCER_POLICY="$POLICY" \
+            SUBMITTER_DA_MODE="$DA_MODE" \
+            SUBMITTER_PROOF_BACKEND="$PROVER" \
+            docker compose --profile core up -d --force-recreate --build
+        else
+            METRICS_DIR="$metrics_abs" \
+            EXPERIMENT_ID="$EXP_ID" \
+            EXPERIMENT_NAME="$EXPERIMENT_NAME" \
+            SEQUENCER_BATCH_MAX_SIZE="$MAX_BATCH_SIZE" \
+            SEQUENCER_BATCH_TIMEOUT_MS="$TIMEOUT_MS" \
+            SEQUENCER_BATCH_MIN_SIZE="$MIN_BATCH_SIZE" \
+            SEQUENCER_POLICY="$POLICY" \
+            SUBMITTER_DA_MODE="$DA_MODE" \
+            SUBMITTER_PROOF_BACKEND="$PROVER" \
+            docker compose --profile core up -d --force-recreate
+        fi
+    )
+    bash "$(dirname "$0")/wait_for_sequencer.sh" "$SEQ_HOST" "$SEQ_PORT" 60
+}
 
 copy_component_metrics() {
     local copied=0
@@ -70,6 +129,20 @@ copy_component_metrics() {
     fi
 }
 
+component_metrics_size() {
+    local total=0
+    local src
+    for src in \
+        "${METRICS_ROOT}/sequencer_batch_metrics.jsonl" \
+        "${METRICS_ROOT}/executor_batch_metrics.jsonl" \
+        "${METRICS_ROOT}/submitter_metrics.json"; do
+        if [[ -f "$src" ]]; then
+            total=$((total + $(wc -c < "$src")))
+        fi
+    done
+    echo "$total"
+}
+
 # ── traps — always clean up sequencer ─────────────────────────────────────────
 SEQ_PID=""
 cleanup() {
@@ -87,8 +160,11 @@ mkdir -p "$SHARED_METRICS_DIR"
 LOGFILE="$METRICS_ROOT/run.log"
 exec > >(tee -a "$LOGFILE") 2>&1
 
-# reset shared component metric files so each run gets isolated snapshots
-rm -f "${SHARED_METRICS_DIR}/sequencer_batch_metrics.jsonl" \
+# reset component metric files so each run gets isolated snapshots
+rm -f "${METRICS_ROOT}/sequencer_batch_metrics.jsonl" \
+      "${METRICS_ROOT}/executor_batch_metrics.jsonl" \
+      "${METRICS_ROOT}/submitter_metrics.json" \
+      "${SHARED_METRICS_DIR}/sequencer_batch_metrics.jsonl" \
       "${SHARED_METRICS_DIR}/executor_batch_metrics.jsonl" \
       "${SHARED_METRICS_DIR}/submitter_metrics.json"
 
@@ -100,6 +176,7 @@ fi
 echo "======================================================================"
 echo "  RUN: $RUN_ID"
 echo "  Exp: $EXP_ID  |  Repeat: $REPEAT  |  Seed: $SEED"
+echo "  Name: $EXPERIMENT_NAME"
 echo "  batch_size=$MAX_BATCH_SIZE  timeout=${TIMEOUT_MS}ms  policy=$POLICY"
 echo "  da=$DA_MODE  prover=$PROVER  rate=${RATE_TPS}tps  mix=$TX_MIX"
 echo "======================================================================"
@@ -119,8 +196,12 @@ fi
 # ── 4. (Re)start sequencer ────────────────────────────────────────────────────
 # Adjust SEQUENCER_BIN to your actual binary path.
 SEQUENCER_BIN=${SEQUENCER_BIN:-./target/release/sequencer}
+USED_DOCKER_STACK=0
 
-if [[ -x "$SEQUENCER_BIN" ]]; then
+if should_use_docker_stack; then
+    USED_DOCKER_STACK=1
+    restart_docker_stack_for_run
+elif [[ -x "$SEQUENCER_BIN" ]]; then
     echo "[sequencer] stopping any existing instance ..."
     pkill -f "$(basename "$SEQUENCER_BIN")" 2>/dev/null || true
     sleep 1
@@ -152,32 +233,31 @@ python3 workload/poisson_generator.py \
     --port          "$SEQ_PORT"
 
 # ── 6. Wait for submitter to flush final batch ────────────────────────────────
-# Poll for submitter idle: check shared submitter_metrics.json stops growing.
-echo "[wait] waiting for submitter to flush ..."
-SUBMITTER_METRICS="${SHARED_METRICS_DIR}/submitter_metrics.json"
+# Poll component metrics until they stop growing.
+echo "[wait] waiting for component metrics to flush ..."
 PREV_SIZE=0
 STABLE_COUNT=0
 
 SUBMITTER_WAIT_MAX=${SUBMITTER_WAIT_MAX:-40}
 for _ in $(seq 1 "$SUBMITTER_WAIT_MAX"); do
     sleep 3
-    if [[ -f "$SUBMITTER_METRICS" ]]; then
-        CURR_SIZE=$(wc -c < "$SUBMITTER_METRICS")
-        if [[ "$CURR_SIZE" -eq "$PREV_SIZE" ]]; then
-            STABLE_COUNT=$((STABLE_COUNT + 1))
-            if [[ "$STABLE_COUNT" -ge 5 ]]; then
-                echo "[wait] submitter appears idle (stable for 15s)"
-                break
-            fi
-        else
-            STABLE_COUNT=0
-            PREV_SIZE="$CURR_SIZE"
+    CURR_SIZE=$(component_metrics_size)
+    if [[ "$CURR_SIZE" -eq "$PREV_SIZE" ]]; then
+        STABLE_COUNT=$((STABLE_COUNT + 1))
+        if [[ "$STABLE_COUNT" -ge 5 ]]; then
+            echo "[wait] component metrics appear idle (stable for 15s)"
+            break
         fi
+    else
+        STABLE_COUNT=0
+        PREV_SIZE="$CURR_SIZE"
     fi
 done
 
-# Copy component-level metrics produced by sequencer / executor / submitter.
-copy_component_metrics
+# Copy component-level metrics from the legacy shared directory if a non-Docker run used it.
+if [[ "$USED_DOCKER_STACK" != "1" && "$SHARED_METRICS_DIR" != "$METRICS_ROOT" ]]; then
+    copy_component_metrics
+fi
 
 # ── 7. Update timestamp_end in metadata ───────────────────────────────────────
 END_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")

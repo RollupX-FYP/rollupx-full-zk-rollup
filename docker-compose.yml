@@ -74,6 +74,8 @@ services:
       PROVER_BACKEND: risc0
       ALLOW_PROOF_FALLBACK: ${ALLOW_PROOF_FALLBACK:-1}
       METRICS_ROOT: /var/lib/rollupx/metrics
+      EXPERIMENT_ID: ${EXPERIMENT_ID:-compose_core}
+      EXPERIMENT_NAME: ${EXPERIMENT_NAME:-compose core}
     volumes:
       - executor_state:/var/lib/rollupx/executor/state_db
       - executor_traces:/var/lib/rollupx/executor/traces
@@ -109,7 +111,8 @@ services:
       EXECUTOR_URL: http://executor:50051
       OUTBOX_DB_PATH: /var/lib/rollupx/submitter/outbox.db
       METRICS_ROOT: /var/lib/rollupx/metrics
-      EXPERIMENT_ID: compose_core
+      EXPERIMENT_ID: ${EXPERIMENT_ID:-compose_core}
+      EXPERIMENT_NAME: ${EXPERIMENT_NAME:-compose core}
     volumes:
       - submitter_data:/var/lib/rollupx/submitter
       - ${METRICS_DIR:-./benchmark-suite/metrics/latest}:/var/lib/rollupx/metrics
@@ -143,6 +146,8 @@ services:
       - cp /runtime/sequencer.default.toml /app/config/default.toml && exec /usr/local/bin/sequencer
     environment:
       METRICS_ROOT: /var/lib/rollupx/metrics
+      EXPERIMENT_ID: ${EXPERIMENT_ID:-compose_core}
+      EXPERIMENT_NAME: ${EXPERIMENT_NAME:-compose core}
     volumes:
       - ${METRICS_DIR:-./benchmark-suite/metrics/latest}:/var/lib/rollupx/metrics
       - sequencer_db:/var/lib/rollupx/sequencer

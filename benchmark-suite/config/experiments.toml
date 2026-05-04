@@ -1,4 +1,6 @@
 [baseline]
+id = "exp_000_baseline_bs050_calldata_balanced_10tps"
+name = "Baseline: batch size 50, calldata DA, balanced workload, 10 TPS"
 batch_size = 50
 timeout_ms = 30000
 min_batch_size = 1
@@ -15,73 +17,87 @@ seeds = [42, 43, 44, 45, 46]
 # Batch-size sweep for feasibility modeling
 [[experiments]]
 factor = "batch_size"
-id = "bs_001"
+id = "exp_001_batch_size_bs001_calldata_balanced_10tps"
+name = "Batch-size sweep: max batch size 1"
 batch_size = 1
 
 [[experiments]]
 factor = "batch_size"
-id = "bs_010"
+id = "exp_002_batch_size_bs010_calldata_balanced_10tps"
+name = "Batch-size sweep: max batch size 10"
 batch_size = 10
 
 [[experiments]]
 factor = "batch_size"
-id = "bs_025"
+id = "exp_003_batch_size_bs025_calldata_balanced_10tps"
+name = "Batch-size sweep: max batch size 25"
 batch_size = 25
 
 [[experiments]]
 factor = "batch_size"
-id = "bs_050"
+id = "exp_004_batch_size_bs050_calldata_balanced_10tps"
+name = "Batch-size sweep: max batch size 50"
 batch_size = 50
 
 [[experiments]]
 factor = "batch_size"
-id = "bs_100"
+id = "exp_005_batch_size_bs100_calldata_balanced_10tps"
+name = "Batch-size sweep: max batch size 100"
 batch_size = 100
 
 [[experiments]]
 factor = "batch_size"
-id = "bs_250"
+id = "exp_006_batch_size_bs250_calldata_balanced_10tps"
+name = "Batch-size sweep: max batch size 250"
 batch_size = 250
 
 [[experiments]]
 factor = "batch_size"
-id = "bs_500"
+id = "exp_007_batch_size_bs500_calldata_balanced_10tps"
+name = "Batch-size sweep: max batch size 500"
 batch_size = 500
 
 [[experiments]]
 factor = "batch_size"
-id = "bs_1000"
+id = "exp_008_batch_size_bs1000_calldata_balanced_10tps"
+name = "Batch-size sweep: max batch size 1000"
 batch_size = 1000
 
 # DA mode comparison (repeat selected sizes with matrix tooling by filter)
 [[experiments]]
 factor = "da_mode"
-id = "da_blob"
+id = "exp_101_da_mode_bs050_blob_balanced_10tps"
+name = "DA-mode comparison: blob DA"
 da_mode = "blob"
 
 [[experiments]]
 factor = "da_mode"
-id = "da_offchain"
+id = "exp_102_da_mode_bs050_offchain_balanced_10tps"
+name = "DA-mode comparison: offchain DA"
 da_mode = "offchain"
 
 # Workload classes
 [[experiments]]
 factor = "tx_mix"
-id = "mix_light"
+id = "exp_201_workload_bs050_calldata_light_10tps"
+name = "Workload comparison: light workload"
 tx_mix = "light"
 
 [[experiments]]
 factor = "tx_mix"
-id = "mix_heavy"
+id = "exp_202_workload_bs050_calldata_heavy_10tps"
+name = "Workload comparison: heavy workload"
 tx_mix = "heavy"
 
 # Optional stress traffic for high batch caps
 [[experiments]]
 factor = "rate"
-id = "tps_020"
+id = "exp_301_rate_bs050_calldata_balanced_20tps"
+name = "Rate comparison: balanced workload at 20 TPS"
 rate_tps = 20
 
 [[experiments]]
 factor = "rate"
-id = "tps_050"
+id = "exp_302_rate_bs050_calldata_balanced_50tps"
+name = "Rate comparison: balanced workload at 50 TPS"
 rate_tps = 50
