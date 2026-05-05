@@ -93,11 +93,45 @@ docker run -d \
   /app/submitter --config /app/submitter.yaml
 ```
 
-### Metrics
+---
 
-The service exposes Prometheus metrics on port `9000` by default.
+## Observability & Metrics
 
-- Endpoint: `http://localhost:9000/metrics`
+The Submitter provides deep visibility into the settlement lifecycle and system reliability.
+
+### Saga Status Lifecycle
+
+Each batch transitions through a deterministic set of states to ensure exactly-once submission and crash recovery:
+
+1.  **`Discovered`**: Ingested from the Executor gRPC stream.
+2.  **`Proving`**: Requesting a ZK proof from the `ProofProvider`.
+3.  **`Proved`**: Proof received and validated; ready for L1.
+4.  **`Submitting`**: Constructing and broadcasting the Ethereum transaction.
+5.  **`Submitted`**: Transaction is on-chain; waiting for L1 confirmations.
+6.  **`Confirmed`**: Finality reached; batch is settled.
+7.  **`Failed`**: Permanent failure (e.g., max retries exceeded or invalid proof).
+
+### Reliability Features
+
+- **Circuit Breaker**: If the Prover returns consecutive errors, the `HttpProofProvider` trips its circuit to **OPEN**, preventing further requests and allowing the service to recover.
+- **Dead Letter Queue**: Batches that exceed `max_attempts` (default 5) are marked as `Failed` and must be manually reviewed, preventing infinite retry loops.
+
+### Key Performance Metrics
+
+- **`batch_e2e_duration_seconds`**: Total time from ingestion to L1 confirmation (System Finality).
+- **`prove_duration_seconds`**: Latency of the ZK proving step.
+- **`submit_tx_duration_seconds`**: Latency of the L1 broadcasting and inclusion step.
+- **`tx_submitted_total`**: Count of submissions partitioned by DA mode (`calldata` vs `blob`).
+
+---
+
+## Benchmarking Suite Integration
+
+The Submitter's metrics are the primary "Source of Truth" for the `RollupX` benchmarking suite.
+
+1.  **Finality Verification**: The suite checks `batches_completed_total` to ensure the rollup reached a consistent final state.
+2.  **Cost Analysis**: Using the `gas_used` and `blob_gas_used` metrics (logged per submission), the suite calculates the precise USD cost of the rollup under different L1 fee regimes.
+3.  **Stress Testing**: By intentionally failing the Prover, researchers use the Submitter's `prover_circuit_tripped_total` metric to validate system resilience under adversarial conditions.
 
 ## Testing
 

@@ -44,16 +44,39 @@ sequenceDiagram
     participant Stream
     participant Saga
     participant DB
+    participant CB as Circuit Breaker
     participant Prover
     participant L1
 
     Stream->>Saga: New Batch
-    Saga->>DB: Save State (PendingProof)
-    Saga->>Prover: get_proof()
-    Prover-->>Saga: proof bytes
-    Saga->>DB: Save State (PendingSubmit)
+    Saga->>DB: Save State (Discovered)
+    
+    rect rgb(200, 220, 255)
+    Note over Saga, Prover: Proving Phase
+    Saga->>CB: Request Proof
+    alt Circuit CLOSED
+        CB->>Prover: HTTP POST /prove
+        Prover-->>CB: 200 OK (Proof)
+        CB-->>Saga: proof bytes
+    else Circuit OPEN (Load Shedding)
+        CB-->>Saga: Error (CircuitOpen)
+        Saga->>Saga: Backoff & Retry
+    end
+    end
+
+    Saga->>DB: Save State (Proved)
     Saga->>L1: eth_sendRawTransaction
     L1-->>Saga: Receipt
-    Saga->>DB: Save State (Finalized)
+    Saga->>DB: Save State (Confirmed)
 ```
-**Explanation:** Every step of the pipeline is checkpointed to the database, ensuring crash-recovery and preventing double-submission.
+**Explanation:** The Submitter implements a robust Saga loop with a built-in Circuit Breaker to prevent overwhelming a struggling prover. Every state transition is persisted to the database, allowing the service to resume seamlessly after a crash.
+
+## Research & Metrics Mapping
+
+| Research Goal | Submitter Metric | Interpretation |
+| :--- | :--- | :--- |
+| **System Finality** | `batch_e2e_duration_seconds` | Primary measure of L2 -> L1 settlement latency. |
+| **System Stability** | `prover_circuit_tripped_total` | Frequency of prover outages or overload events. |
+| **DA Efficiency** | `tx_submitted_total` | Comparative analysis of Calldata vs. Blob frequency. |
+| **Operational Cost** | `gas_used` (logs) | Direct projection of L1 operational overhead. |
+| **Fault Tolerance** | `batches_failed_permanent_total`| System reliability floor (Dead Letter Queue rate). |
