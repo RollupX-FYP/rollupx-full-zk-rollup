@@ -71,7 +71,7 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
         transactions: Vec<Transaction>,
     ) -> Result<ExecutionTraceV1, ExecutorError> {
         let total_start = std::time::Instant::now();
-        let mut sig_verify_ms = 0.0;
+        let mut signature_verify_ms = 0.0;
         let mut nonce_balance_check_ms = 0.0;
         let mut state_transition_ms = 0.0;
         let mut merkle_update_ms = 0.0;
@@ -108,7 +108,7 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
             let check_start = std::time::Instant::now();
             let sig_start = std::time::Instant::now();
             let sig_valid = self.verify_signature(&tx);
-            sig_verify_ms += sig_start.elapsed().as_secs_f64() * 1000.0;
+            signature_verify_ms += sig_start.elapsed().as_secs_f64() * 1000.0;
 
             let mut rejection: Option<String> = None;
             if !sig_valid {
