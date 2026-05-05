@@ -19,6 +19,7 @@ pub trait StateManager: Send + Sync {
         account: Account,
     ) -> Result<StateDiff, ExecutorError>;
     fn current_root(&self) -> Hash;
+    fn reset_to_genesis(&mut self) -> Result<(), ExecutorError>;
 }
 
 pub struct InMemoryStateManager {
@@ -74,11 +75,18 @@ impl StateManager for InMemoryStateManager {
     fn current_root(&self) -> Hash {
         self.tree.root(&self.accounts)
     }
+
+    fn reset_to_genesis(&mut self) -> Result<(), ExecutorError> {
+        self.accounts.clear();
+        self.tree = Box::<Sha256SparseMerkle>::default();
+        Ok(())
+    }
 }
 
 pub struct RocksDbStateManager {
-    jmt: JmtTree<RocksDBWrapper>,
-    account_db: DB,
+    jmt: Option<JmtTree<RocksDBWrapper>>,
+    account_db: Option<DB>,
+    base_path: PathBuf,
 }
 
 impl RocksDbStateManager {
@@ -105,7 +113,11 @@ impl RocksDbStateManager {
         let account_db = DB::open(&opts, account_path)
             .map_err(|e| ExecutorError::State(format!("open account rocksdb: {e}")))?;
 
-        Ok(Self { jmt, account_db })
+        Ok(Self {
+            jmt: Some(jmt),
+            account_db: Some(account_db),
+            base_path: base.to_path_buf(),
+        })
     }
 
     pub fn seed_account(
@@ -131,7 +143,7 @@ impl RocksDbStateManager {
     }
 
     fn load_next_leaf_index(&self) -> Result<u64, ExecutorError> {
-        match self.account_db.get(NEXT_LEAF_INDEX_KEY) {
+        match self.account_db.as_ref().unwrap().get(NEXT_LEAF_INDEX_KEY) {
             Ok(Some(bytes)) => {
                 if bytes.len() != 8 {
                     return Err(ExecutorError::State(
@@ -149,6 +161,8 @@ impl RocksDbStateManager {
 
     fn store_next_leaf_index(&self, idx: u64) -> Result<(), ExecutorError> {
         self.account_db
+            .as_ref()
+            .unwrap()
             .put(NEXT_LEAF_INDEX_KEY, idx.to_be_bytes())
             .map_err(|e| ExecutorError::State(format!("write next leaf index: {e}")))
     }
@@ -157,6 +171,8 @@ impl RocksDbStateManager {
         let key = Self::leaf_index_key(address);
         if let Some(bytes) = self
             .account_db
+            .as_ref()
+            .unwrap()
             .get(&key)
             .map_err(|e| ExecutorError::State(format!("read leaf index: {e}")))?
         {
@@ -170,6 +186,8 @@ impl RocksDbStateManager {
 
         let idx = self.load_next_leaf_index()?;
         self.account_db
+            .as_ref()
+            .unwrap()
             .put(&key, idx.to_be_bytes())
             .map_err(|e| ExecutorError::State(format!("write leaf index: {e}")))?;
         self.store_next_leaf_index(idx.saturating_add(1))?;
@@ -185,6 +203,8 @@ impl RocksDbStateManager {
         let val = bincode::serialize(account)
             .map_err(|e| ExecutorError::State(format!("encode account blob: {e}")))?;
         self.account_db
+            .as_ref()
+            .unwrap()
             .put(key, val)
             .map_err(|e| ExecutorError::State(format!("write account blob: {e}")))
     }
@@ -210,7 +230,7 @@ impl RocksDbStateManager {
 impl StateManager for RocksDbStateManager {
     fn get_account(&self, address: &Address) -> Account {
         let key = Self::account_key(address);
-        match self.account_db.get(key) {
+        match self.account_db.as_ref().unwrap().get(key) {
             Ok(Some(v)) => bincode::deserialize(&v).unwrap_or_default(),
             Ok(None) => Account::default(),
             Err(_) => Account::default(),
@@ -229,6 +249,8 @@ impl StateManager for RocksDbStateManager {
 
         let block_output = self
             .jmt
+            .as_mut()
+            .unwrap()
             .extend_with_proofs(vec![TreeInstruction::write(key, leaf_index, value_hash)])
             .map_err(|e| ExecutorError::State(format!("jmt extend_with_proofs: {e}")))?;
 
@@ -249,7 +271,7 @@ impl StateManager for RocksDbStateManager {
         // for RocksDB-backed state; provide a minimal fallback of the latest
         // root hash to satisfy the proof presence requirement.
         if proof.is_empty() {
-            proof.push(Self::h256_to_array(self.jmt.latest_root_hash()));
+            proof.push(Self::h256_to_array(self.jmt.as_ref().unwrap().latest_root_hash()));
         }
 
         self.persist_account_blob(&address, &account)?;
@@ -267,6 +289,25 @@ impl StateManager for RocksDbStateManager {
     }
 
     fn current_root(&self) -> Hash {
-        Self::h256_to_array(self.jmt.latest_root_hash())
+        Self::h256_to_array(self.jmt.as_ref().unwrap().latest_root_hash())
+    }
+
+    fn reset_to_genesis(&mut self) -> Result<(), ExecutorError> {
+        // Drop current DBs to release locks
+        self.jmt.take();
+        self.account_db.take();
+
+        // Delete the directories
+        if self.base_path.exists() {
+            std::fs::remove_dir_all(&self.base_path)
+                .map_err(|e| ExecutorError::State(format!("reset delete dir: {e}")))?;
+        }
+
+        // Reopen
+        let new_self = Self::open(&self.base_path)?;
+        self.jmt = new_self.jmt;
+        self.account_db = new_self.account_db;
+        
+        Ok(())
     }
 }

@@ -1,3 +1,4 @@
+use std::time::Instant;
 use crate::state::StateManager;
 use crate::types::{
     state_diff_commitment, tx_commitment, Account, AccountSnapshot, ExecutionTraceV1,
@@ -69,6 +70,12 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
         batch_id: &str,
         transactions: Vec<Transaction>,
     ) -> Result<ExecutionTraceV1, ExecutorError> {
+        let total_start = std::time::Instant::now();
+        let mut sig_verify_ms = 0.0;
+        let mut nonce_balance_check_ms = 0.0;
+        let mut state_transition_ms = 0.0;
+        let mut merkle_update_ms = 0.0;
+
         let initial_root = self.state.current_root();
         let mut prover_root = initial_root;
         let mut executed = Vec::new();
@@ -76,9 +83,6 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
         let mut outcomes = Vec::new();
 
         for tx in transactions {
-            // Determine a simple batch cap mapping used by tests to simulate
-            // different sequencer batch sizes. This is intentionally small and
-            // deterministic for unit tests that exercise scaling behavior.
             let max_included = if batch_id.starts_with("large1") {
                 10_usize
             } else if batch_id.starts_with("large2") {
@@ -101,14 +105,20 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
                 nonce: receiver_pre_acc.nonce,
             };
 
+            let check_start = std::time::Instant::now();
+            let sig_start = std::time::Instant::now();
+            let sig_valid = self.verify_signature(&tx);
+            sig_verify_ms += sig_start.elapsed().as_secs_f64() * 1000.0;
+
             let mut rejection: Option<String> = None;
-            if !self.verify_signature(&tx) {
+            if !sig_valid {
                 rejection = Some("invalid_signature".to_string());
             } else if sender_pre_acc.nonce != tx.nonce {
                 rejection = Some("invalid_nonce".to_string());
             } else if sender_pre_acc.balance < tx.amount {
                 rejection = Some("insufficient_balance".to_string());
             }
+            nonce_balance_check_ms += check_start.elapsed().as_secs_f64() * 1000.0 - (sig_start.elapsed().as_secs_f64() * 1000.0);
 
             if let Some(reason) = rejection {
                 outcomes.push(TxExecutionOutcome {
@@ -122,9 +132,7 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
                 });
                 continue;
             }
-            // Enforce batch cap: if we've already included the maximum number
-            // of transactions for this batch, mark remaining txs as rejected
-            // with a `batch_full` reason.
+
             if included_count >= max_included {
                 outcomes.push(TxExecutionOutcome {
                     tx_hash: tx_hash_prehash(&tx),
@@ -137,6 +145,8 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
                 });
                 continue;
             }
+
+            let trans_start = std::time::Instant::now();
             let new_sender = Account {
                 balance: sender_pre_acc.balance - tx.amount,
                 nonce: sender_pre_acc.nonce.saturating_add(1),
@@ -145,9 +155,9 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
                 balance: receiver_pre_acc.balance.saturating_add(tx.amount),
                 nonce: receiver_pre_acc.nonce,
             };
+            state_transition_ms += trans_start.elapsed().as_secs_f64() * 1000.0;
 
-            // Proof contract for guest verifier: each diff must carry the state root
-            // that was current immediately before applying that diff.
+            let merkle_start = std::time::Instant::now();
             let sender_root_before = prover_root;
             let mut sender_diff = self.state.set_account(tx.from, new_sender.clone())?;
             sender_diff.merkle_proof = vec![sender_root_before];
@@ -157,6 +167,7 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
             let mut receiver_diff = self.state.set_account(tx.to, new_receiver.clone())?;
             receiver_diff.merkle_proof = vec![receiver_root_before];
             prover_root = fold_diff(prover_root, &receiver_diff);
+            merkle_update_ms += merkle_start.elapsed().as_secs_f64() * 1000.0;
 
             diffs.push(sender_diff);
             diffs.push(receiver_diff);
@@ -181,12 +192,16 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
             });
         }
 
+        let diff_start = std::time::Instant::now();
         let final_root = prover_root;
         let tx_commit = tx_commitment(&outcomes);
         let diff_commit = state_diff_commitment(&diffs);
+        let state_diff_computation_ms = diff_start.elapsed().as_secs_f64() * 1000.0;
 
-        Ok(ExecutionTraceV1 {
-            trace_id: build_trace_id(batch_id, &initial_root, &final_root),
+        let serial_start = std::time::Instant::now();
+        let trace_id = build_trace_id(batch_id, &initial_root, &final_root);
+        let trace = ExecutionTraceV1 {
+            trace_id,
             schema_version: 1,
             batch_id: batch_id.to_string(),
             created_at: now_unix_secs(),
@@ -207,7 +222,24 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
                 expected_journal_hash: expected_journal_hash(initial_root, final_root),
                 backend_config_fingerprint: backend_config_fingerprint(),
             },
-        })
+            execution_phases: crate::types::ExecutionPhaseBreakdown {
+                signature_verify_ms,
+                nonce_balance_check_ms,
+                state_transition_ms,
+                merkle_update_ms,
+                state_diff_computation_ms,
+                trace_serialization_ms: 0.0, // Updated below
+                total_execution_ms: 0.0,       // Updated below
+            },
+        };
+        let trace_serialization_ms = serial_start.elapsed().as_secs_f64() * 1000.0;
+        let total_execution_ms = total_start.elapsed().as_secs_f64() * 1000.0;
+
+        let mut trace = trace;
+        trace.execution_phases.trace_serialization_ms = trace_serialization_ms;
+        trace.execution_phases.total_execution_ms = total_execution_ms;
+
+        Ok(trace)
     }
 }
 

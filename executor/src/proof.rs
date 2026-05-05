@@ -23,6 +23,20 @@ pub struct ProofArtifacts {
     pub da_commitment: Vec<u8>,
     pub journal_bytes: usize,
     pub proof_bytes: usize,
+    pub metadata: ProofMetadataMetrics,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ProofMetadataMetrics {
+    pub witness_generation_ms: u64,
+    pub zkvm_execution_ms: u64,
+    pub proof_compression_ms: u64,
+    pub total_prover_wall_ms: u64,
+    pub trace_read_ms: u64,
+    pub output_write_ms: u64,
+    pub total_cycles: u64,
+    pub total_segments: usize,
+    pub proof_mode: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -36,6 +50,18 @@ struct ProofRunMetadata {
     proof_sha256: String,
     journal_bytes: usize,
     proof_bytes: usize,
+
+    // Timing breakdown (ms)
+    witness_generation_ms: u64,
+    zkvm_execution_ms: u64,
+    proof_compression_ms: u64,
+    total_prover_wall_ms: u64,
+    trace_read_ms: u64,
+    output_write_ms: u64,
+
+    // RISC0-specific metrics
+    total_cycles: u64,
+    total_segments: usize,
 }
 
 pub fn backend_from_env() -> anyhow::Result<ProverBackend> {
@@ -171,6 +197,17 @@ fn generate_risc0_artifacts(
         da_commitment,
         journal_bytes: meta.journal_bytes,
         proof_bytes: meta.proof_bytes,
+        metadata: ProofMetadataMetrics {
+            witness_generation_ms: meta.witness_generation_ms,
+            zkvm_execution_ms: meta.zkvm_execution_ms,
+            proof_compression_ms: meta.proof_compression_ms,
+            total_prover_wall_ms: meta.total_prover_wall_ms,
+            trace_read_ms: meta.trace_read_ms,
+            output_write_ms: meta.output_write_ms,
+            total_cycles: meta.total_cycles,
+            total_segments: meta.total_segments,
+            proof_mode,
+        },
     })
 }
 

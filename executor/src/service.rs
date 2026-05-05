@@ -16,12 +16,37 @@ use crate::block_constructor::build_enriched_payload;
 use crate::proof::{backend_from_env, backend_label, generate_artifacts, ProverBackend};
 use crate::proto::rollup::{
     rollup_service_server::{RollupService, RollupServiceServer}, BatchPayload, PublishBatchResponse,
-    StreamRequest, SubmitTxsRequest, SubmitTxsResponse,
+    ResetStateRequest, ResetStateResponse, StreamRequest, SubmitTxsRequest, SubmitTxsResponse,
 };
-use crate::state::RocksDbStateManager;
+use crate::state::{RocksDbStateManager, StateManager};
 use crate::trace::{append_lifecycle, persist_trace, verify_trace_hash, TraceLifecycleStatus};
 use crate::tx_engine::{SimpleTransactionEngine, TransactionEngine};
 use crate::types::{normalize_transactions, SequencerTransaction};
+
+#[derive(Debug, Clone, serde::Serialize, Default)]
+struct StreamingStats {
+    pub count: u64,
+    pub mean: f64,
+    pub m2: f64,
+    pub min: f64,
+    pub max: f64,
+}
+
+impl StreamingStats {
+    pub fn update(&mut self, value: f64) {
+        self.count += 1;
+        let delta = value - self.mean;
+        self.mean += delta / self.count as f64;
+        let delta2 = value - self.mean;
+        self.m2 += delta * delta2;
+        if self.count == 1 || value < self.min {
+            self.min = value;
+        }
+        if self.count == 1 || value > self.max {
+            self.max = value;
+        }
+    }
+}
 
 #[derive(Debug, Clone, serde::Serialize)]
 struct ExecutorMetrics {
@@ -30,11 +55,19 @@ struct ExecutorMetrics {
     prover_backend: String,
     batch_count: u64,
     received_tx_count: u64,
-    forwarded_batch_count: u64,
-    duration_s: u64,
-    execution_times_ms: Vec<u64>,
-    proof_generation_times_ms: Vec<u64>,
     total_proved_txs: u64,
+    duration_s: u64,
+    
+    execution_stats: StreamingStats,
+    proof_generation_stats: StreamingStats,
+    
+    proof_mode_violations: u32,
+    experiment_valid: bool,
+    
+    initial_state_hash: String,
+    final_state_hash: String,
+    state_was_reset: bool,
+    
     trace_id: String,
     #[serde(skip)]
     start_time: Instant,
@@ -54,8 +87,15 @@ struct ExecutorBatchMetricsRow {
     total_gas_limit: u64,
     total_gas_price_wei: u64,
     fee_proxy_wei: u128,
-    execution_time_ms: u64,
-    proof_time_ms: u64,
+    
+    execution_phases: crate::types::ExecutionPhaseBreakdown,
+    prover_metrics: Option<crate::proof::ProofMetadataMetrics>,
+    
+    trace_write_ms: u64,
+    proof_read_ms: u64,
+    
+    total_execution_ms: u64,
+    total_proof_ms: u64,
     proof_bytes: usize,
     journal_bytes: usize,
 }
@@ -111,6 +151,21 @@ impl RollupService for ExecutorGrpcService {
         }))
     }
 
+    async fn reset_state(
+        &self,
+        _request: Request<ResetStateRequest>,
+    ) -> Result<Response<ResetStateResponse>, Status> {
+        let mut engine = self.engine.lock().await;
+        engine.state.reset_to_genesis().map_err(|e| {
+            Status::internal(format!("failed to reset state: {e}"))
+        })?;
+        
+        Ok(Response::new(ResetStateResponse {
+            success: true,
+            message: "state reset to genesis".to_string(),
+        }))
+    }
+
     async fn publish_batch(
         &self,
         request: Request<BatchPayload>,
@@ -128,20 +183,27 @@ impl RollupService for ExecutorGrpcService {
         let txs = normalize_transactions(parsed_txs)
             .map_err(|e| Status::invalid_argument(format!("invalid transaction payload: {e}")))?;
 
-        let execution_start = Instant::now();
+        let initial_root = {
+            let engine = self.engine.lock().await;
+            hex::encode(engine.state.current_root())
+        };
+
         let trace = self
             .engine
             .lock()
             .await
             .execute_batch(&batch_id, txs)
             .map_err(|e| Status::internal(format!("execution failure: {e}")))?;
-        let execution_ms = execution_start.elapsed().as_millis() as u64;
+        
+        let final_root = hex::encode(trace.public_inputs.final_root);
 
         append_lifecycle(&self.trace_root, &trace, TraceLifecycleStatus::Generated, None, None)
             .map_err(|e| Status::internal(format!("trace lifecycle(generated) failure: {e}")))?;
 
+        let trace_write_start = Instant::now();
         let persisted = persist_trace(&self.trace_root, &trace)
             .map_err(|e| Status::internal(format!("trace persistence failure: {e}")))?;
+        let trace_write_ms = trace_write_start.elapsed().as_millis() as u64;
 
         verify_trace_hash(&persisted.trace_path, &persisted.sha256_hex)
             .map_err(|e| Status::internal(format!("trace integrity check failed: {e}")))?;
@@ -158,10 +220,24 @@ impl RollupService for ExecutorGrpcService {
         let proof_start = Instant::now();
         let artifacts = generate_artifacts(&trace, &self.prover_backend)
             .map_err(|e| Status::internal(format!("proof generation failure: {e}")))?;
-        let proof_ms = proof_start.elapsed().as_millis() as u64;
+        let proof_read_ms = proof_start.elapsed().as_millis() as u64;
+        
+        let proof_ms = artifacts.metadata.total_prover_wall_ms;
         let proof_bytes = artifacts.proof_bytes;
         let journal_bytes = artifacts.journal_bytes;
         let batch_data_len = payload.batch_data.len();
+
+        // Fallback enforcement
+        let require_real = std::env::var("REQUIRE_REAL_PROOFS")
+            .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+            .unwrap_or(false);
+        let is_violation = artifacts.metadata.proof_mode != "groth16";
+        if require_real && is_violation {
+            return Err(Status::failed_precondition(format!(
+                "Real proof required but prover used mode: {}",
+                artifacts.metadata.proof_mode
+            )));
+        }
 
         append_lifecycle(
             &self.trace_root,
@@ -200,8 +276,12 @@ impl RollupService for ExecutorGrpcService {
             total_gas_limit,
             total_gas_price_wei,
             fee_proxy_wei,
-            execution_time_ms: execution_ms,
-            proof_time_ms: proof_ms,
+            execution_phases: trace.execution_phases.clone(),
+            prover_metrics: Some(artifacts.metadata.clone()),
+            trace_write_ms,
+            proof_read_ms,
+            total_execution_ms: trace.execution_phases.total_execution_ms as u64,
+            total_proof_ms: proof_ms,
             proof_bytes,
             journal_bytes,
         };
@@ -248,22 +328,33 @@ impl RollupService for ExecutorGrpcService {
                     prover_backend,
                     batch_count: 0,
                     received_tx_count: 0,
-                    forwarded_batch_count: 0,
-                    duration_s: 0,
-                    execution_times_ms: vec![],
-                    proof_generation_times_ms: vec![],
                     total_proved_txs: 0,
+                    duration_s: 0,
+                    execution_stats: StreamingStats::default(),
+                    proof_generation_stats: StreamingStats::default(),
+                    proof_mode_violations: 0,
+                    experiment_valid: true,
+                    initial_state_hash: initial_root,
+                    final_state_hash: String::new(),
+                    state_was_reset: false, // Updated if reset endpoint is called
                     trace_id,
                     start_time: Instant::now(),
                 });
 
             metrics.batch_count += 1;
             metrics.received_tx_count += proved_txs;
-            metrics.forwarded_batch_count += 1;
             metrics.total_proved_txs += proved_txs;
-            metrics.execution_times_ms.push(execution_ms);
-            metrics.proof_generation_times_ms.push(proof_ms);
+            metrics.execution_stats.update(trace.execution_phases.total_execution_ms);
+            metrics.proof_generation_stats.update(proof_ms as f64);
             metrics.duration_s = metrics.start_time.elapsed().as_secs();
+            metrics.final_state_hash = final_root;
+            
+            if is_violation {
+                metrics.proof_mode_violations += 1;
+                if require_real {
+                    metrics.experiment_valid = false;
+                }
+            }
 
             let metrics_root = std::env::var("METRICS_ROOT").unwrap_or_else(|_| "metrics".to_string());
             let filename = format!("executor_{}.json", experiment_id);
