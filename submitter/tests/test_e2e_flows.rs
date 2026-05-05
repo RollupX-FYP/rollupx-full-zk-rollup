@@ -1,7 +1,7 @@
 /// End-to-End Integration Tests
 /// Tests complete submission flows with different configurations
 
-use submitter::domain::batch::{Batch, BatchStatus};
+use submitter_rs::domain::batch::{Batch, BatchStatus};
 use std::sync::Arc;
 use std::path::PathBuf;
 use std::fs;

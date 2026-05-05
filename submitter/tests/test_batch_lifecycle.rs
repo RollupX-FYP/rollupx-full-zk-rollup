@@ -1,8 +1,8 @@
 /// Batch State Management & Orchestration Tests
 /// Verifies batch lifecycle and state transitions
 
-use submitter::domain::batch::{Batch, BatchStatus};
-use submitter::application::orchestrator::Orchestrator;
+use submitter_rs::domain::batch::{Batch, BatchStatus};
+use submitter_rs::application::orchestrator::Orchestrator;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -103,7 +103,7 @@ fn test_batch_with_proof_stores_verification_data() {
         ..Default::default()
     };
 
-    let proof_data = "0x" + &"ab".repeat(128); // 256 byte proof
+    let proof_data = format!("0x{}", "ab".repeat(128)); // 256 byte proof
     batch.proof = Some(proof_data.clone());
 
     assert!(batch.proof.is_some());
@@ -121,7 +121,7 @@ fn test_batch_transaction_hash_tracking() {
         ..Default::default()
     };
 
-    let tx_hash = "0x" + &"cd".repeat(32); // 64-char hex = 32 bytes
+    let tx_hash = format!("0x{}", "cd".repeat(32)); // 64-char hex = 32 bytes
     batch.tx_hash = Some(tx_hash.clone());
 
     assert!(batch.tx_hash.is_some());
@@ -291,7 +291,7 @@ fn test_batch_merkle_proof_validation() {
 
 #[cfg(test)]
 mod batch_lifecycle_constants {
-    use submitter::domain::batch::BatchStatus;
+    use submitter_rs::domain::batch::BatchStatus;
 
     #[test]
     fn batch_status_sequence_is_linear() {

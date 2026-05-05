@@ -2,9 +2,9 @@
 /// Tests real Ethereum testnet interaction (Sepolia)
 /// Verifies proper contract calls and on-chain state
 
-use submitter::contracts::ZKRollupBridge;
-use submitter::domain::batch::{Batch, BatchStatus};
-use submitter::infrastructure::ethereum_adapter::RealBridgeClient;
+use submitter_rs::contracts::ZKRollupBridge;
+use submitter_rs::domain::batch::{Batch, BatchStatus};
+use submitter_rs::infrastructure::ethereum_adapter::RealBridgeClient;
 use ethers::prelude::*;
 use ethers::providers::Provider;
 use ethers::signers::LocalWallet;
@@ -26,7 +26,7 @@ async fn test_l1_testnet_bridge_deployment() {
         .unwrap_or_else(|_| "0x...".to_string());
 
     let provider = Provider::<Http>::try_from(rpc_url).unwrap();
-    let wallet: LocalWallet = pk.parse().unwrap().with_chain_id(11155111u64); // Sepolia
+    let wallet: LocalWallet = pk.parse::<LocalWallet>().unwrap().with_chain_id(11155111u64); // Sepolia
     let client = Arc::new(SignerMiddleware::new(provider, wallet));
 
     let bridge_addr: Address = std::env::var("BRIDGE_CONTRACT_ADDRESS")
@@ -53,7 +53,7 @@ async fn test_l1_testnet_batch_submission() {
         .expect("TESTNET_PRIVATE_KEY required");
 
     let provider = Provider::<Http>::try_from(rpc_url).unwrap();
-    let wallet: LocalWallet = pk.parse().unwrap().with_chain_id(11155111u64);
+    let wallet: LocalWallet = pk.parse::<LocalWallet>().unwrap().with_chain_id(11155111u64);
     let client = Arc::new(SignerMiddleware::new(provider, wallet));
 
     let bridge_addr: Address = std::env::var("BRIDGE_CONTRACT_ADDRESS")

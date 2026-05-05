@@ -2,11 +2,11 @@
 /// Tests for Calldata, Blob, and OffChain data availability modes
 /// with real Ethereum testnet interaction (Sepolia)
 
-use submitter::infrastructure::da_calldata::CalldataStrategy;
-use submitter::infrastructure::da_blob::BlobStrategy;
-use submitter::infrastructure::da_offchain::OffChainStrategy;
-use submitter::application::ports::DaStrategy;
-use submitter::domain::batch::Batch;
+use submitter_rs::infrastructure::da_calldata::CalldataStrategy;
+use submitter_rs::infrastructure::da_blob::BlobStrategy;
+use submitter_rs::infrastructure::da_offchain::OffChainStrategy;
+use submitter_rs::application::ports::DaStrategy;
+use submitter_rs::domain::batch::Batch;
 use ethers::prelude::*;
 use std::sync::Arc;
 use std::path::PathBuf;
