@@ -161,9 +161,13 @@ fn test_performance_batch_parsing() {
             "value": "1000000000000000000",
             "gas_limit": 21000,
             "gas_price": "0x3b9aca00"
-        };
-        1000 // 1000 transactions
+        }
     ]);
+    let batch_items = std::iter::repeat_with(|| batch_data.clone())
+        .take(1000)
+        .collect::<Vec<_>>();
+
+    let json_bytes = serde_json::to_vec(&batch_items).unwrap();
 
     let json_bytes = serde_json::to_vec(&batch_data).unwrap();
 

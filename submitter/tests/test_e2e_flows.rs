@@ -79,7 +79,7 @@ async fn test_end_to_end_blob_submission() {
     let data_file = temp_dir.path().join("blob_data.bin");
 
     // Blob data: arbitrary binary
-    let blob_data = vec![0xde, 0xad, 0xbe, 0xef; 1000];
+    let blob_data = vec![0xde, 0xad, 0xbe, 0xef].repeat(1000);
     fs::write(&data_file, &blob_data).unwrap();
 
     let mut batch = Batch {
