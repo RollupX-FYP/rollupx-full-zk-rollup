@@ -230,7 +230,7 @@ mod tests {
     #[tokio::test]
     async fn test_submit_blob_with_archiver() {
         let mock = MockClient::new();
-        let provider = Provider::new(mock.clone());
+        let provider = Provider::new(mock.clone()).interval(std::time::Duration::from_millis(10));
         let wallet: LocalWallet =
             "0x0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
                 .parse()

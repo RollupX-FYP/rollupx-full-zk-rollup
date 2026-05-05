@@ -95,7 +95,7 @@ impl CostBreakdown {
             None,
             None,
             None,
-            actual_gas.is_some(),
+            actual_gas.is_none(),
         )
     }
 
@@ -145,7 +145,7 @@ impl CostBreakdown {
             blob_gas_used,
             blob_base_fee_wei,
             blob_fee_total,
-            actual_eip1559_gas.is_some(),
+            actual_eip1559_gas.is_none(),
         )
     }
 
