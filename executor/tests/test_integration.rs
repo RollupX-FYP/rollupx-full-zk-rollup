@@ -3,10 +3,10 @@
 
 #[cfg(test)]
 mod executor_integration_tests {
-    use crate::state::InMemoryStateManager;
-    use crate::tx_engine::SimpleTransactionEngine;
-    use crate::types::{Account, Transaction, TransactionEngine};
-    use crate::trace::{persist_trace, verify_trace_hash, append_lifecycle, TraceLifecycleStatus};
+    use zksync_state_machine::state::InMemoryStateManager;
+    use zksync_state_machine::trace::{append_lifecycle, persist_trace, verify_trace_hash, TraceLifecycleStatus};
+    use zksync_state_machine::tx_engine::{SimpleTransactionEngine, TransactionEngine};
+    use zksync_state_machine::types::{Account, Transaction};
     use std::fs;
     use tempfile::TempDir;
 
@@ -62,7 +62,7 @@ mod executor_integration_tests {
 
         // Step 5: Verify trace is readable
         let json = fs::read_to_string(&meta.trace_path).unwrap();
-        let deserialized: crate::types::ExecutionTraceV1 = serde_json::from_str(&json).unwrap();
+        let deserialized: zksync_state_machine::types::ExecutionTraceV1 = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.batch_id, "batch1");
 
         // Step 6: Record lifecycle

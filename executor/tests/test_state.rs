@@ -3,9 +3,8 @@
 
 #[cfg(test)]
 mod executor_state_tests {
-    use crate::state::{InMemoryStateManager, StateManager, RocksDbStateManager};
-    use crate::types::{Account, Address};
-    use std::path::PathBuf;
+    use zksync_state_machine::state::{InMemoryStateManager, RocksDbStateManager, StateManager};
+    use zksync_state_machine::types::{Account, Address};
     use tempfile::TempDir;
 
     // ============ Fixtures & Helpers ============
@@ -246,7 +245,7 @@ mod executor_state_tests {
 
     #[test]
     fn test_in_memory_implements_state_manager() {
-        let mut state: Box<dyn StateManager> = Box::new(InMemoryStateManager::default());
+        let mut state: Box<dyn zksync_state_machine::state::StateManager> = Box::new(InMemoryStateManager::default());
         let (addr1, _, _) = test_addresses();
 
         let _result = state.set_account(addr1, test_account(100, 0));

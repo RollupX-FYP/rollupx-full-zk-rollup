@@ -3,8 +3,8 @@
 
 #[cfg(test)]
 mod executor_trace_tests {
-    use crate::trace::{persist_trace, verify_trace_hash, append_lifecycle, TraceLifecycleStatus};
-    use crate::types::{ExecutionTraceV1, TracePublicInputs, ProverContext};
+    use zksync_state_machine::trace::{append_lifecycle, persist_trace, verify_trace_hash, TraceLifecycleStatus};
+    use zksync_state_machine::types::{ExecutionTraceV1, ProverContext, TracePublicInputs};
     use std::fs;
     use tempfile::TempDir;
 

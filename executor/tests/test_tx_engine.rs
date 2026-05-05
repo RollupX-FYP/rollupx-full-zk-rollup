@@ -3,9 +3,9 @@
 
 #[cfg(test)]
 mod executor_tx_engine_tests {
-    use crate::state::InMemoryStateManager;
-    use crate::tx_engine::SimpleTransactionEngine;
-    use crate::types::{Account, Transaction, TransactionEngine};
+    use zksync_state_machine::state::InMemoryStateManager;
+    use zksync_state_machine::tx_engine::{SimpleTransactionEngine, TransactionEngine};
+    use zksync_state_machine::types::{Account, Transaction};
     use ethers::signers::{LocalWallet, Signer};
     use ethers::types::H256;
     use rand::thread_rng;
@@ -63,9 +63,6 @@ mod executor_tx_engine_tests {
     }
 
     fn seed_account(engine: &mut SimpleTransactionEngine<InMemoryStateManager>, addr: [u8; 20], balance: u64, nonce: u64) {
-        if let crate::state::StateManager::* = () {
-            // Type annotation helper
-        }
         engine.state.seed_account(
             addr,
             Account {
