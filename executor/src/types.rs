@@ -61,6 +61,31 @@ pub struct ExecutionPhaseBreakdown {
     pub total_execution_ms: f64,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct StreamingStats {
+    pub count: u64,
+    pub mean: f64,
+    pub m2: f64,
+    pub min: f64,
+    pub max: f64,
+}
+
+impl StreamingStats {
+    pub fn update(&mut self, value: f64) {
+        self.count += 1;
+        let delta = value - self.mean;
+        self.mean += delta / self.count as f64;
+        let delta2 = value - self.mean;
+        self.m2 += delta * delta2;
+        if self.count == 1 || value < self.min {
+            self.min = value;
+        }
+        if self.count == 1 || value > self.max {
+            self.max = value;
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TxExecutionOutcome {
     pub tx_hash: Hash,
