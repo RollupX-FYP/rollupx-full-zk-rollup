@@ -13,9 +13,10 @@ const bridge = new ethers.Contract(BRIDGE_ADDRESS, ABI, signer);
 
 ### Reading State
 ```typescript
-const stateRoot = await bridge.stateRoot();
+const latestStateRoot = await bridge.latestStateRoot();
 const nextBatchId = await bridge.nextBatchId();
 const sequencer = await bridge.sequencer();
+const isFrozen = await bridge.isFrozen();
 ```
 
 ## 2. Committing a Batch
@@ -34,11 +35,14 @@ const proof = {
 ### Submission (Calldata Mode)
 ```typescript
 const DA_ID_CALLDATA = 0;
+const VERIFIER_ID_GROTH16 = 0;
 const batchData = ethers.toUtf8Bytes("transaction-data");
 const daMeta = "0x"; // Empty for calldata
+const proof = "0x..."; // Raw bytes (256 bytes for Groth16)
 
 const tx = await bridge.commitBatch(
   DA_ID_CALLDATA,
+  VERIFIER_ID_GROTH16,
   batchData,
   daMeta,
   newRootHash,
@@ -65,8 +69,10 @@ const daMeta = ethers.AbiCoder.defaultAbiCoder().encode(
 );
 
 // 3. Send Transaction
+const VERIFIER_ID_GROTH16 = 0;
 const tx = await bridge.commitBatch(
   DA_ID_BLOB,
+  VERIFIER_ID_GROTH16,
   "0x", // Empty batchData
   daMeta,
   newRootHash,
