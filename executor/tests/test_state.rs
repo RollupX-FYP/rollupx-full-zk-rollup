@@ -110,14 +110,14 @@ mod executor_state_tests {
         let mut state = InMemoryStateManager::default();
 
         // Seed 100 accounts
-        for i in 0..100 {
+        for i in 0u64..100u64 {
             let mut addr = [0u8; 20];
             addr[0..8].copy_from_slice(&i.to_le_bytes()[0..8]);
             state.seed_account(addr, test_account(1000 + i as u64, 0));
         }
 
         // Verify all present
-        for i in 0..100 {
+        for i in 0u64..100u64 {
             let mut addr = [0u8; 20];
             addr[0..8].copy_from_slice(&i.to_le_bytes()[0..8]);
             let account = state.get_account(&addr);
