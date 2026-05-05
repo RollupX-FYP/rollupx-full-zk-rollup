@@ -32,6 +32,15 @@ mod executor_trace_tests {
                 expected_journal_hash: [5u8; 32],
                 backend_config_fingerprint: [6u8; 32],
             },
+            execution_phases: zksync_state_machine::types::ExecutionPhaseBreakdown {
+                signature_verify_ms: 0.0,
+                nonce_balance_check_ms: 0.0,
+                state_transition_ms: 0.0,
+                merkle_update_ms: 0.0,
+                state_diff_computation_ms: 0.0,
+                trace_serialization_ms: 0.0,
+                total_execution_ms: 0.0,
+            },
         }
     }
 

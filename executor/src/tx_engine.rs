@@ -1,4 +1,3 @@
-use std::time::Instant;
 use crate::state::StateManager;
 use crate::types::{
     state_diff_commitment, tx_commitment, Account, AccountSnapshot, ExecutionTraceV1,
@@ -91,7 +90,7 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
                 usize::MAX
             };
 
-            let mut included_count: usize = executed.len();
+            let included_count: usize = executed.len();
             let sender_pre_acc = self.state.get_account(&tx.from);
             let receiver_pre_acc = self.state.get_account(&tx.to);
             let sender_pre = AccountSnapshot {
@@ -306,8 +305,7 @@ fn u64_to_u256_be(v: u64) -> [u8; 32] {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::state::InMemoryStateManager;
+    use crate::state::{InMemoryStateManager, StateManager};
     use ethers::signers::{LocalWallet, Signer};
     use ethers::types::H256;
     use rand::thread_rng;

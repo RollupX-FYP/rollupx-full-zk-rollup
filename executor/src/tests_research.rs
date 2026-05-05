@@ -1,4 +1,3 @@
-use std::path::PathBuf;
 use crate::state::{RocksDbStateManager, StateManager};
 use crate::tx_engine::{SimpleTransactionEngine, TransactionEngine};
 use crate::types::{Account, Address, Transaction};
