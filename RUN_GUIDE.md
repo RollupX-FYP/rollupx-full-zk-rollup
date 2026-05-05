@@ -122,13 +122,17 @@ bash scripts/verify_stack.sh
 
 All commands below are run **from the project root** (`rollupx-full-zk-rollup/`) on the **host machine**(normal terminal) (not inside a container).
 
-To run the entire suite (builds images, runs workload experiments, runs infrastructure experiments, and generates all reports), use the automated wrapper:
+To run a pre-defined experiment phase (builds images, recreates the stack for each run, and generates reports), use the matrix entry point:
 ```bash
-bash scripts/run_full_suite.sh
+# Run a quick smoke test (recommended for first-time validation)
+bash benchmark-suite/scripts/run_matrix.sh --phase smoke
+
+# Run the standard feasibility study
+bash benchmark-suite/scripts/run_matrix.sh --phase feasibility
 ```
 
 > [!NOTE]
-> Every time you run this script, it automatically creates a new timestamped folder (e.g., `benchmark-suite/metrics/run_20260503_150000/`) to prevent overwriting previous data.
+> Every time you run an experiment, the results are stored in `benchmark-suite/metrics/`. If you use the `run_full_suite.sh` wrapper, it automatically creates a new timestamped folder (e.g., `benchmark-suite/metrics/run_20260503_150000/`) to prevent overwriting previous data.
 
 **Output:** All raw metrics, plots, and markdown reports are saved directly to the host inside the new timestamped folder. Inside this folder you will find:
 - `metrics/<experiment_id>/<run_id>/`: Raw parameters per-run (JSON + CSV)
@@ -167,24 +171,22 @@ bash scripts/generate_reports.sh
 <details>
 <summary><strong>Filtering to specific factors</strong></summary>
 
-**Workload factors** (run inside benchmark container):
+**Method 1: Using run_matrix.sh** (Recommended)
 ```bash
-bash scripts/run_workload_matrix.sh --filter rate
-bash scripts/run_workload_matrix.sh --filter tx_mix
-```
+# Run only batch size experiments
+bash benchmark-suite/scripts/run_matrix.sh --filter batch_size --phase smoke
 
-**Infrastructure factors** (run on host):
-```bash
-bash scripts/run_infra_matrix.sh --filter batch_size
-bash scripts/run_infra_matrix.sh --filter policy
-bash scripts/run_infra_matrix.sh --filter da_mode
+# Run only DA mode experiments
+bash benchmark-suite/scripts/run_matrix.sh --filter da_mode --phase smoke
 
 # Preview what will run without executing
-bash scripts/run_infra_matrix.sh --dry-run
-
-# Skip the baseline (useful when resuming)
-bash scripts/run_infra_matrix.sh --filter da_mode --skip-baseline
+bash benchmark-suite/scripts/run_matrix.sh --filter batch_size --list
 ```
+
+**Method 2: Workload vs. Infrastructure Experiments**
+
+- **Infrastructure Factors** (batch size, timeout, policy, DA mode, prover): These require the Docker stack to be restarted for each run. Use `run_matrix.sh` on the host.
+- **Workload Factors** (rate, tx mix): These can be run against a stable stack. You can run them via `run_matrix.sh --filter workload`.
 
 </details>
 

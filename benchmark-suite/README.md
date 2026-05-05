@@ -105,6 +105,22 @@ bash benchmark-suite/scripts/run_feasibility_batchsize.sh --list
 bash benchmark-suite/scripts/run_model_quality_batchsize.sh --no-build
 ```
 
+### Advanced: Cost-Curve Analysis
+
+For economic modeling, use the quick cost-curve tool:
+
+```bash
+# Run 5 batch sizes (50 to 1000) for 1 full batch each.
+# Takes ~20-30 minutes depending on hardware.
+bash benchmark-suite/scripts/run_cost_curve_quick.sh
+```
+
+This script targets a specific number of full batches rather than a fixed duration, ensuring small batch sizes don't overload the submitter while large batch sizes still collect sufficient data.
+
+Analysis output:
+- `benchmark-suite/metrics/cost_curve_quick_analysis/cost_curve_report.md`
+- `benchmark-suite/metrics/cost_curve_quick_analysis/figures/`
+
 ## Experiment Naming
 
 Experiments are numbered so folders sort in execution order:
@@ -151,7 +167,18 @@ For each run, `scripts/run_experiment.sh`:
 6. Waits for component metric files to stop growing.
 
 This is important: the batch-size sweep only changes the real running sequencer
-when the stack is recreated with the new env.
+when the stack is recreated with the new env. The `run_experiment.sh` script
+automatically handles this by calling `docker compose down -v` and `up -d`
+between every run to ensure environment variables are correctly injected into
+the containers.
+
+### Metrics Synchronization
+
+The suite includes a polling loop that waits for component metrics to "catch up"
+before ending a run. It checks:
+1. File stability: Metrics files stop growing in size.
+2. Row parity: Executor and Submitter have processed at least as many batches as the Sequencer sealed.
+3. Timeout: A safety maximum wait (default 120s) to prevent hanging.
 
 ## Output Layout
 
@@ -197,6 +224,10 @@ diagnostics/final/*_metrics_env.txt
 Use these files first when a component metric is missing. They capture container
 health, recent service logs, and the `METRICS_ROOT`/`EXPERIMENT_ID` seen by each
 container.
+
+- `compose_ps.txt`: Status of all containers at start/end.
+- `sequencer.log`, `executor.log`, `submitter.log`: Captured stdout/stderr from containers.
+- `*_metrics_env.txt`: Verified environment variables inside the running containers.
 
 ## Checking Metrics
 

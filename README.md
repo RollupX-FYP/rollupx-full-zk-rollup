@@ -21,6 +21,7 @@ Known scope limits:
 - [docs/e2e-flow.md](docs/e2e-flow.md): End-to-end transaction lifecycle from generation to L1 settlement.
 - [docs/ui.md](docs/ui.md): Overview of the partially implemented Next.js frontend dashboard.
 - [docs/workload-generator.md](docs/workload-generator.md): Details on the Python-based workload generator.
+- [docs/benchmarking.md](docs/benchmarking.md): High-level guide to the benchmarking pipeline and orchestration.
 - [docs/sequencer.md](docs/sequencer.md): Deep dive into the Sequencer microservice.
 - [docs/executor.md](docs/executor.md): Details on the Executor microservice.
 - [docs/prover.md](docs/prover.md): Information regarding the mocked Prover subsystem.
