@@ -18,10 +18,11 @@ fn test_streaming_stats_correctness() {
 
 #[test]
 fn test_tx_engine_phase_breakdown() {
-    let mut state = crate::state::InMemoryStateManager::default();
+    let tmp = tempdir().unwrap();
+    let mut state = RocksDbStateManager::open(tmp.path()).unwrap();
     let from: Address = [1; 20];
     let to: Address = [2; 20];
-    state.seed_account(from, Account { balance: 1000, nonce: 0 });
+    state.seed_account(from, Account { balance: 1000, nonce: 0 }).unwrap();
     
     let mut engine = SimpleTransactionEngine::new(state);
     let tx = Transaction {
@@ -39,10 +40,9 @@ fn test_tx_engine_phase_breakdown() {
     let trace = engine.execute_batch("test_batch", vec![tx]).unwrap();
     let phases = trace.execution_phases;
 
-    // Verify all phases were timed (should be >= 0)
+    // Verify all phases were timed (should be > 0 with real DB)
     assert!(phases.total_execution_ms > 0.0);
     assert!(phases.merkle_update_ms > 0.0);
-    assert!(phases.signature_verify_ms >= 0.0);
     assert!(phases.state_transition_ms > 0.0);
 }
 
@@ -67,12 +67,11 @@ fn test_rocksdb_state_reset() {
 
 #[test]
 fn test_merkle_isolation_is_measurable() {
-    // This test ensures that Merkle updates take a significant portion of execution
-    // and are correctly isolated in the metrics.
-    let mut state = crate::state::InMemoryStateManager::default();
+    let tmp = tempdir().unwrap();
+    let mut state = RocksDbStateManager::open(tmp.path()).unwrap();
     let from: Address = [1; 20];
     let to: Address = [2; 20];
-    state.seed_account(from, Account { balance: 10000, nonce: 0 });
+    state.seed_account(from, Account { balance: 10000, nonce: 0 }).unwrap();
     
     let mut engine = SimpleTransactionEngine::new(state);
     let mut txs = Vec::new();
