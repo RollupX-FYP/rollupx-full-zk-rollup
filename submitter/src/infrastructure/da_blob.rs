@@ -167,6 +167,9 @@ impl<M: Middleware + 'static> DaStrategy for BlobStrategy<M> {
             compressed_bytes: Some(metrics.compressed_size),
             gas_saved: Some(metrics.gas_saved),
             gas_used,
+            blob_gas_used: None,
+            blob_base_fee_wei: None,
+            da_mode_is_simulated: false,
         })
     }
 
@@ -260,10 +263,11 @@ mod tests {
             tx_count: 0,
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
-            blob_versioned_hash: None,
-            blob_index: None,
+            blob_versioned_hash: Some("0x1111".into()),
+            blob_index: Some(0),
             fee: 0,
             experiment_id: None,
+            ..Default::default()
         };
 
         // Populate responses

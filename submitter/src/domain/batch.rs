@@ -76,6 +76,40 @@ pub struct Batch {
     pub experiment_id: Option<String>,
     #[serde(default)]
     pub tx_count: u32,
+
+    // --- Research instrumentation fields ---
+    /// Epoch-ms when the batch was first received by the submitter from the executor.
+    /// Best available approximation for "batch ready" time without executor-side timestamps.
+    #[serde(default)]
+    pub batch_receive_ms: Option<u64>,
+
+    /// Whether any gas bump occurred during L1 submission for this batch.
+    /// If true, latency figures are NOT comparable to non-bumped batches.
+    #[serde(default)]
+    pub gas_bumped: bool,
+
+    /// Total number of gas bumps applied (0 = none, useful for filtering).
+    #[serde(default)]
+    pub gas_bump_count: u8,
+
+    /// Gas price (in gwei) of the FIRST submission attempt for this batch.
+    /// Preserved across bumps for comparison.
+    #[serde(default)]
+    pub original_gas_price_gwei: Option<f64>,
+
+    /// Gas price (in gwei) of the FINAL confirmed transaction.
+    #[serde(default)]
+    pub final_gas_price_gwei: Option<f64>,
+
+    /// Total HTTP round-trip time to the prover service in milliseconds.
+    /// This is an upper bound on proof generation time (includes network latency).
+    #[serde(default)]
+    pub prover_rtt_ms: Option<u64>,
+
+    /// Proof generation time as reported by the prover service itself.
+    /// `None` when the prover does not return this field (current default).
+    #[serde(default)]
+    pub proof_generation_ms: Option<u64>,
 }
 
 impl Batch {
@@ -104,6 +138,13 @@ impl Batch {
             fee: 0,
             experiment_id: None,
             tx_count: 0,
+            batch_receive_ms: Some(Utc::now().timestamp_millis() as u64),
+            gas_bumped: false,
+            gas_bump_count: 0,
+            original_gas_price_gwei: None,
+            final_gas_price_gwei: None,
+            prover_rtt_ms: None,
+            proof_generation_ms: None,
         }
     }
 

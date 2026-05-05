@@ -130,6 +130,9 @@ impl<M: Middleware + 'static> DaStrategy for CalldataStrategy<M> {
             compressed_bytes: Some(compressed_len),
             gas_saved: None,
             gas_used,
+            blob_gas_used: None,
+            blob_base_fee_wei: None,
+            da_mode_is_simulated: false,
         })
     }
 
@@ -216,6 +219,7 @@ mod tests {
             blob_index: None,
             fee: 0,
             experiment_id: None,
+            ..Default::default()
         };
 
         std::fs::write("test_data_calldata.txt", "dummy data").unwrap();

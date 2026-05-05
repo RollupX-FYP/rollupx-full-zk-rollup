@@ -37,7 +37,7 @@ sha1_smol = "1.0"
 tonic = "0.12.3"
 prost = "0.13"
 tokio-stream = { version = "0.1", features = ["sync"] }
-rusqlite = { version = "0.38.0", features = ["bundled"] }
+rusqlite = { version = "0.38.0", features = ["backup", "bundled"] }
 
 [dev-dependencies]
 wiremock = "0.6"

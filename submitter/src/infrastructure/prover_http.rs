@@ -130,10 +130,15 @@ impl ProofProvider for HttpProofProvider {
         let backoff = self.backoff_settings.clone();
 
         match retry(backoff, operation).await {
-            Ok(proof) => {
+            Ok(mut proof) => {
                 self.record_success().await;
+                let rtt_ms = start.elapsed().as_millis() as u64;
                 histogram!("prover_request_duration_seconds").record(start.elapsed().as_secs_f64());
                 counter!("prover_requests_total", "result" => "success").increment(1);
+                // If prover didn't report its own generation time, use RTT as upper bound
+                if proof.proof_generation_ms.is_none() {
+                    proof.proof_generation_ms = Some(rtt_ms);
+                }
                 Ok(proof)
             }
             Err(e) => {

@@ -119,6 +119,9 @@ impl<M: Middleware + 'static> DaStrategy for OffChainStrategy<M> {
             compressed_bytes: Some(batch_data.len()),
             gas_saved: None,
             gas_used: None,
+            blob_gas_used: None,
+            blob_base_fee_wei: None,
+            da_mode_is_simulated: true,
         })
     }
 
