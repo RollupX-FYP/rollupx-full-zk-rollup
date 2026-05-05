@@ -375,3 +375,63 @@ pub enum ConfirmationStatus {
     /// Transaction failed validation (includes reason for rejection)
     Rejected { reason: String },
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pooled_transaction_latency() {
+        let tx = UserTransaction {
+            from: Address::random(),
+            to: Address::random(),
+            value: U256::from(100),
+            nonce: 1,
+            gas_limit: 21000,
+            gas_price: U256::from(10),
+            signature: Signature { r: U256::zero(), s: U256::zero(), v: 0 },
+            timestamp: 1000,
+            boost_bid: None,
+        };
+        
+        let arrived_at = 1000;
+        let pool_entry_at = 1050;
+        let ptx = PooledTransaction::new(tx, arrived_at, pool_entry_at);
+        
+        assert_eq!(ptx.arrived_at, 1000);
+        assert_eq!(ptx.pool_entry_at, 1050);
+        assert_eq!(ptx.validation_latency_ms, 50);
+    }
+
+    #[test]
+    fn test_transaction_arrival_timestamp_ms() {
+        let tx = UserTransaction {
+            from: Address::random(),
+            to: Address::random(),
+            value: U256::from(100),
+            nonce: 1,
+            gas_limit: 21000,
+            gas_price: U256::from(10),
+            signature: Signature { r: U256::zero(), s: U256::zero(), v: 0 },
+            timestamp: 1234,
+            boost_bid: None,
+        };
+        let ptx = PooledTransaction::new(tx, 1234, 1235);
+        let normal = Transaction::Normal(ptx);
+        assert_eq!(normal.arrival_timestamp_ms(), 1234);
+
+        let forced = Transaction::Forced(ForcedTransaction {
+            tx_hash: H256::zero(),
+            from: Address::random(),
+            to: Address::random(),
+            value: U256::from(500),
+            nonce: 0,
+            gas_limit: 100000,
+            l1_tx_hash: H256::zero(),
+            l1_block_number: 1,
+            event_type: ForcedEventType::Deposit,
+            timestamp: 1700000000, // seconds
+        });
+        assert_eq!(forced.arrival_timestamp_ms(), 1700000000000); // ms
+    }
+}

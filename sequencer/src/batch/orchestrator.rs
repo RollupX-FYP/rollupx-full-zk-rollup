@@ -445,3 +445,42 @@ impl BatchOrchestrator {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_calculate_distribution_metrics_empty() {
+        let dist = BatchOrchestrator::calculate_distribution_metrics(&[]);
+        assert_eq!(dist.p50_wait_ms, 0);
+        assert_eq!(dist.jains_fairness_index, 1.0);
+    }
+
+    #[test]
+    fn test_calculate_distribution_metrics_perfectly_fair() {
+        let wait_times = vec![100, 100, 100, 100];
+        let dist = BatchOrchestrator::calculate_distribution_metrics(&wait_times);
+        assert_eq!(dist.p50_wait_ms, 100);
+        assert_eq!(dist.mean_wait_ms, 100.0);
+        assert_eq!(dist.std_dev_wait_ms, 0.0);
+        // Jain's index should be 1.0 for equal values
+        assert!((dist.jains_fairness_index - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_calculate_distribution_metrics_unfair() {
+        // One user waits 1000ms, others wait 10ms
+        let wait_times = vec![1000, 10, 10, 10];
+        let dist = BatchOrchestrator::calculate_distribution_metrics(&wait_times);
+        assert_eq!(dist.p50_wait_ms, 10);
+        assert_eq!(dist.max_wait_ms, 1000);
+        assert!(dist.jains_fairness_index < 0.5); // Should be significantly less than 1
+    }
+
+    #[test]
+    fn test_now_unix_ms() {
+        let now = BatchOrchestrator::now_unix_ms();
+        assert!(now > 1_700_000_000_000); // Sane value for 2024+
+    }
+}

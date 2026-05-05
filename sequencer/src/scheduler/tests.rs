@@ -13,15 +13,15 @@ mod tests {
     };
     use ethers::types::{Address, U256, Signature, H256};
 
-    /// Helper function to create a test user transaction
+    /// Helper function to create a test pooled transaction
     fn create_test_tx(
         nonce: u64,
         gas_price: u64,
         gas_limit: u64,
         timestamp: u64,
         boost_bid: Option<u64>,
-    ) -> UserTransaction {
-        UserTransaction {
+    ) -> crate::PooledTransaction {
+        let tx = UserTransaction {
             from: Address::zero(),
             to: Address::zero(),
             value: U256::from(1000),
@@ -33,7 +33,8 @@ mod tests {
             signature: Signature { r: U256::zero(), s: U256::zero(), v: 0 },
             timestamp,
             boost_bid: boost_bid.map(U256::from),
-        }
+        };
+        crate::PooledTransaction::new(tx, timestamp, timestamp + 10)
     }
 
     /// Helper function to create a test forced transaction
@@ -67,9 +68,9 @@ mod tests {
         
         // FCFS should maintain original order
         assert_eq!(ordered.len(), 3);
-        assert_eq!(ordered[0].nonce, 1);
-        assert_eq!(ordered[1].nonce, 2);
-        assert_eq!(ordered[2].nonce, 3);
+        assert_eq!(ordered[0].tx.nonce, 1);
+        assert_eq!(ordered[1].tx.nonce, 2);
+        assert_eq!(ordered[2].tx.nonce, 3);
     }
 
     #[test]
@@ -88,10 +89,10 @@ mod tests {
         
         // Should be ordered by gas price (highest first)
         assert_eq!(ordered.len(), 4);
-        assert_eq!(ordered[0].gas_price, U256::from(500)); // nonce 2
-        assert_eq!(ordered[1].gas_price, U256::from(300)); // nonce 4
-        assert_eq!(ordered[2].gas_price, U256::from(100)); // nonce 1
-        assert_eq!(ordered[3].gas_price, U256::from(50));  // nonce 3
+        assert_eq!(ordered[0].tx.gas_price, U256::from(500)); // nonce 2
+        assert_eq!(ordered[1].tx.gas_price, U256::from(300)); // nonce 4
+        assert_eq!(ordered[2].tx.gas_price, U256::from(100)); // nonce 1
+        assert_eq!(ordered[3].tx.gas_price, U256::from(50));  // nonce 3
     }
 
     #[test]
@@ -112,10 +113,10 @@ mod tests {
         
         // Should process window 0 first, then window 1, then window 2
         assert_eq!(ordered.len(), 4);
-        assert_eq!(ordered[0].timestamp / 5000, 0); // Window 0
-        assert_eq!(ordered[1].timestamp / 5000, 0); // Window 0
-        assert_eq!(ordered[2].timestamp / 5000, 1); // Window 1
-        assert_eq!(ordered[3].timestamp / 5000, 2); // Window 2
+        assert_eq!(ordered[0].tx.timestamp / 5000, 0); // Window 0
+        assert_eq!(ordered[1].tx.timestamp / 5000, 0); // Window 0
+        assert_eq!(ordered[2].tx.timestamp / 5000, 1); // Window 1
+        assert_eq!(ordered[3].tx.timestamp / 5000, 2); // Window 2
     }
 
     #[test]
@@ -136,11 +137,10 @@ mod tests {
         
         // Within same window, should order by boost_bid (highest first)
         assert_eq!(ordered.len(), 4);
-        assert_eq!(ordered[
-0].boost_bid, Some(U256::from(800))); // nonce 4
-        assert_eq!(ordered[1].boost_bid, Some(U256::from(500))); // nonce 2
-        assert_eq!(ordered[2].boost_bid, Some(U256::from(200))); // nonce 3
-        assert_eq!(ordered[3].boost_bid, None);                  // nonce 1
+        assert_eq!(ordered[0].tx.boost_bid, Some(U256::from(800))); // nonce 4
+        assert_eq!(ordered[1].tx.boost_bid, Some(U256::from(500))); // nonce 2
+        assert_eq!(ordered[2].tx.boost_bid, Some(U256::from(200))); // nonce 3
+        assert_eq!(ordered[3].tx.boost_bid, None);                  // nonce 1
     }
 
     #[test]
@@ -160,9 +160,9 @@ mod tests {
         
         // Should fall back to gas_price when boost_bid is equal
         assert_eq!(ordered.len(), 3);
-        assert_eq!(ordered[0].gas_price, U256::from(300)); // nonce 2
-        assert_eq!(ordered[1].gas_price, U256::from(200)); // nonce 3
-        assert_eq!(ordered[2].gas_price, U256::from(100)); // nonce 1
+        assert_eq!(ordered[0].tx.gas_price, U256::from(300)); // nonce 2
+        assert_eq!(ordered[1].tx.gas_price, U256::from(200)); // nonce 3
+        assert_eq!(ordered[2].tx.gas_price, U256::from(100)); // nonce 1
     }
 
     #[test]
@@ -180,9 +180,9 @@ mod tests {
         
         // Should be ordered by timestamp (earliest first)
         assert_eq!(ordered.len(), 3);
-        assert_eq!(ordered[0].timestamp, 1000); // nonce 2
-        assert_eq!(ordered[1].timestamp, 3000); // nonce 3
-        assert_eq!(ordered[2].timestamp, 5000); // nonce 1
+        assert_eq!(ordered[0].tx.timestamp, 1000); // nonce 2
+        assert_eq!(ordered[1].tx.timestamp, 3000); // nonce 3
+        assert_eq!(ordered[2].tx.timestamp, 5000); // nonce 1
     }
 
     #[test]
@@ -216,11 +216,11 @@ mod tests {
         
         // Normal transactions should follow, ordered by gas price
         match &ordered[2] {
-            Transaction::Normal(tx) => assert_eq!(tx.gas_price, U256::from(1000)),
+            Transaction::Normal(ptx) => assert_eq!(ptx.tx.gas_price, U256::from(1000)),
             _ => panic!("Expected normal transaction third"),
         }
         match &ordered[3] {
-            Transaction::Normal(tx) => assert_eq!(tx.gas_price, U256::from(500)),
+            Transaction::Normal(ptx) => assert_eq!(ptx.tx.gas_price, U256::from(500)),
             _ => panic!("Expected normal transaction fourth"),
         }
     }
@@ -256,17 +256,17 @@ mod tests {
         // Test with FCFS policy
         let fcfs_policy = create_policy(SchedulingPolicyType::Fcfs);
         let fcfs_ordered = fcfs_policy.order_transactions(txs.clone());
-        assert_eq!(fcfs_ordered[0].nonce, 1); // Original order
+        assert_eq!(fcfs_ordered[0].tx.nonce, 1); // Original order
         
         // Test with FeePriority policy
         let fee_policy = create_policy(SchedulingPolicyType::FeePriority);
         let fee_ordered = fee_policy.order_transactions(txs.clone());
-        assert_eq!(fee_ordered[0].gas_price, U256::from(500)); // Highest fee first
+        assert_eq!(fee_ordered[0].tx.gas_price, U256::from(500)); // Highest fee first
         
         // Test with FairBFT policy
         let bft_policy = create_policy(SchedulingPolicyType::FairBft);
         let bft_ordered = bft_policy.order_transactions(txs.clone());
-        assert_eq!(bft_ordered[0].timestamp, 1000); // Earliest timestamp first
+        assert_eq!(bft_ordered[0].tx.timestamp, 1000); // Earliest timestamp first
     }
 
     #[test]
@@ -283,6 +283,6 @@ mod tests {
         let txs = vec![create_test_tx(1, 100, 21000, 1000, None)];
         let ordered = policy.order_transactions(txs);
         assert_eq!(ordered.len(), 1);
-        assert_eq!(ordered[0].nonce, 1);
+        assert_eq!(ordered[0].tx.nonce, 1);
     }
 }

@@ -230,19 +230,47 @@ impl StateCache {
         StateCacheMetrics {
             cache_hit_rate: hit_rate,
             stale_nonce_rejections: self.stale_nonce_rejections.load(Ordering::Relaxed),
-            balance_check_failures: 0, // Not explicitly tracked yet
+            balance_check_failures: 0,
             cache_age_ms: age,
         }
     }
 
     /// Get the number of accounts tracked in the cache
-    ///
-    /// Useful for diagnostics and monitoring the cache size.
-    ///
-    /// # Returns
-    /// The number of unique accounts in the cache
     pub async fn account_count(&self) -> usize {
         let accounts = self.accounts.read().await;
         accounts.len()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_cache_metrics_tracking() {
+        let cache = StateCache::new();
+        let addr = Address::random();
+
+        // Initially zero
+        let m = cache.collect_metrics();
+        assert_eq!(m.cache_hit_rate, 0.0);
+        assert_eq!(m.stale_nonce_rejections, 0);
+
+        // Record a miss
+        cache.get_or_init_account(&addr).await;
+        let m = cache.collect_metrics();
+        assert_eq!(m.cache_hit_rate, 0.0); // 0 hits, 1 miss
+
+        // Seed and record a hit
+        cache.update(AccountState { address: addr, balance: U256::from(100), nonce: 1 }).await;
+        cache.get_or_init_account(&addr).await;
+        let m = cache.collect_metrics();
+        // 1 hit, 1 miss = 0.5 hit rate
+        assert!((m.cache_hit_rate - 0.5).abs() < 0.001);
+
+        // Record stale rejection
+        cache.record_stale_rejection();
+        let m = cache.collect_metrics();
+        assert_eq!(m.stale_nonce_rejections, 1);
     }
 }

@@ -99,3 +99,43 @@ impl TransactionPool {
         txs.is_empty()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{UserTransaction, PooledTransaction};
+    use ethers::types::{Address, U256, Signature};
+
+    #[tokio::test]
+    async fn test_pool_total_received() {
+        let pool = TransactionPool::new();
+        assert_eq!(pool.total_received(), 0);
+
+        let tx = UserTransaction {
+            from: Address::random(),
+            to: Address::random(),
+            value: U256::from(100),
+            nonce: 1,
+            gas_limit: 21000,
+            gas_price: U256::from(10),
+            signature: Signature { r: U256::zero(), s: U256::zero(), v: 0 },
+            timestamp: 1000,
+            boost_bid: None,
+        };
+        let ptx = PooledTransaction {
+            tx,
+            arrived_at: 1000,
+            pool_entry_at: 1001,
+            validation_latency_ms: 1,
+        };
+
+        pool.add(ptx).await;
+        assert_eq!(pool.total_received(), 1);
+        assert_eq!(pool.pending_count().await, 1);
+        
+        // Draining shouldn't reset total_received
+        pool.get_pending(1).await;
+        assert_eq!(pool.total_received(), 1);
+        assert_eq!(pool.pending_count().await, 0);
+    }
+}
