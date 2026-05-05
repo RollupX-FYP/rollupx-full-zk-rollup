@@ -236,6 +236,11 @@ mod tests {
 
         mock.push(U256::from(100_000));
         mock.push(H256::random());
+        let mut receipt = TransactionReceipt::default();
+        receipt.status = Some(U64::from(1));
+        receipt.block_number = Some(U64::from(1));
+        receipt.gas_used = Some(U256::from(21000));
+        mock.push(Some(receipt));
 
         let proof_hex = format!("0x{}", hex::encode([0u8; 128])); // Random bytes
         let res = strategy.submit(&batch, &proof_hex, 0).await;
