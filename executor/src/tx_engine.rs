@@ -166,7 +166,11 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
             let mut receiver_diff = self.state.set_account(tx.to, new_receiver.clone())?;
             receiver_diff.merkle_proof = vec![receiver_root_before];
             prover_root = fold_diff(prover_root, &receiver_diff);
-            merkle_update_ms += merkle_start.elapsed().as_micros() as f64 / 1000.0;
+            let elapsed_micros = merkle_start.elapsed().as_micros() as f64;
+            merkle_update_ms += elapsed_micros / 1000.0;
+            if batch_id == "test_merkle_perf" && elapsed_micros > 0.0 {
+                 // only print if we actually measured something to avoid spam
+            }
 
             diffs.push(sender_diff);
             diffs.push(receiver_diff);

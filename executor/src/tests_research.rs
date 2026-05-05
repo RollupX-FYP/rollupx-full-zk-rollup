@@ -73,9 +73,15 @@ fn test_merkle_isolation_is_measurable() {
     let to: Address = [2; 20];
     state.seed_account(from, Account { balance: 1000000, nonce: 0 }).unwrap();
     
+    // Seed many accounts to make the tree deeper
+    for i in 0..200 {
+        let a: Address = [i as u8; 20];
+        state.seed_account(a, Account { balance: 1000, nonce: 0 }).unwrap();
+    }
+    
     let mut engine = SimpleTransactionEngine::new(state);
     let mut txs = Vec::new();
-    for i in 0..50 {
+    for i in 0..100 {
         txs.push(Transaction {
             from,
             to,
