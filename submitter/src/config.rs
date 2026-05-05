@@ -88,7 +88,7 @@ pub struct DaConfig {
     pub archiver_url: Option<String>,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Clone, Copy)]
+#[derive(Debug, serde::Serialize, Deserialize, PartialEq, Clone, Copy)]
 #[serde(rename_all = "lowercase")]
 pub enum DaMode {
     Calldata,

@@ -3,7 +3,7 @@
 
 #[tokio::test]
 async fn test_submission_retry_on_transient_failure() {
-    /// Verify that transient failures (network hiccup) trigger retry
+    // Verify that transient failures (network hiccup) trigger retry
 
     let mut attempt_count = 0;
     let max_attempts = 3;
@@ -38,7 +38,7 @@ async fn test_submission_retry_on_transient_failure() {
 
 #[tokio::test]
 async fn test_submission_permanent_failure_detection() {
-    /// Verify that permanent failures (invalid proof) don't trigger retry
+    // Verify that permanent failures (invalid proof) don't trigger retry
 
     let error = "Invalid proof signature";
     let is_permanent = error.contains("Invalid") || error.contains("malformed");
@@ -53,7 +53,7 @@ async fn test_submission_permanent_failure_detection() {
 
 #[tokio::test]
 async fn test_circuit_breaker_triggers_on_repeated_failures() {
-    /// Verify circuit breaker prevents cascading failures
+    // Verify circuit breaker prevents cascading failures
 
     let failure_threshold = 5;
     let mut consecutive_failures = 0;
@@ -85,7 +85,7 @@ async fn test_circuit_breaker_triggers_on_repeated_failures() {
 
 #[tokio::test]
 async fn test_exponential_backoff_retry_strategy() {
-    /// Verify retries use exponential backoff to avoid thundering herd
+    // Verify retries use exponential backoff to avoid thundering herd
 
     let mut retry_delays = Vec::new();
     let base_delay_ms = 100u64;
@@ -131,7 +131,7 @@ async fn test_timeout_protection() {
 
 #[tokio::test]
 async fn test_proof_generation_timeout() {
-    /// Verify that proof generation has reasonable timeout
+    // Verify that proof generation has reasonable timeout
 
     let proof_timeout_seconds = 300; // 5 minutes
     assert!(proof_timeout_seconds >= 60, "Min 1 minute timeout");
@@ -145,7 +145,7 @@ async fn test_proof_generation_timeout() {
 
 #[tokio::test]
 async fn test_graceful_shutdown_on_config_error() {
-    /// Verify system exits cleanly on invalid configuration
+    // Verify system exits cleanly on invalid configuration
 
     let invalid_configs = vec![
         ("empty_rpc_url", ""),
@@ -162,7 +162,7 @@ async fn test_graceful_shutdown_on_config_error() {
 
 #[tokio::test]
 async fn test_disk_full_error_handling() {
-    /// Verify system handles disk full scenarios
+    // Verify system handles disk full scenarios
 
     let available_space = 1_000_000_000u64; // 1 GB
     let required_space = 500_000_000u64; // 500 MB
@@ -176,7 +176,7 @@ async fn test_disk_full_error_handling() {
 
 #[tokio::test]
 async fn test_connection_pool_exhaustion() {
-    /// Verify system handles connection pool limits
+    // Verify system handles connection pool limits
 
     let max_connections = 10;
     let current_connections = 8;
@@ -191,7 +191,7 @@ async fn test_connection_pool_exhaustion() {
 
 #[tokio::test]
 async fn test_rate_limit_handling() {
-    /// Verify system handles L1 RPC rate limits
+    // Verify system handles L1 RPC rate limits
 
     let rate_limit_header = Some("RateLimit-Remaining: 10".to_string());
 
@@ -230,7 +230,7 @@ async fn test_nonce_conflict_detection() {
 
 #[tokio::test]
 async fn test_invalid_signature_rejection() {
-    /// Verify invalid signatures are rejected before L1 submission
+    // Verify invalid signatures are rejected before L1 submission
 
     let proof_signatures = vec!["valid_sig_64bytes...", "INVALID_SIG", ""];
 
@@ -250,7 +250,7 @@ async fn test_invalid_signature_rejection() {
 
 #[tokio::test]
 async fn test_batch_data_size_limits() {
-    /// Verify system rejects oversized batch data
+    // Verify system rejects oversized batch data
 
     let calldata_limit = 130_000usize; // ~130 KB practical limit
     let blob_limit = 131_000usize; // 131 KB per blob
@@ -276,7 +276,7 @@ async fn test_batch_data_size_limits() {
 
 #[tokio::test]
 async fn test_invalid_state_root_rejection() {
-    /// Verify invalid state roots are rejected
+    // Verify invalid state roots are rejected
 
     let invalid_roots = vec![
         "not_a_hash",
@@ -322,7 +322,7 @@ async fn test_concurrent_batch_submission_ordering() {
 
 #[tokio::test]
 async fn test_metrics_collection_doesnt_block() {
-    /// Verify metrics collection doesn't impact throughput
+    // Verify metrics collection doesn't impact throughput
 
     let start = std::time::Instant::now();
 
@@ -353,7 +353,7 @@ mod resilience_constants {
     fn timeout_values_are_reasonable() {
         let proof_timeout = 300; // 5 min
         let submission_timeout = 120; // 2 min
-        let confirmation_timeout = 600; // 10 min
+        let _confirmation_timeout = 600; // 10 min
 
         assert!(proof_timeout > submission_timeout);
         assert!(submission_timeout > 0);

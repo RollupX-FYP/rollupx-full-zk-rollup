@@ -19,7 +19,6 @@ fn test_batch_status_is_defined() {
 #[test]
 fn test_batch_status_ordering() {
     // Verify status progression makes sense
-    use std::cmp::Ordering;
     
     // Linear progression: Discovered < Proving < Proved < Submitting < Submitted < Confirmed > Failed
     let states = [
@@ -54,14 +53,14 @@ fn test_batch_status_clone() {
 #[test]
 fn test_batch_status_copy() {
     let status = BatchStatus::Discovered;
-    let copied = status;
+    let copied = status.clone();
     assert_eq!(status, copied);
     println!("✓ BatchStatus copy works");
 }
 
 #[test]
 fn test_batch_status_serialize() {
-    use serde::{Serialize, Deserialize};
+
     let status = BatchStatus::Proving;
     let bytes = serde_json::to_vec(&status).unwrap();
     let restored: BatchStatus = serde_json::from_slice(&bytes).unwrap();
@@ -71,7 +70,7 @@ fn test_batch_status_serialize() {
 
 #[cfg(test)]
 mod batch_lifecycle_constants {
-    use super::*;
+
 
     #[test]
     fn batch_status_has_six_confirmed_states() {

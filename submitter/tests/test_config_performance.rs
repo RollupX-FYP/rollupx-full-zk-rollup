@@ -6,7 +6,7 @@ use std::fs;
 
 #[test]
 fn test_config_validation_rpc_url() {
-    /// Verify RPC URL validation
+    // Verify RPC URL validation
 
     let valid_urls = vec![
         "http://localhost:8545",
@@ -31,7 +31,7 @@ fn test_config_validation_rpc_url() {
 
 #[test]
 fn test_config_validation_bridge_address() {
-    /// Verify bridge contract address validation
+    // Verify bridge contract address validation
 
     let valid_addresses = vec![
         "0x0000000000000000000000000000000000000000",
@@ -60,7 +60,7 @@ fn test_config_validation_bridge_address() {
 
 #[test]
 fn test_config_validation_da_mode() {
-    /// Verify DA mode validation
+    // Verify DA mode validation
 
     #[derive(Debug, PartialEq)]
     enum DaMode {
@@ -97,7 +97,7 @@ fn test_config_validation_da_mode() {
 
 #[test]
 fn test_config_validation_chain_id() {
-    /// Verify chain ID validation
+    // Verify chain ID validation
 
     let valid_chain_ids = vec![
         1u64,        // Mainnet
@@ -121,7 +121,7 @@ fn test_config_validation_chain_id() {
 
 #[test]
 fn test_config_validation_blob_versioned_hash() {
-    /// Verify blob versioned hash format
+    // Verify blob versioned hash format
 
     let valid_hashes = vec![
         "0x0000000000000000000000000000000000000000000000000000000000000000",
@@ -138,7 +138,7 @@ fn test_config_validation_blob_versioned_hash() {
 
 #[test]
 fn test_config_validation_max_retries() {
-    /// Verify max retries configuration
+    // Verify max retries configuration
 
     let max_retries = vec![1, 3, 5, 10];
 
@@ -151,7 +151,7 @@ fn test_config_validation_max_retries() {
 
 #[test]
 fn test_performance_batch_parsing() {
-    /// Verify batch data parsing performance
+    // Verify batch data parsing performance
 
     use std::time::Instant;
 
@@ -167,7 +167,7 @@ fn test_performance_batch_parsing() {
         .take(1000)
         .collect::<Vec<_>>();
 
-    let json_bytes = serde_json::to_vec(&batch_items).unwrap();
+    let _json_bytes = serde_json::to_vec(&batch_items).unwrap();
 
     let json_bytes = serde_json::to_vec(&batch_data).unwrap();
 
@@ -193,7 +193,7 @@ fn test_performance_batch_parsing() {
 
 #[test]
 fn test_performance_commitment_hashing() {
-    /// Verify commitment hash computation performance
+    // Verify commitment hash computation performance
 
     use std::time::Instant;
 
@@ -220,7 +220,7 @@ fn test_performance_commitment_hashing() {
 
 #[test]
 fn test_performance_compression() {
-    /// Verify compression performance
+    // Verify compression performance
 
     use std::time::Instant;
     use std::io::Write;
@@ -253,16 +253,15 @@ fn test_performance_compression() {
 
 #[test]
 fn test_performance_state_transition() {
-    /// Verify batch state transition performance
+    // Verify batch state transition performance
 
     use std::time::Instant;
-    use submitter::domain::batch::{Batch, BatchStatus};
+    use submitter_rs::domain::batch::{Batch, BatchStatus};
 
     let start = Instant::now();
 
     for i in 0..10_000 {
         let mut batch = Batch {
-            id: format!("batch_{}", i),
             status: BatchStatus::Discovered,
             ..Default::default()
         };
@@ -289,9 +288,9 @@ fn test_performance_state_transition() {
 
 #[test]
 fn test_memory_batch_storage() {
-    /// Verify reasonable memory usage for batch storage
+    // Verify reasonable memory usage for batch storage
 
-    use submitter::domain::batch::Batch;
+    use submitter_rs::domain::batch::Batch;
     use std::mem::size_of;
 
     let batch_size = size_of::<Batch>();
@@ -307,7 +306,7 @@ fn test_memory_batch_storage() {
 
 #[test]
 fn test_throughput_metrics() {
-    /// Verify system can handle expected throughput
+    // Verify system can handle expected throughput
 
     let batches_per_second = 100; // Expected: ~100 batches/sec
     let batches_per_day = batches_per_second * 86400;
@@ -328,7 +327,7 @@ fn test_throughput_metrics() {
 
 #[test]
 fn test_latency_targets() {
-    /// Verify latency targets are reasonable
+    // Verify latency targets are reasonable
 
     let proof_generation_s = 5.0; // 5 seconds
     let l1_submission_s = 2.0;    // 2 seconds

@@ -53,8 +53,7 @@ async fn test_l1_testnet_batch_submission() {
     let new_root = [1u8; 32];
     let proof = Bytes::from(vec![0u8; 256]);
 
-    let call = bridge.commit_batch(0, 0, batch_data.into(), Bytes::new(), new_root, proof);
-    match call.send().await {
+    match bridge.commit_batch(0, 0, batch_data.into(), Bytes::new(), new_root, proof).send().await {
         Ok(pending) => {
             println!("Transaction sent: {:?}", pending.tx_hash());
             match pending.await {
@@ -78,7 +77,7 @@ async fn test_l1_state_root_reading() {
     let rpc_url = std::env::var("TESTNET_RPC_URL")
         .unwrap_or_else(|_| "https://sepolia.infura.io/v3/YOUR_KEY".to_string());
 
-    let provider = Provider::<Http>::try_from(rpc_url).unwrap();
+    let _provider = Provider::<Http>::try_from(rpc_url).unwrap();
     let bridge_addr: Address = std::env::var("BRIDGE_CONTRACT_ADDRESS")
         .unwrap_or_else(|_| "0x0000000000000000000000000000000000000000".to_string())
         .parse()

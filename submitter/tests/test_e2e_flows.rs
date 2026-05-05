@@ -9,10 +9,10 @@ use std::fs;
 #[tokio::test]
 #[ignore]
 async fn test_end_to_end_calldata_submission() {
-    /// Complete flow: Batch discovery -> Proving -> Calldata submission -> Confirmation
+    // Complete flow: Batch discovery -> Proving -> Calldata submission -> Confirmation
 
     // 1. Create batch
-    let batch_id = "e2e_calldata_001";
+    let _batch_id = "e2e_calldata_001";
     let temp_dir = tempfile::tempdir().unwrap();
     let data_file = temp_dir.path().join("batch_data.json");
 
@@ -28,7 +28,6 @@ async fn test_end_to_end_calldata_submission() {
     fs::write(&data_file, serde_json::to_vec(&batch_data).unwrap()).unwrap();
 
     let mut batch = Batch {
-        id: batch_id.to_string(),
         data_file: data_file.to_str().unwrap().to_string(),
         new_root: "0x0000000000000000000000000000000000000000000000000000000000000001"
             .to_string(),
@@ -45,7 +44,7 @@ async fn test_end_to_end_calldata_submission() {
     assert_eq!(batch.status, BatchStatus::Proving);
 
     // 3. Simulate proof generation
-    batch.proof = Some("0x" + &"ab".repeat(128));
+    batch.proof = Some("0x".to_owned() + &"ab".repeat(128));
     batch.status = BatchStatus::Proved;
     println!("Stage 3: Proved");
     assert_eq!(batch.status, BatchStatus::Proved);
@@ -56,7 +55,7 @@ async fn test_end_to_end_calldata_submission() {
     assert_eq!(batch.status, BatchStatus::Submitting);
 
     // 5. Simulate L1 submission
-    batch.tx_hash = Some("0x" + &"cd".repeat(32));
+    batch.tx_hash = Some("0x".to_owned() + &"cd".repeat(32));
     batch.status = BatchStatus::Submitted;
     println!("Stage 5: Submitted - TxHash: {}", batch.tx_hash.as_ref().unwrap());
     assert_eq!(batch.status, BatchStatus::Submitted);
@@ -72,9 +71,9 @@ async fn test_end_to_end_calldata_submission() {
 #[tokio::test]
 #[ignore]
 async fn test_end_to_end_blob_submission() {
-    /// Complete flow with blob DA
+    // Complete flow with blob DA
 
-    let batch_id = "e2e_blob_001";
+    let _batch_id = "e2e_blob_001";
     let temp_dir = tempfile::tempdir().unwrap();
     let data_file = temp_dir.path().join("blob_data.bin");
 
@@ -83,7 +82,6 @@ async fn test_end_to_end_blob_submission() {
     fs::write(&data_file, &blob_data).unwrap();
 
     let mut batch = Batch {
-        id: batch_id.to_string(),
         data_file: data_file.to_str().unwrap().to_string(),
         new_root: "0x0000000000000000000000000000000000000000000000000000000000000002"
             .to_string(),
@@ -103,11 +101,11 @@ async fn test_end_to_end_blob_submission() {
 
     // Run through states
     batch.status = BatchStatus::Proving;
-    batch.proof = Some("0x" + &"ef".repeat(128));
+    batch.proof = Some("0x".to_owned() + &"ef".repeat(128));
     batch.status = BatchStatus::Proved;
 
     batch.status = BatchStatus::Submitting;
-    batch.tx_hash = Some("0x" + &"12".repeat(32));
+    batch.tx_hash = Some("0x".to_owned() + &"12".repeat(32));
     batch.status = BatchStatus::Submitted;
 
     batch.status = BatchStatus::Confirmed;
@@ -119,9 +117,9 @@ async fn test_end_to_end_blob_submission() {
 #[tokio::test]
 #[ignore]
 async fn test_end_to_end_offchain_submission() {
-    /// Complete flow with offchain DA
+    // Complete flow with offchain DA
 
-    let batch_id = "e2e_offchain_001";
+    let _batch_id = "e2e_offchain_001";
     let temp_dir = tempfile::tempdir().unwrap();
     let data_file = temp_dir.path().join("offchain_data.json");
 
@@ -133,7 +131,6 @@ async fn test_end_to_end_offchain_submission() {
     fs::write(&data_file, serde_json::to_vec(&batch_data).unwrap()).unwrap();
 
     let mut batch = Batch {
-        id: batch_id.to_string(),
         data_file: data_file.to_str().unwrap().to_string(),
         new_root: "0x0000000000000000000000000000000000000000000000000000000000000003"
             .to_string(),
@@ -144,7 +141,7 @@ async fn test_end_to_end_offchain_submission() {
     println!("OffChain submission flow (no L1 calls):");
 
     batch.status = BatchStatus::Proving;
-    batch.proof = Some("0x" + &"34".repeat(128));
+    batch.proof = Some("0x".to_owned() + &"34".repeat(128));
     batch.status = BatchStatus::Proved;
 
     // OffChain submission: no L1 transaction
@@ -162,10 +159,9 @@ async fn test_end_to_end_offchain_submission() {
 #[tokio::test]
 #[ignore]
 async fn test_end_to_end_with_retry_and_recovery() {
-    /// Test recovery from transient failures during submission
+    // Test recovery from transient failures during submission
 
     let mut batch = Batch {
-        id: "e2e_retry_001".to_string(),
         status: BatchStatus::Submitting,
         attempts: 0,
         ..Default::default()
@@ -189,17 +185,16 @@ async fn test_end_to_end_with_retry_and_recovery() {
 
         match result {
             Ok(_) => {
-                batch.tx_hash = Some("0x" + &"56".repeat(32));
+                batch.tx_hash = Some("0x".to_owned() + &"56".repeat(32));
                 batch.status = BatchStatus::Submitted;
                 break;
             }
-            Err(e) if batch.attempts < max_attempts => {
+            Err(_e) if batch.attempts < max_attempts => {
                 println!("    Retrying in 100ms...");
                 tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
             }
-            Err(e) => {
+            Err(_e) => {
                 batch.status = BatchStatus::Failed;
-                batch.error = Some(e.to_string());
                 panic!("Failed after {} attempts", batch.attempts);
             }
         }
@@ -214,7 +209,7 @@ async fn test_end_to_end_with_retry_and_recovery() {
 #[tokio::test]
 #[ignore]
 async fn test_end_to_end_multiple_batches_concurrent() {
-    /// Test processing multiple batches concurrently
+    // Test processing multiple batches concurrently
 
     let temp_dir = tempfile::tempdir().unwrap();
 
@@ -230,7 +225,6 @@ async fn test_end_to_end_multiple_batches_concurrent() {
         fs::write(&data_file, serde_json::to_vec(&batch_data).unwrap()).unwrap();
 
         batches.push(Batch {
-            id: batch_id,
             data_file: data_file.to_str().unwrap().to_string(),
             new_root: format!("0x{:064x}", i),
             status: BatchStatus::Discovered,
@@ -262,11 +256,10 @@ async fn test_end_to_end_multiple_batches_concurrent() {
         })
         .collect();
 
-    let results: Vec<_> = futures::future::join_all(handles)
-        .await
-        .into_iter()
-        .map(|r| r.unwrap())
-        .collect();
+    let mut results = Vec::new();
+    for handle in handles {
+        results.push(handle.await.unwrap());
+    }
 
     for batch in &results {
         assert_eq!(batch.status, BatchStatus::Confirmed);
@@ -278,10 +271,9 @@ async fn test_end_to_end_multiple_batches_concurrent() {
 #[tokio::test]
 #[ignore]
 async fn test_end_to_end_gas_cost_tracking() {
-    /// Verify gas costs are tracked across submission
+    // Verify gas costs are tracked across submission
 
-    let mut batch = Batch {
-        id: "e2e_gas_001".to_string(),
+    let _batch = Batch {
         ..Default::default()
     };
 
@@ -325,7 +317,7 @@ async fn test_end_to_end_gas_cost_tracking() {
 #[tokio::test]
 #[ignore]
 async fn test_end_to_end_with_compression() {
-    /// Verify compression reduces costs for calldata
+    // Verify compression reduces costs for calldata
 
     let original_data = vec![0u8; 100_000]; // 100 KB
     
@@ -359,7 +351,7 @@ async fn test_end_to_end_with_compression() {
 mod e2e_flow_assertions {
     #[test]
     fn batch_state_flow_is_deterministic() {
-        use submitter::domain::batch::BatchStatus;
+        use submitter_rs::domain::batch::BatchStatus;
 
         let states = vec![
             BatchStatus::Discovered,

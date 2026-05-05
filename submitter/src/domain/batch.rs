@@ -113,6 +113,12 @@ impl Batch {
     }
 }
 
+impl Default for Batch {
+    fn default() -> Self {
+        Self::new(0, "", String::new(), String::new(), String::new(), String::new())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

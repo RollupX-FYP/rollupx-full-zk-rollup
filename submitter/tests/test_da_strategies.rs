@@ -5,7 +5,7 @@ use submitter_rs::domain::batch::Batch;
 
 #[test]
 fn test_da_modes_defined() {
-    use submitter_rs::domain::batch::DaMode;
+    use submitter_rs::config::DaMode;
     
     // Verify DA modes exist
     let _ = DaMode::Calldata;
@@ -16,7 +16,7 @@ fn test_da_modes_defined() {
 
 #[test]
 fn test_da_mode_clone() {
-    use submitter_rs::domain::batch::DaMode;
+    use submitter_rs::config::DaMode;
     let mode = DaMode::Calldata;
     let cloned = mode.clone();
     assert_eq!(mode, cloned);
@@ -26,7 +26,7 @@ fn test_da_mode_clone() {
 #[test]
 fn test_da_mode_serialize() {
     use serde::{Serialize, Deserialize};
-    use submitter_rs::domain::batch::DaMode;
+    use submitter_rs::config::DaMode;
     let mode = DaMode::Blob;
     let bytes = serde_json::to_vec(&mode).unwrap();
     let restored: DaMode = serde_json::from_slice(&bytes).unwrap();
@@ -47,7 +47,6 @@ async fn test_calldata_strategy_computes_commitment() {
 #[ignore]
 async fn test_blob_strategy_encodes_metadata() {
     let batch = Batch {
-        id: "batch_blob_001".to_string(),
         blob_versioned_hash: Some("0x01d041cd4ecbf1545fde7b32a99e4a2b3d7d4e8f9a0b1c2d3e4f5a6b7c8d9e0".to_string()),
         blob_index: Some(0),
         ..Default::default()
@@ -120,13 +119,13 @@ mod da_strategy_defaults {
 
     #[test]
     fn calldata_strategy_da_id_is_zero() {
-        use submitter_rs::domain::batch::DaMode;
+        use submitter_rs::config::DaMode;
         assert_eq!(DaMode::Calldata as u8, 0);
     }
 
     #[test]
     fn blob_strategy_da_id_is_one() {
-        use submitter_rs::domain::batch::DaMode;
+        use submitter_rs::config::DaMode;
         assert_eq!(DaMode::Blob as u8, 1);
     }
 }

@@ -12,10 +12,10 @@ use std::env;
 use std::sync::Arc;
 use tokio;
 
-use crate::contracts::ZKRollupBridge;
+use submitter_rs::contracts::ZKRollupBridge;
 
 /// Helper to build a SignerMiddleware client from env vars.
-fn build_l1_bridge() -> Option<ZKRollupBridge<SignerMiddleware<Provider<Http>, LocalWallet>>> {
+async fn build_l1_bridge() -> Option<ZKRollupBridge<SignerMiddleware<Provider<Http>, LocalWallet>>> {
     // Default to local Hardhat (or any local Ethereum node) if not set
     let rpc_url = env::var("L1_RPC_URL").unwrap_or_else(|_| "http://127.0.0.1:8545".to_string());
     // Bridge address and private key must be provided for signing transactions
@@ -37,7 +37,7 @@ fn build_l1_bridge() -> Option<ZKRollupBridge<SignerMiddleware<Provider<Http>, L
     // Build provider
     let provider = Provider::<Http>::try_from(rpc_url.as_str()).ok()?;
     let wallet: LocalWallet = private_key.parse().ok()?;
-    let chain_id = futures::executor::block_on(provider.get_chainid()).ok()?.as_u64();
+    let chain_id = provider.get_chainid().await.ok()?.as_u64();
     let wallet = wallet.with_chain_id(chain_id);
     let client = SignerMiddleware::new(provider, wallet);
     let bridge_addr: Address = bridge_address.parse().ok()?;
@@ -49,7 +49,7 @@ fn build_l1_bridge() -> Option<ZKRollupBridge<SignerMiddleware<Provider<Http>, L
 #[tokio::test]
 #[ignore]
 async fn test_l1_testnet_bridge_deployment() {
-    let client_opt = build_l1_bridge();
+    let client_opt = build_l1_bridge().await;
     if client_opt.is_none() {
         println!("L1 environment not configured; skipping test_l1_testnet_bridge_deployment");
         return;
@@ -71,7 +71,7 @@ async fn test_l1_testnet_bridge_deployment() {
 #[tokio::test]
 #[ignore]
 async fn test_l1_testnet_batch_submission() {
-    let bridge_opt = build_l1_bridge();
+    let bridge_opt = build_l1_bridge().await;
     if bridge_opt.is_none() {
         println!("L1 environment not configured; skipping test_l1_testnet_batch_submission");
         return;
@@ -81,10 +81,9 @@ async fn test_l1_testnet_batch_submission() {
     let new_root = [0u8; 32];
     let proof = Bytes::from(vec![0u8; 128]);
 
-    let call = bridge.commit_batch(0, 0, batch_data.into(), Bytes::new(), new_root, proof);
-    match call.send().await {
+    match bridge.commit_batch(0, 0, batch_data.into(), Bytes::new(), new_root, proof).send().await {
         Ok(pending) => {
-            let receipt = pending.await;
+            let _receipt = pending.await;
             println!("L1 calldata tx submitted.");
         }
         Err(e) => {
@@ -97,7 +96,7 @@ async fn test_l1_testnet_batch_submission() {
 #[tokio::test]
 #[ignore]
 async fn test_l1_state_root_reading() {
-    let client_opt = build_l1_bridge();
+    let client_opt = build_l1_bridge().await;
     if client_opt.is_none() {
         println!("L1 environment not configured; skipping test_l1_state_root_reading");
         return;
