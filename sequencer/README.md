@@ -234,6 +234,41 @@ The batch orchestrator evaluates three trigger conditions in priority order:
 
 ---
 
+## Observability & Metrics
+
+The sequencer implements a high-fidelity telemetry pipeline designed for comparative research of scheduling policies. Every time a batch is sealed, a detailed metrics row is recorded.
+
+### Metrics Storage
+
+Metrics are persisted as JSON Lines (`.jsonl`) to a file named:
+`{METRICS_ROOT}/sequencer_batches_{EXPERIMENT_ID}.jsonl`
+
+- **`METRICS_ROOT`**: (Env var) Directory to store metrics (defaults to `./metrics`).
+- **`EXPERIMENT_ID`**: (Env var) Unique identifier for the current test run (defaults to `default`).
+
+### Collected Metrics
+
+| Category | Metric | Description |
+| :--- | :--- | :--- |
+| **Wait Times** | `p50_wait_ms`, `p99_wait_ms` | Latency from transaction arrival at API to batch seal. |
+| | `jains_fairness_index` | Statistical measure of fairness across all transactions (0.0 to 1.0). |
+| **MEV / Efficiency**| `ordering_efficiency` | Ratio of actual captured fees to the theoretical optimal (FeePriority). |
+| | `reordering_events` | Number of times the policy reordered transactions from arrival order. |
+| **State Cache** | `cache_hit_rate` | Percentage of validations resolved using cached account state. |
+| | `stale_nonce_rejections`| Count of transactions accepted by sequencer but rejected by executor. |
+| **Resources** | `gas_limit_utilization`| Percentage of `max_gas_limit` consumed by the batch. |
+| | `raw_tx_bytes` | Total size of the transaction payloads in the batch. |
+
+---
+
+## Benchmarking Suite Integration
+
+The sequencer is designed to be orchestrated by the `RollupX Benchmark Suite`.
+
+1. **Environment Injection**: The benchmark runner (`run_experiment.sh`) injects `EXPERIMENT_ID` and `METRICS_ROOT` into the sequencer's Docker container.
+2. **Policy Swapping**: The runner modifies the `sequencer/config/default.toml` (or environment variables) to switch between `FCFS`, `FeePriority`, etc., before each run.
+3. **Synchronization**: The benchmarking suite monitors the `.jsonl` files to detect when the target number of batches has been produced and stabilized.
+
 ## API Reference
 
 The sequencer exposes a single JSON-RPC 2.0 endpoint at `POST /`.
