@@ -8,9 +8,11 @@
 //! (e.g., checking pool size) while ensuring exclusive access during writes
 //! (e.g., adding or draining transactions).
 
-use crate::UserTransaction;
+use crate::PooledTransaction;
 use std::collections::VecDeque;
 use tokio::sync::RwLock;
+
+use std::sync::atomic::{AtomicU64, Ordering};
 
 /// Pool for pending user transactions
 ///
@@ -21,7 +23,9 @@ use tokio::sync::RwLock;
 pub struct TransactionPool {
     /// Queue of pending transactions, protected by a read-write lock.
     /// Invariant: transactions are ordered by insertion time (FIFO).
-    transactions: RwLock<VecDeque<UserTransaction>>,
+    transactions: RwLock<VecDeque<PooledTransaction>>,
+    /// Total transactions received since startup
+    total_received: AtomicU64,
 }
 
 impl TransactionPool {
@@ -29,6 +33,7 @@ impl TransactionPool {
     pub fn new() -> Self {
         Self {
             transactions: RwLock::new(VecDeque::new()),
+            total_received: AtomicU64::new(0),
         }
     }
 
@@ -39,10 +44,16 @@ impl TransactionPool {
     ///
     /// # Arguments
     /// * `tx` - The validated user transaction to add
-    pub async fn add(&self, tx: UserTransaction) {
+    pub async fn add(&self, tx: PooledTransaction) {
         // Acquire write lock to add transaction
         let mut txs = self.transactions.write().await;
         txs.push_back(tx);
+        self.total_received.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Get total transactions received
+    pub fn total_received(&self) -> u64 {
+        self.total_received.load(Ordering::Relaxed)
     }
 
     /// Retrieve pending transactions for batching
@@ -55,13 +66,14 @@ impl TransactionPool {
     ///
     /// # Returns
     /// A vector of up to `max` transactions (may be fewer if pool has less)
-    pub async fn get_pending(&self, max: usize) -> Vec<UserTransaction> {
+    pub async fn get_pending(&self, max: usize) -> Vec<PooledTransaction> {
         // Acquire write lock to drain transactions
         let mut txs = self.transactions.write().await;
         let len = txs.len();
         // Drain up to `max` transactions from the front
         txs.drain(..max.min(len)).collect()
     }
+
 
     /// Get the number of pending transactions in the pool
     ///

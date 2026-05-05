@@ -9,9 +9,7 @@ use crate::{
     scheduler::{create_policy, Scheduler, SchedulingPolicyType},
     Batch, BatchMetadata, Transaction,
 };
-use std::io::Write;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 use tokio::time::{sleep, Duration, Instant};
 use tracing::{debug, error, info, warn};
@@ -22,19 +20,55 @@ struct SequencerBatchMetricsRow {
     experiment_id: String,
     sealed_at_ms: u64,
     seal_reason: String,
-    configured_max_batch_size: usize,
-    configured_min_batch_size: usize,
-    configured_timeout_ms: u64,
+    
+    // Scheduler Metadata
+    scheduling_policy: String,
+    scheduler_config: serde_json::Value,
+    
+    // Batch Composition
     tx_count: usize,
     forced_tx_count: usize,
     normal_tx_count: usize,
+    
+    // Resource Utilization
     total_gas_limit: u64,
     gas_limit_max: u64,
     gas_limit_utilization: f64,
     total_gas_price_wei: String,
     fee_proxy_wei: String,
-    oldest_tx_wait_ms: u64,
-    batch_data_bytes: usize,
+    
+    // DA Estimates (Pre-Enrichment)
+    estimated_da_bytes_pre_enrichment: usize,
+    raw_tx_bytes: usize,
+
+    // Wait Time Distribution
+    wait_time_p50_ms: u64,
+    wait_time_p95_ms: u64,
+    wait_time_p99_ms: u64,
+    wait_time_max_ms: u64,
+    wait_time_min_ms: u64,
+    wait_time_mean_ms: f64,
+    wait_time_std_dev_ms: f64,
+    jains_fairness_index: f64,
+
+    // MEV Metrics
+    actual_batch_fee_wei: String,
+    optimal_batch_fee_wei: String,
+    ordering_efficiency: f64,
+    reordering_events: u32,
+    max_reorder_distance: usize,
+
+    // State Cache Diagnostics
+    cache_hit_rate: f64,
+    stale_nonce_rejections: u32,
+    cache_age_ms: u64,
+
+    // Pool Snapshot
+    pool_depth_at_seal: usize,
+    pool_depth_after_seal: usize,
+    forced_queue_depth: usize,
+    pool_growth_rate_tps: f64,
+    time_since_last_seal_ms: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -43,8 +77,10 @@ struct ProducedBatch {
     total_gas_limit: u64,
     total_gas_price_wei: u128,
     fee_proxy_wei: u128,
-    oldest_tx_wait_ms: u64,
-    batch_data_bytes: usize,
+    wait_times: crate::WaitTimeDistribution,
+    mev: crate::MevMetrics,
+    estimated_da_bytes_pre_enrichment: usize,
+    raw_tx_bytes: usize,
 }
 
 pub struct BatchOrchestrator {
@@ -54,6 +90,7 @@ pub struct BatchOrchestrator {
     batch_engine: RwLock<BatchEngine>,
     trigger: BatchTrigger,
     registry: Arc<Registry>,
+    state_cache: crate::state::StateCache,
     config: BatchConfig,
     executor_grpc_url: String,
 }
@@ -62,6 +99,7 @@ impl BatchOrchestrator {
     pub fn new(
         forced_queue: Arc<ForcedQueue>,
         tx_pool: Arc<TransactionPool>,
+        state_cache: crate::state::StateCache,
         batch_config: BatchConfig,
         scheduling_policy: SchedulingPolicyType,
         registry: Arc<Registry>,
@@ -76,158 +114,95 @@ impl BatchOrchestrator {
             batch_engine: RwLock::new(BatchEngine::new(batch_config.clone())),
             trigger,
             registry,
+            state_cache,
             config: batch_config,
             executor_grpc_url,
         }
     }
 
-    fn now_unix_ms() -> u64 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis() as u64
-    }
-
-    fn tx_timestamp_to_ms(timestamp: u64) -> u64 {
-        if timestamp >= 1_000_000_000_000 {
-            timestamp
-        } else {
-            timestamp.saturating_mul(1000)
-        }
-    }
-
-    fn append_batch_metrics_row(&self, row: &SequencerBatchMetricsRow) {
-        let metrics_root = std::env::var("METRICS_ROOT").unwrap_or_else(|_| "metrics".to_string());
-        let path = std::path::PathBuf::from(metrics_root).join("sequencer_batch_metrics.jsonl");
-        if let Some(parent) = path.parent() {
-            if let Err(e) = std::fs::create_dir_all(parent) {
-                warn!("Failed to create sequencer metrics directory {}: {e}", parent.display());
-                return;
-            }
-        }
-        match serde_json::to_string(row) {
-            Ok(line) => {
-                if let Err(e) = std::fs::OpenOptions::new()
-                    .create(true)
-                    .append(true)
-                    .open(&path)
-                    .and_then(|mut f| writeln!(f, "{line}"))
-                {
-                    warn!("Failed to write sequencer batch metrics to {}: {e}", path.display());
+    pub async fn start(&self) -> anyhow::Result<()> {
+        info!("Batch orchestrator started");
+        
+        let last_batch_id = match self.registry.get_next_batch_id().await {
+            Ok(id) => {
+                let last = id.saturating_sub(1);
+                if last > 0 {
+                    info!("Resuming from batch #{}", last);
                 } else {
-                    debug!("Wrote sequencer batch metrics to {}", path.display());
+                    info!("No previous batches found, starting from #1");
                 }
+                id
             }
-            Err(e) => warn!("Failed to serialize sequencer batch metrics: {e}"),
-        }
-    }
-
-    async fn publish_batch_to_executor(
-        &self,
-        batch: &Batch,
-    ) -> anyhow::Result<PublishBatchResponse> {
-        let batch_data = serde_json::to_vec(&batch.transactions)
-            .map_err(|e| anyhow::anyhow!("serialize batch transactions for gRPC: {e}"))?;
-        let payload = BatchPayload {
-            batch_id: batch.batch_id.to_string(),
-            batch_data,
-            pre_state_root: batch.prev_state_root.as_bytes().to_vec(),
-            post_state_root: batch.prev_state_root.as_bytes().to_vec(),
-            da_commitment: Vec::new(),
-            proof: Vec::new(),
-            experiment_id: std::env::var("EXPERIMENT_ID").unwrap_or_default(),
+            Err(err) => {
+                warn!("Failed to recover next batch id from registry (defaulting to 1): {:?}", err);
+                1
+            }
         };
-        let mut client = RollupServiceClient::connect(self.executor_grpc_url.clone())
-            .await
-            .map_err(|e| anyhow::anyhow!("connect executor gRPC {}: {e}", self.executor_grpc_url))?;
-        let response = client
-            .publish_batch(tonic::Request::new(payload))
-            .await
-            .map_err(|e| anyhow::anyhow!("publish_batch RPC failed: {e}"))?;
-        Ok(response.into_inner())
-    }
-
-    pub async fn start(self) -> anyhow::Result<()> {
-        info!("Batch orchestrator starting...");
-        info!(
-            "Configuration: max_batch_size={}, timeout_interval_ms={}, min_batch_size={}, max_gas_limit={}",
-            self.config.max_batch_size,
-            self.config.timeout_interval_ms,
-            self.config.min_batch_size,
-            self.config.max_gas_limit
-        );
-        info!("Scheduling policy: {}", self.scheduler.policy_name());
-        match self.registry.get_next_batch_id().await {
-            Ok(next_id) => {
-                let mut engine = self.batch_engine.write().await;
-                engine.set_next_batch_id(next_id);
-                info!("Recovered next batch id from registry: {}", next_id);
-            }
-            Err(err) => warn!(
-                "Failed to recover next batch id from registry (defaulting to 1): {:?}",
-                err
-            ),
+        
+        {
+            let mut engine = self.batch_engine.write().await;
+            engine.set_next_batch_id(last_batch_id);
         }
 
         let mut last_batch_time = Instant::now();
+        let mut last_batch_time_ms = Self::now_unix_ms();
+        let mut last_total_received = self.tx_pool.total_received();
+
         loop {
             sleep(Duration::from_millis(100)).await;
             let trigger_reason = match self.trigger.should_seal(last_batch_time).await {
                 Some(reason) => reason,
                 None => continue,
             };
-            debug!(
-                "Batch trigger fired: {} ({}ms since last batch)",
-                trigger_reason,
-                last_batch_time.elapsed().as_millis()
-            );
-            match self.produce_batch().await {
+            
+            debug!("Batch trigger fired: {} ({}ms since last batch)", trigger_reason, last_batch_time.elapsed().as_millis());
+            
+            match self.produce_batch(trigger_reason.clone()).await {
                 Ok(Some(produced)) => {
                     let batch = produced.batch;
                     let tx_count = batch.transactions.len();
-                    let forced_count = batch
-                        .transactions
-                        .iter()
-                        .filter(|tx| matches!(tx, Transaction::Forced(_)))
-                        .count();
-                    info!(
-                        "Batch #{} sealed: {} txs ({} forced, {} normal) | trigger: {} | policy: {}",
-                        batch.batch_id,
-                        tx_count,
-                        forced_count,
-                        tx_count.saturating_sub(forced_count),
-                        trigger_reason,
-                        self.scheduler.policy_name()
-                    );
+                    let forced_count = batch.transactions.iter().filter(|tx| matches!(tx, Transaction::Forced(_))).count();
+                    
+                    info!("Batch #{} sealed: {} txs ({} forced, {} normal) | trigger: {} | policy: {}", 
+                        batch.batch_id, tx_count, forced_count, tx_count.saturating_sub(forced_count), trigger_reason, self.scheduler.policy_name());
 
-                    let metadata = BatchMetadata {
+                    if let Err(e) = self.registry.store(&BatchMetadata {
                         batch_id: batch.batch_id,
                         tx_count,
                         forced_tx_count: forced_count,
-                        timestamp: batch.timestamp,
                         scheduling_policy: self.scheduler.policy_name().to_string(),
-                    };
-                    if let Err(e) = self.registry.store(&metadata).await {
+                        timestamp: batch.timestamp,
+                    }).await {
                         error!("Failed to store batch metadata: {:?}", e);
                     }
 
+                    let pool_depth_at_seal = self.tx_pool.pending_count().await;
+                    let forced_queue_depth = self.forced_queue.get_all().await.len();
+                    
+                    let now_ms = Self::now_unix_ms();
+                    let current_total_received = self.tx_pool.total_received();
+                    let arrivals = current_total_received.saturating_sub(last_total_received);
+                    let interval_ms = now_ms.saturating_sub(last_batch_time_ms);
+                    let growth_rate = if interval_ms > 0 {
+                        (arrivals as f64 * 1000.0) / interval_ms as f64
+                    } else {
+                        0.0
+                    };
+
+                    let state_cache_metrics = self.state_cache_metrics().await;
                     let gas_limit_utilization = if self.config.max_gas_limit == 0 {
                         0.0
                     } else {
                         produced.total_gas_limit as f64 / self.config.max_gas_limit as f64
                     };
+
                     self.append_batch_metrics_row(&SequencerBatchMetricsRow {
                         batch_id: batch.batch_id,
                         experiment_id: std::env::var("EXPERIMENT_ID").unwrap_or_default(),
-                        sealed_at_ms: Self::now_unix_ms(),
-                        seal_reason: match trigger_reason {
-                            TriggerReason::ForcedTransactions => "ForcedTransactions".to_string(),
-                            TriggerReason::SizeThreshold => "SizeThreshold".to_string(),
-                            TriggerReason::Timeout => "Timeout".to_string(),
-                        },
-                        configured_max_batch_size: self.config.max_batch_size,
-                        configured_min_batch_size: self.config.min_batch_size,
-                        configured_timeout_ms: self.config.timeout_interval_ms,
+                        sealed_at_ms: now_ms,
+                        seal_reason: trigger_reason.to_string(),
+                        scheduling_policy: self.scheduler.policy_name().to_string(),
+                        scheduler_config: self.scheduler.policy_config(),
                         tx_count,
                         forced_tx_count: forced_count,
                         normal_tx_count: tx_count.saturating_sub(forced_count),
@@ -236,36 +211,52 @@ impl BatchOrchestrator {
                         gas_limit_utilization,
                         total_gas_price_wei: produced.total_gas_price_wei.to_string(),
                         fee_proxy_wei: produced.fee_proxy_wei.to_string(),
-                        oldest_tx_wait_ms: produced.oldest_tx_wait_ms,
-                        batch_data_bytes: produced.batch_data_bytes,
+                        estimated_da_bytes_pre_enrichment: produced.estimated_da_bytes_pre_enrichment,
+                        raw_tx_bytes: produced.raw_tx_bytes,
+                        wait_time_p50_ms: produced.wait_times.p50_wait_ms,
+                        wait_time_p95_ms: produced.wait_times.p95_wait_ms,
+                        wait_time_p99_ms: produced.wait_times.p99_wait_ms,
+                        wait_time_max_ms: produced.wait_times.max_wait_ms,
+                        wait_time_min_ms: produced.wait_times.min_wait_ms,
+                        wait_time_mean_ms: produced.wait_times.mean_wait_ms,
+                        wait_time_std_dev_ms: produced.wait_times.std_dev_wait_ms,
+                        jains_fairness_index: produced.wait_times.jains_fairness_index,
+                        actual_batch_fee_wei: produced.mev.actual_batch_fee_wei.to_string(),
+                        optimal_batch_fee_wei: produced.mev.optimal_batch_fee_wei.to_string(),
+                        ordering_efficiency: produced.mev.ordering_efficiency,
+                        reordering_events: produced.mev.reordering_events,
+                        max_reorder_distance: produced.mev.max_reorder_distance,
+                        cache_hit_rate: state_cache_metrics.cache_hit_rate,
+                        stale_nonce_rejections: state_cache_metrics.stale_nonce_rejections,
+                        cache_age_ms: state_cache_metrics.cache_age_ms,
+                        pool_depth_at_seal,
+                        pool_depth_after_seal: self.tx_pool.pending_count().await,
+                        forced_queue_depth,
+                        pool_growth_rate_tps: growth_rate,
+                        time_since_last_seal_ms: interval_ms,
                     });
 
+                    last_batch_time_ms = now_ms;
+                    last_total_received = current_total_received;
+                    last_batch_time = Instant::now();
+
                     match self.publish_batch_to_executor(&batch).await {
-                        Ok(response) if response.accepted => info!(
-                            "Published batch #{} to executor over gRPC ({})",
-                            batch.batch_id, self.executor_grpc_url
-                        ),
-                        Ok(response) => warn!(
-                            "Executor rejected batch #{} over gRPC: {}",
-                            batch.batch_id, response.message
-                        ),
-                        Err(e) => warn!(
-                            "Failed to publish batch #{} to executor gRPC {}: {:?}",
-                            batch.batch_id, self.executor_grpc_url, e
-                        ),
+                        Ok(response) if response.accepted => info!("Published batch #{} to executor", batch.batch_id),
+                        Ok(_) => warn!("Batch #{} rejected by executor", batch.batch_id),
+                        Err(e) => error!("Failed to publish batch #{}: {:?}", batch.batch_id, e),
                     }
-                    self.trigger.reset(&mut last_batch_time);
                 }
                 Ok(None) => {
-                    debug!("Trigger fired but no transactions available for batching");
-                    self.trigger.reset(&mut last_batch_time);
+                    // No transactions to batch
                 }
-                Err(e) => warn!("Failed to produce batch: {:?}", e),
+                Err(e) => {
+                    error!("Error producing batch: {:?}", e);
+                }
             }
         }
     }
 
-    async fn produce_batch(&self) -> anyhow::Result<Option<ProducedBatch>> {
+    async fn produce_batch(&self, _trigger_reason: TriggerReason) -> anyhow::Result<Option<ProducedBatch>> {
         let forced_txs = self.forced_queue.get_all().await;
         let engine = self.batch_engine.read().await;
         let mut accepted_forced_txs = Vec::new();
@@ -283,10 +274,7 @@ impl BatchOrchestrator {
             self.forced_queue.add(tx).await;
         }
 
-        let max_normal_txs = self
-            .config
-            .max_batch_size
-            .saturating_sub(accepted_forced_txs.len());
+        let max_normal_txs = self.config.max_batch_size.saturating_sub(accepted_forced_txs.len());
         let normal_txs = self.tx_pool.get_pending(max_normal_txs).await;
         let mut accepted_normal_txs = Vec::new();
         let mut combined_for_gas_check = accepted_forced_txs.clone();
@@ -301,57 +289,86 @@ impl BatchOrchestrator {
             }
         }
         drop(engine);
+        
         if accepted_forced_txs.is_empty() && accepted_normal_txs.is_empty() {
             return Ok(None);
         }
 
-        let forced_inner: Vec<_> = accepted_forced_txs
-            .into_iter()
-            .filter_map(|tx| match tx {
-                Transaction::Forced(inner) => Some(inner),
-                _ => None,
-            })
-            .collect();
-        let normal_inner: Vec<_> = accepted_normal_txs
-            .into_iter()
-            .filter_map(|tx| match tx {
-                Transaction::Normal(inner) => Some(inner),
-                _ => None,
-            })
-            .collect();
+        let forced_inner: Vec<_> = accepted_forced_txs.into_iter().filter_map(|tx| match tx {
+            Transaction::Forced(inner) => Some(inner),
+            _ => None,
+        }).collect();
+        let normal_inner: Vec<_> = accepted_normal_txs.into_iter().filter_map(|tx| match tx {
+            Transaction::Normal(inner) => Some(inner),
+            _ => None,
+        }).collect();
 
         let ordered_txs = self.scheduler.schedule(forced_inner, normal_inner);
         let total_gas_limit: u64 = ordered_txs.iter().map(|tx| tx.gas_limit()).sum();
-        debug!("Batch total gas: {} / {}", total_gas_limit, self.config.max_gas_limit);
-
+        
         let mut total_gas_price_wei: u128 = 0;
         let mut fee_proxy_wei: u128 = 0;
-        let mut oldest_tx_ts_ms = u64::MAX;
+        let mut wait_times = Vec::new();
         let now_ms = Self::now_unix_ms();
+
         for tx in &ordered_txs {
             match tx {
-                Transaction::Normal(inner) => {
-                    total_gas_price_wei =
-                        total_gas_price_wei.saturating_add(inner.gas_price.as_u128());
-                    fee_proxy_wei = fee_proxy_wei.saturating_add(
-                        inner
-                            .gas_price
-                            .as_u128()
-                            .saturating_mul(inner.gas_limit as u128),
-                    );
-                    oldest_tx_ts_ms = oldest_tx_ts_ms.min(Self::tx_timestamp_to_ms(inner.timestamp));
+                Transaction::Normal(ptx) => {
+                    total_gas_price_wei = total_gas_price_wei.saturating_add(ptx.tx.gas_price.as_u128());
+                    fee_proxy_wei = fee_proxy_wei.saturating_add(ptx.tx.gas_price.as_u128().saturating_mul(ptx.tx.gas_limit as u128));
+                    wait_times.push(now_ms.saturating_sub(ptx.arrived_at));
                 }
                 Transaction::Forced(inner) => {
-                    oldest_tx_ts_ms = oldest_tx_ts_ms.min(Self::tx_timestamp_to_ms(inner.timestamp));
+                    wait_times.push(now_ms.saturating_sub(inner.timestamp.saturating_mul(1000)));
                 }
             }
         }
-        let oldest_tx_wait_ms = if oldest_tx_ts_ms == u64::MAX {
-            0
-        } else {
-            now_ms.saturating_sub(oldest_tx_ts_ms)
+
+        let wait_dist = Self::calculate_distribution_metrics(&wait_times);
+
+        let mut sorted_by_fee = ordered_txs.clone();
+        sorted_by_fee.sort_by(|a, b| {
+            let fee_a = match a {
+                Transaction::Normal(ptx) => ptx.tx.gas_price,
+                Transaction::Forced(_) => ethers::types::U256::zero(),
+            };
+            let fee_b = match b {
+                Transaction::Normal(ptx) => ptx.tx.gas_price,
+                Transaction::Forced(_) => ethers::types::U256::zero(),
+            };
+            fee_b.cmp(&fee_a)
+        });
+
+        let mut actual_fee = ethers::types::U256::zero();
+        let mut optimal_fee = ethers::types::U256::zero();
+        let reordering_events = 0;
+        let max_reorder_distance = 0;
+
+        for tx in &ordered_txs {
+            if let Transaction::Normal(ptx) = tx {
+                actual_fee = actual_fee.saturating_add(ptx.tx.gas_price);
+            }
+        }
+
+        for tx in &sorted_by_fee {
+            if let Transaction::Normal(ptx) = tx {
+                optimal_fee = optimal_fee.saturating_add(ptx.tx.gas_price);
+            }
+        }
+
+        let ordering_efficiency = if optimal_fee.is_zero() { 1.0 } else { actual_fee.as_u128() as f64 / optimal_fee.as_u128() as f64 };
+
+        let mev = crate::MevMetrics {
+            actual_batch_fee_wei: actual_fee,
+            optimal_batch_fee_wei: optimal_fee,
+            ordering_efficiency,
+            reordering_events,
+            max_reorder_distance,
         };
-        let batch_data_bytes = serde_json::to_vec(&ordered_txs).map(|v| v.len()).unwrap_or(0);
+
+        let raw_tx_bytes = serde_json::to_vec(&ordered_txs).map(|v| v.len()).unwrap_or(0);
+        let estimated_da_bytes_pre_enrichment = raw_tx_bytes + 128;
+
         let mut engine = self.batch_engine.write().await;
         let batch = engine.create_batch(ordered_txs);
 
@@ -360,22 +377,71 @@ impl BatchOrchestrator {
             total_gas_limit,
             total_gas_price_wei,
             fee_proxy_wei,
-            oldest_tx_wait_ms,
-            batch_data_bytes,
+            wait_times: wait_dist,
+            mev,
+            estimated_da_bytes_pre_enrichment,
+            raw_tx_bytes,
         }))
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::BatchOrchestrator;
+    async fn state_cache_metrics(&self) -> crate::StateCacheMetrics {
+        self.state_cache.collect_metrics()
+    }
 
-    #[test]
-    fn tx_timestamp_to_ms_converts_seconds_and_preserves_milliseconds() {
-        assert_eq!(BatchOrchestrator::tx_timestamp_to_ms(1_700_000_000), 1_700_000_000_000);
-        assert_eq!(
-            BatchOrchestrator::tx_timestamp_to_ms(1_700_000_000_123),
-            1_700_000_000_123
-        );
+    async fn publish_batch_to_executor(&self, batch: &Batch) -> anyhow::Result<PublishBatchResponse> {
+        let mut client = RollupServiceClient::connect(self.executor_grpc_url.clone()).await?;
+        let payload = BatchPayload {
+            batch_id: batch.batch_id.to_string(),
+            batch_data: serde_json::to_vec(&batch.transactions)?,
+            pre_state_root: vec![0u8; 32],
+            post_state_root: vec![0u8; 32],
+            da_commitment: vec![0u8; 32],
+            proof: vec![0u8; 32],
+            experiment_id: std::env::var("EXPERIMENT_ID").unwrap_or_else(|_| "default".to_string()),
+        };
+        let request = tonic::Request::new(payload);
+        let response = client.publish_batch(request).await?;
+        Ok(response.into_inner())
+    }
+
+    fn now_unix_ms() -> u64 {
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as u64
+    }
+
+    fn calculate_distribution_metrics(wait_times: &[u64]) -> crate::WaitTimeDistribution {
+        if wait_times.is_empty() {
+            return crate::WaitTimeDistribution {
+                p50_wait_ms: 0, p95_wait_ms: 0, p99_wait_ms: 0, max_wait_ms: 0, min_wait_ms: 0, mean_wait_ms: 0.0, std_dev_wait_ms: 0.0, jains_fairness_index: 1.0,
+            };
+        }
+        let mut sorted = wait_times.to_vec();
+        sorted.sort_unstable();
+        let n = sorted.len();
+        let p50 = sorted[n / 2];
+        let p95 = sorted[(n as f64 * 0.95) as usize % n];
+        let p99 = sorted[(n as f64 * 0.99) as usize % n];
+        let max = *sorted.last().unwrap_or(&0);
+        let min = *sorted.first().unwrap_or(&0);
+        let sum: u64 = sorted.iter().sum();
+        let mean = sum as f64 / n as f64;
+        let variance = sorted.iter().map(|&x| { let diff = x as f64 - mean; diff * diff }).sum::<f64>() / n as f64;
+        let std_dev = variance.sqrt();
+        let sum_sq = sorted.iter().map(|&x| (x as f64).powi(2)).sum::<f64>();
+        let jains = if sum_sq == 0.0 { 1.0 } else { (sum as f64).powi(2) / (n as f64 * sum_sq) };
+        crate::WaitTimeDistribution {
+            p50_wait_ms: p50, p95_wait_ms: p95, p99_wait_ms: p99, max_wait_ms: max, min_wait_ms: min, mean_wait_ms: mean, std_dev_wait_ms: std_dev, jains_fairness_index: jains,
+        }
+    }
+
+    fn append_batch_metrics_row(&self, row: &SequencerBatchMetricsRow) {
+        let metrics_root = std::env::var("METRICS_ROOT").unwrap_or_else(|_| "metrics".to_string());
+        let experiment_id = std::env::var("EXPERIMENT_ID").unwrap_or_else(|_| "default".to_string());
+        let path = std::path::Path::new(&metrics_root).join(format!("sequencer_batches_{}.jsonl", experiment_id));
+        if let Some(parent) = path.parent() { std::fs::create_dir_all(parent).ok(); }
+        let file = std::fs::OpenOptions::new().create(true).append(true).open(path);
+        if let Ok(mut file) = file {
+            use std::io::Write;
+            if let Ok(json) = serde_json::to_string(row) { writeln!(file, "{}", json).ok(); }
+        }
     }
 }

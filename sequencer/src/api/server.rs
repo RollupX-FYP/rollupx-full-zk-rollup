@@ -25,6 +25,7 @@ use crate::{
     pool::TransactionPool,
     state::StateCache,
     UserTransaction,
+    PooledTransaction,
     SoftConfirmation,
     ConfirmationStatus,
 };
@@ -235,6 +236,12 @@ async fn handle_send_transaction(
     state: AppState,
     request: JsonRpcRequest,
 ) -> Json<JsonRpcResponse> {
+    // Record arrival time at the earliest point
+    let arrived_at = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
+
     // Step 1: Deserialize the transaction from the request parameters
     let tx: UserTransaction = match serde_json::from_value(request.params.clone()) {
         Ok(tx) => tx,
@@ -278,7 +285,12 @@ async fn handle_send_transaction(
             state.state_cache.increment_nonce(&tx.from).await;
 
             // Step 4: Add the transaction to the pool for batching
-            state.tx_pool.add(tx.clone()).await;
+            let pool_entry_at = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as u64;
+            let pooled_tx = PooledTransaction::new(tx, arrived_at, pool_entry_at);
+            state.tx_pool.add(pooled_tx).await;
             info!("Transaction {:?} added to pool", tx_hash);
 
             // Step 5: Create a soft confirmation to send back to the client.
@@ -342,6 +354,10 @@ async fn handle_rest_tx(
     State(state): State<AppState>,
     Json(tx): Json<UserTransaction>,
 ) -> Json<SoftConfirmation> {
+    let arrived_at = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_millis() as u64;
     let tx_hash = tx.hash();
     info!("Processing REST transaction {:?} from {:?}", tx_hash, tx.from);
 
@@ -354,7 +370,12 @@ async fn handle_rest_tx(
             state.state_cache.deduct_balance(&tx.from, total_cost).await;
             state.state_cache.increment_nonce(&tx.from).await;
             
-            state.tx_pool.add(tx.clone()).await;
+            let pool_entry_at = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_millis() as u64;
+            let pooled_tx = PooledTransaction::new(tx, arrived_at, pool_entry_at);
+            state.tx_pool.add(pooled_tx).await;
             
             Json(SoftConfirmation {
                 tx_hash,

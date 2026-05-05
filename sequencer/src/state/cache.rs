@@ -11,9 +11,10 @@
 //! transactions that individually pass balance checks but collectively exceed
 //! their balance.
 
-use crate::AccountState;
+use crate::{AccountState, StateCacheMetrics};
 use ethers::types::{Address, U256};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 
@@ -37,6 +38,14 @@ use tokio::sync::RwLock;
 pub struct StateCache {
     /// Map from address to account state, protected by a read-write lock
     accounts: Arc<RwLock<HashMap<Address, AccountState>>>,
+    /// Cache hits (account found in cache)
+    cache_hits: Arc<AtomicU64>,
+    /// Cache misses (account not in cache, defaulted)
+    cache_misses: Arc<AtomicU64>,
+    /// Transactions rejected by executor due to nonce/balance issues despite sequencer approval
+    stale_nonce_rejections: Arc<AtomicU32>,
+    /// Unix epoch ms of the last executor sync
+    last_sync_ms: Arc<AtomicU64>,
 }
 
 impl StateCache {
@@ -47,6 +56,10 @@ impl StateCache {
     pub fn new() -> Self {
         Self {
             accounts: Arc::new(RwLock::new(HashMap::new())),
+            cache_hits: Arc::new(AtomicU64::new(0)),
+            cache_misses: Arc::new(AtomicU64::new(0)),
+            stale_nonce_rejections: Arc::new(AtomicU32::new(0)),
+            last_sync_ms: Arc::new(AtomicU64::new(0)),
         }
     }
 
@@ -94,9 +107,11 @@ impl StateCache {
         let accounts = self.accounts.read().await;
         if let Some(account) = accounts.get(address) {
             // Account exists — return a clone
+            self.cache_hits.fetch_add(1, Ordering::Relaxed);
             account.clone()
         } else {
             // Account doesn't exist — release read lock and return defaults
+            self.cache_misses.fetch_add(1, Ordering::Relaxed);
             drop(accounts); // Explicitly drop to release lock early
             AccountState {
                 address: *address,
@@ -174,6 +189,50 @@ impl StateCache {
         // Acquire write lock (exclusive access)
         let mut accounts = self.accounts.write().await;
         accounts.insert(state.address, state);
+        
+        // Update sync timestamp
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        self.last_sync_ms.store(now, Ordering::Relaxed);
+    }
+
+    /// Record a stale rejection (tx accepted by sequencer but rejected by executor)
+    pub fn record_stale_rejection(&self) {
+        self.stale_nonce_rejections.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Get current metrics snapshot
+    pub fn collect_metrics(&self) -> StateCacheMetrics {
+        let hits = self.cache_hits.load(Ordering::Relaxed);
+        let misses = self.cache_misses.load(Ordering::Relaxed);
+        let total = hits + misses;
+        
+        let hit_rate = if total == 0 {
+            0.0
+        } else {
+            hits as f64 / total as f64
+        };
+
+        let last_sync = self.last_sync_ms.load(Ordering::Relaxed);
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        
+        let age = if last_sync == 0 {
+            0
+        } else {
+            now.saturating_sub(last_sync)
+        };
+
+        StateCacheMetrics {
+            cache_hit_rate: hit_rate,
+            stale_nonce_rejections: self.stale_nonce_rejections.load(Ordering::Relaxed),
+            balance_check_failures: 0, // Not explicitly tracked yet
+            cache_age_ms: age,
+        }
     }
 
     /// Get the number of accounts tracked in the cache
@@ -186,4 +245,4 @@ impl StateCache {
         let accounts = self.accounts.read().await;
         accounts.len()
     }
-}
+}

@@ -39,17 +39,22 @@
 //! All policies only affect **normal user transactions**. Forced transactions
 //! from L1 ALWAYS come first, regardless of the selected policy.
 
-use crate::UserTransaction;
+use crate::PooledTransaction;
 
 /// Scheduling policy trait (Strategy pattern)
 /// Defines the interface for all transaction ordering policies.
 /// Each policy implements its own `order_transactions()` logic.
 pub trait SchedulingPolicy: Send + Sync {
     /// Order transactions according to this policy's rules
-    fn order_transactions(&self, transactions: Vec<UserTransaction>) -> Vec<UserTransaction>;
+    fn order_transactions(&self, transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction>;
     
     /// Get the policy name for logging and metadata
     fn name(&self) -> &str;
+
+    /// Get policy configuration parameters for metrics recording
+    fn config_params(&self) -> serde_json::Value {
+        serde_json::json!({})
+    }
 }
 
 /// FCFS (First-Come-First-Served) Policy
@@ -59,7 +64,7 @@ pub trait SchedulingPolicy: Send + Sync {
 pub struct FcfsPolicy;
 
 impl SchedulingPolicy for FcfsPolicy {
-    fn order_transactions(&self, transactions: Vec<UserTransaction>) -> Vec<UserTransaction> {
+    fn order_transactions(&self, transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction> {
         // FCFS: maintain original order, no sorting needed
         transactions
     }
@@ -76,9 +81,9 @@ impl SchedulingPolicy for FcfsPolicy {
 pub struct FeePriorityPolicy;
 
 impl SchedulingPolicy for FeePriorityPolicy {
-    fn order_transactions(&self, mut transactions: Vec<UserTransaction>) -> Vec<UserTransaction> {
+    fn order_transactions(&self, mut transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction> {
         // Sort by gas_price in descending order (highest fee first)
-        transactions.sort_by(|a, b| b.gas_price.cmp(&a.gas_price));
+        transactions.sort_by(|a, b| b.tx.gas_price.cmp(&a.tx.gas_price));
         transactions
     }
     
@@ -103,7 +108,7 @@ pub struct TimeBoostPolicy {
 }
 
 impl SchedulingPolicy for TimeBoostPolicy {
-    fn order_transactions(&self, mut transactions: Vec<UserTransaction>) -> Vec<UserTransaction> {
+    fn order_transactions(&self, mut transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction> {
         // Group transactions by time window
         // Time window = floor(timestamp / window_size)
         
@@ -115,20 +120,20 @@ impl SchedulingPolicy for TimeBoostPolicy {
         
         transactions.sort_by(|a, b| {
             // Calculate time windows
-            let window_a = a.timestamp / self.time_window_ms;
-            let window_b = b.timestamp / self.time_window_ms;
+            let window_a = a.tx.timestamp / self.time_window_ms;
+            let window_b = b.tx.timestamp / self.time_window_ms;
             
             // First, compare by time window
             match window_a.cmp(&window_b) {
                 std::cmp::Ordering::Equal => {
                     // Same window: compare by boost_bid
-                    let boost_a = a.boost_bid.unwrap_or_default();
-                    let boost_b = b.boost_bid.unwrap_or_default();
+                    let boost_a = a.tx.boost_bid.unwrap_or_default();
+                    let boost_b = b.tx.boost_bid.unwrap_or_default();
                     
                     match boost_b.cmp(&boost_a) { // Descending (b vs a)
                         std::cmp::Ordering::Equal => {
                             // Same boost: compare by gas_price
-                            b.gas_price.cmp(&a.gas_price) // Descending
+                            b.tx.gas_price.cmp(&a.tx.gas_price) // Descending
                         }
                         other => other,
                     }
@@ -142,6 +147,12 @@ impl SchedulingPolicy for TimeBoostPolicy {
     
     fn name(&self) -> &str {
         "TimeBoost"
+    }
+
+    fn config_params(&self) -> serde_json::Value {
+        serde_json::json!({
+            "time_window_ms": self.time_window_ms
+        })
     }
 }
 
@@ -178,10 +189,10 @@ impl SchedulingPolicy for TimeBoostPolicy {
 pub struct FairBftPolicy;
 
 impl SchedulingPolicy for FairBftPolicy {
-    fn order_transactions(&self, mut transactions: Vec<UserTransaction>) -> Vec<UserTransaction> {
+    fn order_transactions(&self, mut transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction> {
         // Sort strictly by timestamp (ascending - earliest first)
         // This provides time-based fairness
-        transactions.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+        transactions.sort_by(|a, b| a.tx.timestamp.cmp(&b.tx.timestamp));
         transactions
     }
     
@@ -189,6 +200,7 @@ impl SchedulingPolicy for FairBftPolicy {
         "FairBFT"
     }
 }
+
 
 /// Policy type enum for configuration
 /// 

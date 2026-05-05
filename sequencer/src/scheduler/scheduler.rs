@@ -13,7 +13,7 @@
 //! Forced transactions from L1 ALWAYS come first, regardless of policy.
 //! Only normal transactions are reordered based on the selected policy.
 
-use crate::{UserTransaction, ForcedTransaction, Transaction};
+use crate::{PooledTransaction, ForcedTransaction, Transaction};
 use super::policies::SchedulingPolicy;
 
 /// Transaction scheduler
@@ -64,7 +64,7 @@ impl Scheduler {
     pub fn schedule(
         &self,
         forced: Vec<ForcedTransaction>,
-        normal: Vec<UserTransaction>,
+        normal: Vec<PooledTransaction>,
     ) -> Vec<Transaction> {
         let mut result = Vec::new();
         
@@ -92,4 +92,9 @@ impl Scheduler {
     pub fn policy_name(&self) -> &str {
         self.policy.name()
     }
-}
+
+    /// Get policy configuration parameters
+    pub fn policy_config(&self) -> serde_json::Value {
+        self.policy.config_params()
+    }
+}
