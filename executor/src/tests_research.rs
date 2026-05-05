@@ -1,12 +1,12 @@
 use std::path::PathBuf;
-use executor::state::{RocksDbStateManager, StateManager};
-use executor::tx_engine::{SimpleTransactionEngine, TransactionEngine};
-use executor::types::{Account, Address, Transaction};
+use crate::state::{RocksDbStateManager, StateManager};
+use crate::tx_engine::{SimpleTransactionEngine, TransactionEngine};
+use crate::types::{Account, Address, Transaction};
 use tempfile::tempdir;
 
 #[test]
 fn test_streaming_stats_correctness() {
-    let mut stats = executor::types::StreamingStats::default();
+    let mut stats = crate::types::StreamingStats::default();
     stats.update(10.0);
     stats.update(20.0);
     stats.update(30.0);
@@ -19,7 +19,7 @@ fn test_streaming_stats_correctness() {
 
 #[test]
 fn test_tx_engine_phase_breakdown() {
-    let mut state = executor::state::InMemoryStateManager::default();
+    let mut state = crate::state::InMemoryStateManager::default();
     let from: Address = [1; 20];
     let to: Address = [2; 20];
     state.seed_account(from, Account { balance: 1000, nonce: 0 });
@@ -70,7 +70,7 @@ fn test_rocksdb_state_reset() {
 fn test_merkle_isolation_is_measurable() {
     // This test ensures that Merkle updates take a significant portion of execution
     // and are correctly isolated in the metrics.
-    let mut state = executor::state::InMemoryStateManager::default();
+    let mut state = crate::state::InMemoryStateManager::default();
     let from: Address = [1; 20];
     let to: Address = [2; 20];
     state.seed_account(from, Account { balance: 10000, nonce: 0 });

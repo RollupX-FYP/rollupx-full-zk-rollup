@@ -7,3 +7,6 @@ pub mod state;
 pub mod trace;
 pub mod tx_engine;
 pub mod types;
+
+#[cfg(test)]
+mod tests_research;
