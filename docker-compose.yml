@@ -7,6 +7,8 @@ services:
       dockerfile: Dockerfile
     command:
       ["npx", "hardhat", "node", "--hostname", "0.0.0.0", "--port", "8545"]
+    environment:
+      - HARDHAT_MINING_INTERVAL=${HARDHAT_MINING_INTERVAL:-12000}
     ports:
       - "${HARDHAT_HOST_PORT:-8545}:8545"
     healthcheck:

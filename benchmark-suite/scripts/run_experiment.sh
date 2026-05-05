@@ -51,6 +51,7 @@ export VALIDITY_COST_INTERPRETATION=${VALIDITY_COST_INTERPRETATION:-comparative_
 export CLEAN_STATE_BEFORE_RUN=${CLEAN_STATE_BEFORE_RUN:-1}
 export CLEAN_METRICS_BEFORE_RUN=${CLEAN_METRICS_BEFORE_RUN:-1}
 export USE_DOCKER_STACK=${USE_DOCKER_STACK:-1}
+export HARDHAT_MINING_INTERVAL=${HARDHAT_MINING_INTERVAL:-12000}
 
 METRICS_ROOT="${METRICS_ROOT:-metrics}/${EXP_ID}/${RUN_ID}"
 export METRICS_ROOT
@@ -112,6 +113,15 @@ restart_docker_stack_for_run() {
     )
     bash "$(dirname "$0")/wait_for_sequencer.sh" "$SEQ_HOST" "$SEQ_PORT" 60
     collect_docker_diagnostics "after_start"
+
+    # Copy L1 deployment info from shared volume
+    if [[ -f "${ROOT_DIR}/runtime/contracts.json" ]]; then
+        cp "${ROOT_DIR}/runtime/contracts.json" "${METRICS_ROOT}/l1_deployment.json"
+        echo "[metrics] copied l1_deployment.json from shared volume"
+    elif docker exec rollupx-full-zk-rollup-submitter-1 ls /runtime/contracts.json >/dev/null 2>&1; then
+        docker cp rollupx-full-zk-rollup-submitter-1:/runtime/contracts.json "${METRICS_ROOT}/l1_deployment.json"
+        echo "[metrics] copied l1_deployment.json from submitter container"
+    fi
 }
 
 copy_component_metrics() {
@@ -242,6 +252,36 @@ validate_workload_status() {
         echo "[workload] ERROR: workload status is not pass"
         return 1
     fi
+}
+
+validate_l1_state() {
+    echo "[validation] verifying L1 state and submitter progress ..."
+    local sub_metrics="${METRICS_ROOT}/submitter_metrics.json"
+    local l1_deploy="${METRICS_ROOT}/l1_deployment.json"
+    
+    if [[ ! -f "$sub_metrics" ]]; then
+        echo "[validation] ERROR: submitter_metrics.json missing"
+        return 1
+    fi
+
+    local confirmed_batches
+    confirmed_batches=$(wc -l < "$sub_metrics")
+    if [[ "$confirmed_batches" -eq 0 ]]; then
+        echo "[validation] ERROR: submitter confirmed zero batches"
+        return 1
+    fi
+    echo "[validation] [OK] submitter confirmed ${confirmed_batches} batches"
+
+    if [[ "$DA_MODE" == "blob" ]]; then
+        if ! grep -q '"blob_gas_used"' "$sub_metrics" || grep -q '"blob_gas_used":0' "$sub_metrics" || grep -q '"blob_gas_used":null' "$sub_metrics"; then
+            echo "[validation] ERROR: blob mode active but no non-zero blob_gas_used found in metrics"
+            return 1
+        fi
+        echo "[validation] [OK] blob gas usage detected"
+    fi
+
+    # Optional: check on-chain state if we have a way to call into hardhat from here
+    # For now, relying on submitter metrics is a good first step.
 }
 
 collect_docker_diagnostics() {
@@ -400,6 +440,7 @@ if [[ "$USED_DOCKER_STACK" == "1" ]]; then
 fi
 validate_component_metrics
 validate_workload_status
+validate_l1_state
 
 # ── 7. Update timestamp_end in metadata ───────────────────────────────────────
 END_TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")

@@ -72,6 +72,7 @@ case "$PHASE" in
         REPEATS="${REPEATS:-1}"
         DURATION="${DURATION:-30}"
         WARMUP="${WARMUP:-5}"
+        export HARDHAT_MINING_INTERVAL=0
         ;;
     feasibility-lite)
         FILTER="${FILTER:-batch_size}"

@@ -37,7 +37,9 @@ const config: HardhatUserConfig = {
       // Use interval: 0 only for unit tests, never for latency experiments
       mining: {
         auto: true,
-        interval: 12000,    // 12 seconds — matches Ethereum mainnet slot time
+        interval: process.env.HARDHAT_MINING_INTERVAL 
+          ? parseInt(process.env.HARDHAT_MINING_INTERVAL) 
+          : 12000,    // Default to 12s if not specified
       },
 
       // Gas configuration — must match what you state in your paper
