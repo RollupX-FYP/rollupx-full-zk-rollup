@@ -459,3 +459,39 @@ mod risc0_guest_logic_tests {
         assert_eq!(smt.current_root(), root);
     }
 }
+
+#[test]
+fn test_guest_logic_rejects_empty_merkle_proof() {
+    let initial_root = zero_hash();
+    let mut smt = LightweightSMT::new(initial_root);
+
+    // Empty merkle proof should be rejected
+    let diff = make_diff(
+        [1u8; 20],
+        1000,
+        500,
+        0,
+        1,
+        vec![],
+    );
+    let result = smt.apply_diff(&diff);
+    assert!(result.is_err(), "Expected error for empty merkle_proof");
+}
+
+#[test]
+fn test_guest_logic_accepts_single_valid_proof() {
+    let initial_root = zero_hash();
+    let mut smt = LightweightSMT::new(initial_root);
+
+    // Valid minimal merkle proof with a single hash
+    let diff = make_diff(
+        [2u8; 20],
+        1000,
+        500,
+        0,
+        1,
+        vec![initial_root],
+    );
+    let result = smt.apply_diff(&diff);
+    assert!(result.is_ok(), "Expected valid diff with single-proof element");
+}
