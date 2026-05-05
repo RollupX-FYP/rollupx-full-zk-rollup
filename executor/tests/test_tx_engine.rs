@@ -4,6 +4,7 @@
 #[cfg(test)]
 mod executor_tx_engine_tests {
     use zksync_state_machine::state::InMemoryStateManager;
+    use zksync_state_machine::state::StateManager;
     use zksync_state_machine::tx_engine::{SimpleTransactionEngine, TransactionEngine};
     use zksync_state_machine::types::{Account, Transaction};
     use ethers::signers::{LocalWallet, Signer};
@@ -367,7 +368,7 @@ mod executor_tx_engine_tests {
         seed_account(&mut engine, from, 10000, 0);
 
         let mut txs = Vec::new();
-        for i in 0..10 {
+        for i in 0u64..100u64 {
             let mut to = [21u8; 20];
             to[0] = to[0] + i as u8;
             txs.push(make_unsigned_tx(from, to, 100, i as u64));
@@ -390,7 +391,7 @@ mod executor_tx_engine_tests {
         seed_account(&mut engine, from, 100000, 0);
 
         let mut txs = Vec::new();
-        for i in 0..50 {
+        for i in 0u64..100u64 {
             let mut to = [23u8; 20];
             to[0] = to[0].wrapping_add(i as u8);
             txs.push(make_unsigned_tx(from, to, 100, i as u64));

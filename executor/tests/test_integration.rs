@@ -4,6 +4,7 @@
 #[cfg(test)]
 mod executor_integration_tests {
     use zksync_state_machine::state::InMemoryStateManager;
+    use zksync_state_machine::state::StateManager;
     use zksync_state_machine::trace::{append_lifecycle, persist_trace, verify_trace_hash, TraceLifecycleStatus};
     use zksync_state_machine::tx_engine::{SimpleTransactionEngine, TransactionEngine};
     use zksync_state_machine::types::{Account, Transaction};

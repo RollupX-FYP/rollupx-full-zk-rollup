@@ -7,6 +7,7 @@ mod executor_trace_tests {
     use zksync_state_machine::types::{ExecutionTraceV1, ProverContext, TracePublicInputs};
     use std::fs;
     use tempfile::TempDir;
+    use sha2::Digest;
 
     // ============ Fixtures & Helpers ============
 
