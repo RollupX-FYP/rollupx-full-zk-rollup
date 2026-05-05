@@ -305,7 +305,9 @@ fn u64_to_u256_be(v: u64) -> [u8; 32] {
 
 #[cfg(test)]
 mod tests {
-    use crate::state::{InMemoryStateManager, StateManager};
+    use super::*;
+    use crate::state::InMemoryStateManager;
+    use crate::types::{Account, Transaction};
     use ethers::signers::{LocalWallet, Signer};
     use ethers::types::H256;
     use rand::thread_rng;
