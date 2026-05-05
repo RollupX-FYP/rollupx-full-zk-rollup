@@ -168,9 +168,6 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
             prover_root = fold_diff(prover_root, &receiver_diff);
             let elapsed_micros = merkle_start.elapsed().as_micros() as f64;
             merkle_update_ms += elapsed_micros / 1000.0;
-            if batch_id == "test_merkle_perf" && elapsed_micros > 0.0 {
-                 // only print if we actually measured something to avoid spam
-            }
 
             diffs.push(sender_diff);
             diffs.push(receiver_diff);
