@@ -107,7 +107,7 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
             let check_start = std::time::Instant::now();
             let sig_start = std::time::Instant::now();
             let sig_valid = self.verify_signature(&tx);
-            signature_verify_ms += sig_start.elapsed().as_secs_f64() * 1000.0;
+            signature_verify_ms += sig_start.elapsed().as_micros() as f64 / 1000.0;
 
             let mut rejection: Option<String> = None;
             if !sig_valid {
@@ -117,7 +117,7 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
             } else if sender_pre_acc.balance < tx.amount {
                 rejection = Some("insufficient_balance".to_string());
             }
-            nonce_balance_check_ms += check_start.elapsed().as_secs_f64() * 1000.0 - (sig_start.elapsed().as_secs_f64() * 1000.0);
+            nonce_balance_check_ms += (check_start.elapsed().as_micros() as f64 / 1000.0) - (sig_start.elapsed().as_micros() as f64 / 1000.0);
 
             if let Some(reason) = rejection {
                 outcomes.push(TxExecutionOutcome {
@@ -154,7 +154,7 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
                 balance: receiver_pre_acc.balance.saturating_add(tx.amount),
                 nonce: receiver_pre_acc.nonce,
             };
-            state_transition_ms += trans_start.elapsed().as_secs_f64() * 1000.0;
+            state_transition_ms += trans_start.elapsed().as_micros() as f64 / 1000.0;
 
             let merkle_start = std::time::Instant::now();
             let sender_root_before = prover_root;
@@ -166,7 +166,7 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
             let mut receiver_diff = self.state.set_account(tx.to, new_receiver.clone())?;
             receiver_diff.merkle_proof = vec![receiver_root_before];
             prover_root = fold_diff(prover_root, &receiver_diff);
-            merkle_update_ms += merkle_start.elapsed().as_secs_f64() * 1000.0;
+            merkle_update_ms += merkle_start.elapsed().as_micros() as f64 / 1000.0;
 
             diffs.push(sender_diff);
             diffs.push(receiver_diff);
@@ -195,7 +195,7 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
         let final_root = prover_root;
         let tx_commit = tx_commitment(&outcomes);
         let diff_commit = state_diff_commitment(&diffs);
-        let state_diff_computation_ms = diff_start.elapsed().as_secs_f64() * 1000.0;
+        let state_diff_computation_ms = diff_start.elapsed().as_micros() as f64 / 1000.0;
 
         let serial_start = std::time::Instant::now();
         let trace_id = build_trace_id(batch_id, &initial_root, &final_root);
@@ -231,8 +231,8 @@ impl<S: StateManager> TransactionEngine for SimpleTransactionEngine<S> {
                 total_execution_ms: 0.0,       // Updated below
             },
         };
-        let trace_serialization_ms = serial_start.elapsed().as_secs_f64() * 1000.0;
-        let total_execution_ms = total_start.elapsed().as_secs_f64() * 1000.0;
+        let trace_serialization_ms = serial_start.elapsed().as_micros() as f64 / 1000.0;
+        let total_execution_ms = total_start.elapsed().as_micros() as f64 / 1000.0;
 
         let mut trace = trace;
         trace.execution_phases.trace_serialization_ms = trace_serialization_ms;

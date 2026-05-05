@@ -71,11 +71,11 @@ fn test_merkle_isolation_is_measurable() {
     let mut state = RocksDbStateManager::open(tmp.path()).unwrap();
     let from: Address = [1; 20];
     let to: Address = [2; 20];
-    state.seed_account(from, Account { balance: 10000, nonce: 0 }).unwrap();
+    state.seed_account(from, Account { balance: 1000000, nonce: 0 }).unwrap();
     
     let mut engine = SimpleTransactionEngine::new(state);
     let mut txs = Vec::new();
-    for i in 0..10 {
+    for i in 0..50 {
         txs.push(Transaction {
             from,
             to,
