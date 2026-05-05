@@ -39,7 +39,6 @@ run_test_suite() {
             --manifest-path "$manifest" \
             -p "$package" \
             --ignore-rust-version \
-            --test-threads=1 \
             -- --nocapture --test-threads=1; then
             echo -e "${GREEN}✓ $name PASSED${NC}"
             ((PASSED++))
@@ -52,7 +51,6 @@ run_test_suite() {
         if cargo +nightly test \
             --manifest-path "$manifest" \
             -p "$package" \
-            --test-threads=1 \
             -- --nocapture --test-threads=1; then
             echo -e "${GREEN}✓ $name PASSED${NC}"
             ((PASSED++))
