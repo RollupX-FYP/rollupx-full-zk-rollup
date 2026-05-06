@@ -3,6 +3,14 @@ max_batch_size     = ${MAX_BATCH_SIZE}
 timeout_interval_ms = ${TIMEOUT_MS}
 min_batch_size     = ${MIN_BATCH_SIZE}
 max_gas_limit      = 30000000
+batch_policy       = "${BATCH_POLICY}"
+adaptive_low_load_threshold = ${ADAPTIVE_LOW_LOAD_THRESHOLD}
+adaptive_medium_load_threshold = ${ADAPTIVE_MEDIUM_LOAD_THRESHOLD}
+adaptive_small_batch_size = ${ADAPTIVE_SMALL_BATCH_SIZE}
+adaptive_medium_batch_size = ${ADAPTIVE_MEDIUM_BATCH_SIZE}
+adaptive_large_batch_size = ${ADAPTIVE_LARGE_BATCH_SIZE}
+blob_target_bytes = ${BLOB_TARGET_BYTES}
+blob_fill_target = ${BLOB_FILL_TARGET}
 
 [scheduling]
 policy_type   = "${POLICY}"

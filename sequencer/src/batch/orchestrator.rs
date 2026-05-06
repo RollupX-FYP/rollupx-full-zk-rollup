@@ -19,9 +19,11 @@ struct SequencerBatchMetricsRow {
     batch_id: u64,
     experiment_id: String,
     sealed_at_ms: u64,
+    batch_created_time_ms: u64,
     seal_reason: String,
     
     // Scheduler Metadata
+    batch_policy: String,
     scheduling_policy: String,
     scheduler_config: serde_json::Value,
     
@@ -29,11 +31,14 @@ struct SequencerBatchMetricsRow {
     tx_count: usize,
     forced_tx_count: usize,
     normal_tx_count: usize,
+    mempool_depth_at_batch: usize,
     
     // Resource Utilization
     total_gas_limit: u64,
     gas_limit_max: u64,
     gas_limit_utilization: f64,
+    estimated_batch_bytes: usize,
+    blob_utilization: f64,
     total_gas_price_wei: String,
     fee_proxy_wei: String,
     
@@ -69,11 +74,15 @@ struct SequencerBatchMetricsRow {
     forced_queue_depth: usize,
     pool_growth_rate_tps: f64,
     time_since_last_seal_ms: u64,
+    tx_arrival_time_ms: u64,
 }
 
 #[derive(Debug, Clone)]
 struct ProducedBatch {
     batch: Batch,
+    batch_created_time_ms: u64,
+    mempool_depth_at_batch: usize,
+    tx_arrival_time_ms: u64,
     total_gas_limit: u64,
     total_gas_price_wei: u128,
     fee_proxy_wei: u128,
@@ -81,6 +90,8 @@ struct ProducedBatch {
     mev: crate::MevMetrics,
     estimated_da_bytes_pre_enrichment: usize,
     raw_tx_bytes: usize,
+    estimated_batch_bytes: usize,
+    blob_utilization: f64,
 }
 
 pub struct BatchOrchestrator {
@@ -200,15 +211,20 @@ impl BatchOrchestrator {
                         batch_id: batch.batch_id,
                         experiment_id: std::env::var("EXPERIMENT_ID").unwrap_or_default(),
                         sealed_at_ms: now_ms,
+                        batch_created_time_ms: produced.batch_created_time_ms,
                         seal_reason: trigger_reason.to_string(),
+                        batch_policy: self.config.batch_policy.clone(),
                         scheduling_policy: self.scheduler.policy_name().to_string(),
                         scheduler_config: self.scheduler.policy_config(),
                         tx_count,
                         forced_tx_count: forced_count,
                         normal_tx_count: tx_count.saturating_sub(forced_count),
+                        mempool_depth_at_batch: produced.mempool_depth_at_batch,
                         total_gas_limit: produced.total_gas_limit,
                         gas_limit_max: self.config.max_gas_limit,
                         gas_limit_utilization,
+                        estimated_batch_bytes: produced.estimated_batch_bytes,
+                        blob_utilization: produced.blob_utilization,
                         total_gas_price_wei: produced.total_gas_price_wei.to_string(),
                         fee_proxy_wei: produced.fee_proxy_wei.to_string(),
                         estimated_da_bytes_pre_enrichment: produced.estimated_da_bytes_pre_enrichment,
@@ -234,6 +250,7 @@ impl BatchOrchestrator {
                         forced_queue_depth,
                         pool_growth_rate_tps: growth_rate,
                         time_since_last_seal_ms: interval_ms,
+                        tx_arrival_time_ms: produced.tx_arrival_time_ms,
                     });
 
                     last_batch_time_ms = now_ms;
@@ -274,10 +291,25 @@ impl BatchOrchestrator {
             self.forced_queue.add(tx).await;
         }
 
-        let max_normal_txs = self.config.max_batch_size.saturating_sub(accepted_forced_txs.len());
-        let normal_txs = self.tx_pool.get_pending(max_normal_txs).await;
+        let normal_pool_depth = self.tx_pool.pending_count().await;
+        let target_batch_size = self.trigger.target_batch_size_for_depth(normal_pool_depth);
+        let max_normal_txs = target_batch_size.saturating_sub(accepted_forced_txs.len());
+        let mempool_depth_at_batch = normal_pool_depth.saturating_add(accepted_forced_txs.len());
+        let remaining_blob_bytes = self
+            .config
+            .blob_target_bytes
+            .saturating_sub(accepted_forced_txs.iter().map(|tx| tx.estimated_encoded_bytes()).sum::<usize>());
+
+        let (normal_txs, _packed_blob_bytes) = if self.scheduler.policy_name() == "BlobPacking" {
+            self.tx_pool
+                .take_blob_packed(max_normal_txs, remaining_blob_bytes)
+                .await
+        } else {
+            (self.tx_pool.get_pending(max_normal_txs).await, 0usize)
+        };
         let mut accepted_normal_txs = Vec::new();
         let mut combined_for_gas_check = accepted_forced_txs.clone();
+        let mut deferred_normal_txs = Vec::new();
         for tx in normal_txs {
             let wrapped_tx = Transaction::Normal(tx);
             if engine.can_add_transaction(&combined_for_gas_check, &wrapped_tx) {
@@ -285,8 +317,13 @@ impl BatchOrchestrator {
                 accepted_normal_txs.push(wrapped_tx);
             } else {
                 debug!("Gas limit reached, stopping transaction addition");
-                break;
+                if let Transaction::Normal(inner) = wrapped_tx {
+                    deferred_normal_txs.push(inner);
+                }
             }
+        }
+        for tx in deferred_normal_txs {
+            self.tx_pool.add(tx).await;
         }
         drop(engine);
         
@@ -368,12 +405,27 @@ impl BatchOrchestrator {
 
         let raw_tx_bytes = serde_json::to_vec(&ordered_txs).map(|v| v.len()).unwrap_or(0);
         let estimated_da_bytes_pre_enrichment = raw_tx_bytes + 128;
+        let estimated_batch_bytes = raw_tx_bytes;
+        let blob_utilization = if self.config.blob_target_bytes == 0 {
+            0.0
+        } else {
+            estimated_batch_bytes as f64 / self.config.blob_target_bytes as f64
+        };
+        let batch_created_time_ms = Self::now_unix_ms();
+        let tx_arrival_time_ms = ordered_txs
+            .iter()
+            .map(|tx| tx.arrival_timestamp_ms())
+            .min()
+            .unwrap_or(0);
 
         let mut engine = self.batch_engine.write().await;
         let batch = engine.create_batch(ordered_txs);
 
         Ok(Some(ProducedBatch {
             batch,
+            batch_created_time_ms,
+            mempool_depth_at_batch,
+            tx_arrival_time_ms,
             total_gas_limit,
             total_gas_price_wei,
             fee_proxy_wei,
@@ -381,6 +433,8 @@ impl BatchOrchestrator {
             mev,
             estimated_da_bytes_pre_enrichment,
             raw_tx_bytes,
+            estimated_batch_bytes,
+            blob_utilization,
         }))
     }
 

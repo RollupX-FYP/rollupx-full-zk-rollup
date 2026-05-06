@@ -74,6 +74,61 @@ impl TransactionPool {
         txs.drain(..max.min(len)).collect()
     }
 
+    /// Retrieve a blob-packed subset of pending transactions.
+    ///
+    /// The selector greedily prefers larger encoded payloads first so the
+    /// selected set has a better chance of filling the target byte budget.
+    /// Transactions that are not selected are preserved in their original
+    /// arrival order.
+    pub async fn take_blob_packed(
+        &self,
+        max_count: usize,
+        max_bytes: usize,
+    ) -> (Vec<PooledTransaction>, usize) {
+        let mut txs = self.transactions.write().await;
+        let drained: Vec<_> = txs.drain(..).enumerate().collect();
+        let mut candidates: Vec<_> = drained
+            .into_iter()
+            .map(|(idx, tx)| {
+                let size = tx.estimated_encoded_bytes();
+                (idx, tx, size)
+            })
+            .collect();
+
+        candidates.sort_by(|a, b| {
+            match b.2.cmp(&a.2) {
+                std::cmp::Ordering::Equal => match b.1.tx.gas_price.cmp(&a.1.tx.gas_price) {
+                    std::cmp::Ordering::Equal => a.0.cmp(&b.0),
+                    other => other,
+                },
+                other => other,
+            }
+        });
+
+        let mut selected = Vec::new();
+        let mut remainder = Vec::new();
+        let mut used_bytes = 0usize;
+
+        for (idx, tx, size) in candidates {
+            let fits_count = selected.len() < max_count;
+            let fits_bytes = used_bytes.saturating_add(size) <= max_bytes;
+            if fits_count && fits_bytes {
+                used_bytes = used_bytes.saturating_add(size);
+                selected.push((idx, tx));
+            } else {
+                remainder.push((idx, tx));
+            }
+        }
+
+        selected.sort_by(|a, b| a.0.cmp(&b.0));
+        remainder.sort_by(|a, b| a.0.cmp(&b.0));
+        for (_, tx) in remainder {
+            txs.push_back(tx);
+        }
+
+        (selected.into_iter().map(|(_, tx)| tx).collect(), used_bytes)
+    }
+
 
     /// Get the number of pending transactions in the pool
     ///
@@ -104,7 +159,27 @@ impl TransactionPool {
 mod tests {
     use super::*;
     use crate::{UserTransaction, PooledTransaction};
-    use ethers::types::{Address, U256, Signature};
+    use ethers::types::{Address, Signature, U256};
+
+    fn make_tx(gas_price: u64, value: u64, timestamp: u64, boost_bid: Option<U256>) -> PooledTransaction {
+        let tx = UserTransaction {
+            from: Address::random(),
+            to: Address::random(),
+            value: U256::from(value),
+            nonce: 1,
+            gas_limit: 21_000,
+            gas_price: U256::from(gas_price),
+            signature: Signature { r: U256::zero(), s: U256::zero(), v: 27 },
+            timestamp,
+            boost_bid,
+        };
+        PooledTransaction {
+            tx,
+            arrived_at: timestamp,
+            pool_entry_at: timestamp + 1,
+            validation_latency_ms: 1,
+        }
+    }
 
     #[tokio::test]
     async fn test_pool_total_received() {
@@ -137,5 +212,39 @@ mod tests {
         pool.get_pending(1).await;
         assert_eq!(pool.total_received(), 1);
         assert_eq!(pool.pending_count().await, 0);
+    }
+
+    #[tokio::test]
+    async fn take_blob_packed_prefers_larger_transactions_and_preserves_remainder() {
+        let pool = TransactionPool::new();
+        let small = make_tx(1, 1, 1, None);
+        let medium = make_tx(2, 10, 2, None);
+        let large = make_tx(
+            3,
+            10,
+            3,
+            Some(U256::from_dec_str(
+                "1000000000000000000000000000000000000000000000000000000000000000",
+            )
+            .unwrap()),
+        );
+
+        assert!(large.estimated_encoded_bytes() > medium.estimated_encoded_bytes());
+
+        pool.add(small.clone()).await;
+        pool.add(medium.clone()).await;
+        pool.add(large.clone()).await;
+
+        let (selected, used_bytes) = pool.take_blob_packed(2, usize::MAX).await;
+
+        assert_eq!(selected.len(), 2);
+        assert!(used_bytes > 0);
+        assert!(selected.iter().any(|tx| tx.tx.gas_price == large.tx.gas_price));
+        assert!(selected.iter().any(|tx| tx.tx.gas_price == medium.tx.gas_price));
+        assert!(selected.iter().all(|tx| tx.tx.gas_price != small.tx.gas_price));
+
+        let remaining = pool.get_pending(10).await;
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].tx.gas_price, small.tx.gas_price);
     }
 }

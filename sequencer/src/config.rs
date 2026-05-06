@@ -69,6 +69,54 @@ pub struct BatchConfig {
     pub timeout_interval_ms: u64,
     pub min_batch_size: usize,
     pub max_gas_limit: u64,
+    #[serde(default = "default_batch_policy")]
+    pub batch_policy: String,
+    #[serde(default = "default_adaptive_low_load_threshold")]
+    pub adaptive_low_load_threshold: usize,
+    #[serde(default = "default_adaptive_medium_load_threshold")]
+    pub adaptive_medium_load_threshold: usize,
+    #[serde(default = "default_adaptive_small_batch_size")]
+    pub adaptive_small_batch_size: usize,
+    #[serde(default = "default_adaptive_medium_batch_size")]
+    pub adaptive_medium_batch_size: usize,
+    #[serde(default = "default_adaptive_large_batch_size")]
+    pub adaptive_large_batch_size: usize,
+    #[serde(default = "default_blob_target_bytes")]
+    pub blob_target_bytes: usize,
+    #[serde(default = "default_blob_fill_target")]
+    pub blob_fill_target: f64,
+}
+
+fn default_batch_policy() -> String {
+    "fixed".to_string()
+}
+
+fn default_adaptive_low_load_threshold() -> usize {
+    50
+}
+
+fn default_adaptive_medium_load_threshold() -> usize {
+    200
+}
+
+fn default_adaptive_small_batch_size() -> usize {
+    50
+}
+
+fn default_adaptive_medium_batch_size() -> usize {
+    100
+}
+
+fn default_adaptive_large_batch_size() -> usize {
+    500
+}
+
+fn default_blob_target_bytes() -> usize {
+    131_072
+}
+
+fn default_blob_fill_target() -> f64 {
+    0.90
 }
 
 /// Transaction scheduling configuration
@@ -80,6 +128,7 @@ pub struct BatchConfig {
 /// - `"FeePriority"`: Fee-based priority (highest gas price first)
 /// - `"TimeBoost"`: Time-windowed ordering with premium bids
 /// - `"FairBFT"`: Fair Byzantine Fault Tolerant ordering (timestamp-based)
+/// - `"BlobPacking"`: Size-aware ordering that favors blob utilization
 /// 
 /// # TimeBoost Configuration
 /// For TimeBoost policy, you can specify the time window:
@@ -113,7 +162,8 @@ impl SchedulingConfig {
                 time_window_ms: self.time_window_ms,
             },
             "FairBFT" => SchedulingPolicyType::FairBft,
-            _ => panic!("Invalid scheduling policy type: {}. Must be one of: FCFS, FeePriority, TimeBoost, FairBFT", self.policy_type),
+            "BlobPacking" => SchedulingPolicyType::BlobPacking,
+            _ => panic!("Invalid scheduling policy type: {}. Must be one of: FCFS, FeePriority, TimeBoost, FairBFT, BlobPacking", self.policy_type),
         }
     }
 }

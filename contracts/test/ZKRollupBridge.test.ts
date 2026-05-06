@@ -147,9 +147,12 @@ describe("ZKRollupBridge", function () {
     it("Should commit batch successfully by sequencer", async function () {
       await bridge.setSequencer(sequencer.address);
 
-      await expect(
-        bridge.connect(sequencer).commitBatch(CALLDATA_DA_ID, 0, batchData, daMeta, newRoot, proof)
-      )
+      const tx = bridge.connect(sequencer).commitBatch(CALLDATA_DA_ID, 0, batchData, daMeta, newRoot, proof);
+
+      await expect(tx)
+        .to.emit(bridge, "BatchSoftCommitted");
+
+      await expect(tx)
         .to.emit(bridge, "BatchCommitted")
         .withArgs(1, CALLDATA_DA_ID, 0, daCommitment, genesisRoot, newRoot); // 0 is calldata mode
 
@@ -161,9 +164,12 @@ describe("ZKRollupBridge", function () {
 
     it("Should commit batch successfully in permissionless mode", async function () {
       // sequencer is address(0) by default
-      await expect(
-        bridge.connect(otherAccount).commitBatch(CALLDATA_DA_ID, 0, batchData, daMeta, newRoot, proof)
-      )
+      const tx = bridge.connect(otherAccount).commitBatch(CALLDATA_DA_ID, 0, batchData, daMeta, newRoot, proof);
+
+      await expect(tx)
+        .to.emit(bridge, "BatchSoftCommitted");
+
+      await expect(tx)
         .to.emit(bridge, "BatchCommitted")
         .withArgs(1, CALLDATA_DA_ID, 0, daCommitment, genesisRoot, newRoot);
     });
@@ -222,9 +228,12 @@ describe("ZKRollupBridge", function () {
       // Setup mock hash in testBlobDA
       await testBlobDA.setMockBlobHash(blobIndex, expectedVersionedHash);
       
-      await expect(
-        bridge.commitBatch(BLOB_DA_ID, 0, "0x", daMeta, newRoot, proof)
-      )
+      const tx = bridge.commitBatch(BLOB_DA_ID, 0, "0x", daMeta, newRoot, proof);
+
+      await expect(tx)
+        .to.emit(bridge, "BatchSoftCommitted");
+
+      await expect(tx)
         .to.emit(bridge, "BatchCommitted")
         .withArgs(1, BLOB_DA_ID, 0, expectedVersionedHash, genesisRoot, newRoot); // 1 is blob mode
       

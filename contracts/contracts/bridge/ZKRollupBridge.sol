@@ -51,6 +51,11 @@ contract ZKRollupBridge is Ownable2Step, ReentrancyGuard {
         bytes32 oldRoot,
         bytes32 newRoot
     );
+    event BatchSoftCommitted(
+        uint256 indexed batchId,
+        bytes32 stateRoot,
+        uint256 timestamp
+    );
 
     event BatchDataPointer(uint256 indexed batchId, bytes daMeta);
 
@@ -267,6 +272,7 @@ contract ZKRollupBridge is Ownable2Step, ReentrancyGuard {
 
         IVerifier selectedVerifier = verifiers[verifierId];
         if (address(selectedVerifier) == address(0)) revert UnknownVerifier(verifierId);
+        uint256 batchId = nextBatchId;
 
         // Decode Proof (A, B, C)
         uint256[2] memory a;
@@ -306,16 +312,19 @@ contract ZKRollupBridge is Ownable2Step, ReentrancyGuard {
             if (!selectedVerifier.verifyProof(a, b, c, inputs)) {
                 revert InvalidProof();
             }
+            emit BatchSoftCommitted(batchId, newRoot, block.timestamp);
             // 4. Finalize directly
             _finalizeBatch(oldRoot, newRoot, daCommitment, provider.mode(), verifierId, daMeta);
         } else {
             // Optimistic Mode
             if (newRoot == bytes32(0)) revert InvalidNewRoot();
+
+            emit BatchSoftCommitted(batchId, newRoot, block.timestamp);
             
             pendingStateRoot = newRoot;
             pendingTimestamp = block.timestamp;
             
-            uint256 batchId = nextBatchId++;
+            batchId = nextBatchId++;
             batchCommitment[batchId] = daCommitment;
             batchNewRoot[batchId] = newRoot;
 

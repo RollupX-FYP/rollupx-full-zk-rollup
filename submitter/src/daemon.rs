@@ -35,6 +35,9 @@ struct SubmitterMetrics {
     l1_block_number: u64,
     confirmation_blocks: u64,
     batch_receive_ms: Option<u64>,
+    soft_commit_ms: Option<u64>,
+    hard_finality_ms: Option<u64>,
+    finality_gain_ms: Option<u64>,
     prover_rtt_ms: Option<u64>,
     proof_generation_ms: Option<u64>,
     proof_metadata_hash: String,
@@ -51,6 +54,9 @@ struct SubmitterMetrics {
     blob_gas_used: Option<u64>,
     blob_base_fee_wei: Option<u64>,
     blob_fee_total_wei: Option<u64>,
+    regular_gas_used: Option<u64>,
+    regular_gas_price_gwei: Option<f64>,
+    blob_gas_price_wei: Option<u64>,
     proof_verify_gas_estimate: u64,
     state_root_update_gas_estimate: u64,
     da_posting_gas_estimate: u64,
@@ -60,6 +66,8 @@ struct SubmitterMetrics {
     da_pct: f64,
     overhead_pct: f64,
     cost_breakdown_is_estimated: bool,
+    total_cost_wei: String,
+    cost_per_tx_wei: String,
     gas_bumped: bool,
     gas_bump_count: u8,
     original_gas_price_gwei: Option<f64>,
@@ -497,6 +505,9 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                         l1_block_number: 0,
                         confirmation_blocks: 0,
                         batch_receive_ms: None, // Simulated doesn't load it from record
+                        soft_commit_ms: Some(0),
+                        hard_finality_ms: Some(0),
+                        finality_gain_ms: Some(0),
                         prover_rtt_ms: None,
                         proof_generation_ms: None,
                         proof_metadata_hash: "offchain".to_string(),
@@ -513,6 +524,9 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                         blob_gas_used: None,
                         blob_base_fee_wei: None,
                         blob_fee_total_wei: None,
+                        regular_gas_used: None,
+                        regular_gas_price_gwei: None,
+                        blob_gas_price_wei: None,
                         proof_verify_gas_estimate: bd.proof_verify_gas,
                         state_root_update_gas_estimate: bd.state_root_update_gas,
                         da_posting_gas_estimate: bd.da_posting_gas,
@@ -522,6 +536,8 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                         da_pct: bd.da_pct,
                         overhead_pct: bd.overhead_pct,
                         cost_breakdown_is_estimated: bd.is_estimated,
+                        total_cost_wei: "0".to_string(),
+                        cost_per_tx_wei: "0".to_string(),
                         gas_bumped: false,
                         gas_bump_count: 0,
                         original_gas_price_gwei: None,
@@ -645,7 +661,7 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                         // Check confirmations (Research Metric)
                         // Mock confirmation check for now since local simulation is instant
                         // In real run, we would loop check_confirmation
-                        let confirmations = 1; 
+                        let confirmations: u64 = 1; 
 
                         // Save Metrics
                         let bd = if cfg.da.mode == DaMode::Blob {
@@ -679,29 +695,45 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                             }
                         }
 
-                        let metrics = SubmitterMetrics {
-                            submission_status: "submitted".to_string(),
-                            error: None,
-                            experiment_id: std::env::var("EXPERIMENT_ID").unwrap_or_else(|_| "default_experiment".to_string()),
-                            batch_id: fetched.batch_id.clone(),
+                let l1_block_interval_ms = std::env::var("HARDHAT_MINING_INTERVAL")
+                    .ok()
+                    .and_then(|v| v.parse::<u64>().ok())
+                    .unwrap_or(12_000);
+                let soft_commit_ms = Some(latency.as_millis() as u64);
+                let hard_finality_ms = Some(
+                    latency.as_millis() as u64
+                        + confirmations.saturating_mul(l1_block_interval_ms),
+                );
+                let finality_gain_ms = hard_finality_ms
+                    .zip(soft_commit_ms)
+                    .map(|(hard, soft)| hard.saturating_sub(soft));
+
+                let metrics = SubmitterMetrics {
+                    submission_status: "submitted".to_string(),
+                    error: None,
+                    experiment_id: std::env::var("EXPERIMENT_ID").unwrap_or_else(|_| "default_experiment".to_string()),
+                    batch_id: fetched.batch_id.clone(),
                             tx_hash: result.tx_hash.clone(),
                             submission_latency_ms: latency.as_millis() as u64,
                             l2_l1_latency_ms: result.latency_ms,
-                            l1_block_number: result.block_number,
-                            confirmation_blocks: confirmations,
-                            da_mode: format!("{:?}", cfg.da.mode),
-                            da_mode_is_simulated: false,
-                            batch_receive_ms,
-                            prover_rtt_ms: None, // Will add when Orchestrator runs prover
-                            proof_generation_ms: None,
-                            proof_metadata_hash: "mock_proof_meta_hash".to_string(),
-                            tx_count,
-                            batch_data_bytes,
-                            proof_bytes: proof_bytes.len(),
-                            compressed_bytes: result.compressed_bytes,
-                            compression_time_ms: None,
-                            compression_ratio: result.compression_ratio,
-                            blob_count: if cfg.da.mode == DaMode::Blob {
+                    l1_block_number: result.block_number,
+                    confirmation_blocks: confirmations,
+                    da_mode: format!("{:?}", cfg.da.mode),
+                    da_mode_is_simulated: false,
+                    batch_receive_ms,
+                    soft_commit_ms,
+                    hard_finality_ms,
+                    finality_gain_ms,
+                    prover_rtt_ms: None, // Will add when Orchestrator runs prover
+                    proof_generation_ms: None,
+                    proof_metadata_hash: "mock_proof_meta_hash".to_string(),
+                    tx_count,
+                    batch_data_bytes,
+                    proof_bytes: proof_bytes.len(),
+                    compressed_bytes: result.compressed_bytes,
+                    compression_time_ms: None,
+                    compression_ratio: result.compression_ratio,
+                    blob_count: if cfg.da.mode == DaMode::Blob {
                                 ((result.compressed_bytes.unwrap_or(batch_data_bytes) + BLOB_SIZE_BYTES - 1)
                                     / BLOB_SIZE_BYTES) as u64
                             } else {
@@ -713,29 +745,60 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                                 used as f64 / (blobs * BLOB_SIZE_BYTES) as f64
                             } else {
                                 0.0
-                            },
-                            l1_gas_used: result.gas_used,
-                            fee_proxy_wei: fee_proxy_wei.to_string(),
-                            blob_gas_used: result.blob_gas_used,
-                            blob_base_fee_wei: result.blob_base_fee_wei,
-                            blob_fee_total_wei: match (result.blob_gas_used, result.blob_base_fee_wei) {
-                                (Some(g), Some(f)) => Some(g.saturating_mul(f)),
-                                _ => None,
-                            },
-                            proof_verify_gas_estimate: bd.proof_verify_gas,
-                            state_root_update_gas_estimate: bd.state_root_update_gas,
-                            da_posting_gas_estimate: bd.da_posting_gas,
-                            da_posting_blob_gas_estimate: bd.da_posting_blob_gas,
-                            overhead_gas_estimate: bd.overhead_gas,
-                            proof_verify_pct: bd.proof_verify_pct,
-                            da_pct: bd.da_pct,
-                            overhead_pct: bd.overhead_pct,
-                            cost_breakdown_is_estimated: bd.is_estimated,
-                            gas_bumped,
-                            gas_bump_count,
-                            original_gas_price_gwei,
-                            final_gas_price_gwei: None, // Hard to capture on success immediately without extra API call, set to None for now
-                        };
+                    },
+                    l1_gas_used: result.gas_used,
+                    fee_proxy_wei: fee_proxy_wei.to_string(),
+                    blob_gas_used: result.blob_gas_used,
+                    blob_base_fee_wei: result.blob_base_fee_wei,
+                    blob_fee_total_wei: match (result.blob_gas_used, result.blob_base_fee_wei) {
+                        (Some(g), Some(f)) => Some(g.saturating_mul(f)),
+                        _ => None,
+                    },
+                    regular_gas_used: result.gas_used,
+                    regular_gas_price_gwei: original_gas_price_gwei,
+                    blob_gas_price_wei: result.blob_base_fee_wei,
+                    proof_verify_gas_estimate: bd.proof_verify_gas,
+                    state_root_update_gas_estimate: bd.state_root_update_gas,
+                    da_posting_gas_estimate: bd.da_posting_gas,
+                    da_posting_blob_gas_estimate: bd.da_posting_blob_gas,
+                    overhead_gas_estimate: bd.overhead_gas,
+                    proof_verify_pct: bd.proof_verify_pct,
+                    da_pct: bd.da_pct,
+                    overhead_pct: bd.overhead_pct,
+                    cost_breakdown_is_estimated: bd.is_estimated,
+                    total_cost_wei: match (result.gas_used, original_gas_price_gwei) {
+                        (Some(gas_used), Some(price_gwei)) => {
+                            let price_wei = (price_gwei * 1_000_000_000.0).max(0.0) as u128;
+                            let regular_cost = (gas_used as u128).saturating_mul(price_wei);
+                            let blob_cost = match (result.blob_gas_used, result.blob_base_fee_wei) {
+                                (Some(blob_gas), Some(blob_fee)) => (blob_gas as u128).saturating_mul(blob_fee as u128),
+                                _ => 0,
+                            };
+                            regular_cost.saturating_add(blob_cost).to_string()
+                        }
+                        _ => "0".to_string(),
+                    },
+                    cost_per_tx_wei: if tx_count > 0 {
+                        match (result.gas_used, original_gas_price_gwei) {
+                            (Some(gas_used), Some(price_gwei)) => {
+                                let price_wei = (price_gwei * 1_000_000_000.0).max(0.0) as u128;
+                                let regular_cost = (gas_used as u128).saturating_mul(price_wei);
+                                let blob_cost = match (result.blob_gas_used, result.blob_base_fee_wei) {
+                                    (Some(blob_gas), Some(blob_fee)) => (blob_gas as u128).saturating_mul(blob_fee as u128),
+                                    _ => 0,
+                                };
+                                (regular_cost.saturating_add(blob_cost) / tx_count as u128).to_string()
+                            }
+                            _ => "0".to_string(),
+                        }
+                    } else {
+                        "0".to_string()
+                    },
+                    gas_bumped,
+                    gas_bump_count,
+                    original_gas_price_gwei,
+                    final_gas_price_gwei: None, // Hard to capture on success immediately without extra API call, set to None for now
+                };
 
                         write_submitter_metrics(&metrics);
                         
@@ -843,6 +906,9 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                             da_mode: format!("{:?}", cfg.da.mode),
                             da_mode_is_simulated: false,
                             batch_receive_ms: None,
+                            soft_commit_ms: None,
+                            hard_finality_ms: None,
+                            finality_gain_ms: None,
                             prover_rtt_ms: None,
                             proof_generation_ms: None,
                             proof_metadata_hash: "submit_failed".to_string(),
@@ -859,6 +925,9 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                             blob_gas_used: None,
                             blob_base_fee_wei: None,
                             blob_fee_total_wei: None,
+                            regular_gas_used: None,
+                            regular_gas_price_gwei: None,
+                            blob_gas_price_wei: None,
                             proof_verify_gas_estimate: 0,
                             state_root_update_gas_estimate: 0,
                             da_posting_gas_estimate: 0,
@@ -868,6 +937,8 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                             da_pct: 0.0,
                             overhead_pct: 0.0,
                             cost_breakdown_is_estimated: true,
+                            total_cost_wei: "0".to_string(),
+                            cost_per_tx_wei: "0".to_string(),
                             gas_bumped: false,
                             gas_bump_count: 0,
                             original_gas_price_gwei: None,

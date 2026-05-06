@@ -78,10 +78,12 @@ python -m pytest tests/ -v
 ### Latency
 - `avg_l2_l1_ms`, `p50_l2_l1_ms`, `p95_l2_l1_ms`, `p99_l2_l1_ms`
 - `avg_prove_ms`, `p50_prove_ms`, `p95_prove_ms`
+- `avg_soft_commit_ms`, `avg_hard_finality_ms`, `avg_finality_gain_ms`
 
 ### Cost
 - `avg_gas_per_tx`, `avg_gas_per_batch`, `avg_gas_saved`
 - `avg_calldata_bytes`, `avg_compressed_bytes`, `avg_comp_ratio`
+- `avg_total_cost_wei`, `avg_cost_per_tx_wei`, `avg_blob_utilization`
 
 ### Reliability
 - `failed_batches`, `total_retries`

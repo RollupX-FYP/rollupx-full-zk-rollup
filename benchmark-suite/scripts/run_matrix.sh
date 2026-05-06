@@ -178,7 +178,7 @@ for index, exp in enumerate(experiments_to_run, start=1):
     print(f"    name={exp_name}")
     print(
         f"    factor={factor} batch={exp['batch_size']} timeout={exp['timeout_ms']}ms "
-        f"min_batch={exp.get('min_batch_size', 1)} policy={exp['policy']}"
+        f"min_batch={exp.get('min_batch_size', 1)} batch_policy={exp.get('batch_policy', baseline.get('batch_policy', 'fixed'))} policy={exp['policy']}"
     )
     print(
         f"    da={exp['da_mode']} prover={exp['prover']} rate={exp['rate_tps']}tps "
@@ -197,9 +197,18 @@ for index, exp in enumerate(experiments_to_run, start=1):
             "MAX_BATCH_SIZE": str(exp["batch_size"]),
             "TIMEOUT_MS": str(exp["timeout_ms"]),
             "MIN_BATCH_SIZE": str(exp.get("min_batch_size", 1)),
+            "BATCH_POLICY": exp.get("batch_policy", baseline.get("batch_policy", "fixed")),
+            "ADAPTIVE_LOW_LOAD_THRESHOLD": str(exp.get("adaptive_low_load_threshold", baseline.get("adaptive_low_load_threshold", 50))),
+            "ADAPTIVE_MEDIUM_LOAD_THRESHOLD": str(exp.get("adaptive_medium_load_threshold", baseline.get("adaptive_medium_load_threshold", 200))),
+            "ADAPTIVE_SMALL_BATCH_SIZE": str(exp.get("adaptive_small_batch_size", baseline.get("adaptive_small_batch_size", 50))),
+            "ADAPTIVE_MEDIUM_BATCH_SIZE": str(exp.get("adaptive_medium_batch_size", baseline.get("adaptive_medium_batch_size", 100))),
+            "ADAPTIVE_LARGE_BATCH_SIZE": str(exp.get("adaptive_large_batch_size", baseline.get("adaptive_large_batch_size", 500))),
+            "BLOB_TARGET_BYTES": str(exp.get("blob_target_bytes", baseline.get("blob_target_bytes", 131072))),
+            "BLOB_FILL_TARGET": str(exp.get("blob_fill_target", baseline.get("blob_fill_target", 0.90))),
             "POLICY": exp["policy"],
             "DA_MODE": exp["da_mode"],
             "PROVER": exp["prover"],
+            "REQUIRE_REAL_PROOFS": "true",
             "RATE_TPS": str(exp["rate_tps"]),
             "DURATION_S": str(duration_s),
             "WARMUP_S": str(warmup_s),
@@ -215,6 +224,10 @@ for index, exp in enumerate(experiments_to_run, start=1):
             selected_env = " ".join(
                 f"{k}={env[k]}" for k in (
                     "MAX_BATCH_SIZE", "TIMEOUT_MS", "MIN_BATCH_SIZE",
+                    "BATCH_POLICY", "ADAPTIVE_LOW_LOAD_THRESHOLD",
+                    "ADAPTIVE_MEDIUM_LOAD_THRESHOLD", "ADAPTIVE_SMALL_BATCH_SIZE",
+                    "ADAPTIVE_MEDIUM_BATCH_SIZE", "ADAPTIVE_LARGE_BATCH_SIZE",
+                    "BLOB_TARGET_BYTES", "BLOB_FILL_TARGET",
                     "POLICY", "DA_MODE", "RATE_TPS", "DURATION_S",
                     "WARMUP_S", "SEED"
                 )

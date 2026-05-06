@@ -1,9 +1,17 @@
 [baseline]
-id = "exp_000_baseline_bs050_calldata_balanced_10tps"
-name = "Baseline: batch size 50, calldata DA, balanced workload, 10 TPS"
-batch_size = 50
+id = "exp_000_baseline_fixed100_calldata_fcfs_10tps"
+name = "Baseline: fixed batch size 100, calldata DA, FCFS, 10 TPS"
+batch_size = 100
 timeout_ms = 30000
 min_batch_size = 1
+batch_policy = "fixed"
+adaptive_low_load_threshold = 50
+adaptive_medium_load_threshold = 200
+adaptive_small_batch_size = 50
+adaptive_medium_batch_size = 100
+adaptive_large_batch_size = 500
+blob_target_bytes = 131072
+blob_fill_target = 0.90
 policy = "FCFS"
 da_mode = "calldata"
 prover = "groth16"
@@ -14,90 +22,104 @@ tx_mix = "balanced"
 repeats = 5
 seeds = [42, 43, 44, 45, 46]
 
-# Batch-size sweep for feasibility modeling
 [[experiments]]
 factor = "batch_size"
-id = "exp_001_batch_size_bs001_calldata_balanced_10tps"
-name = "Batch-size sweep: max batch size 1"
-batch_size = 1
-
-[[experiments]]
-factor = "batch_size"
-id = "exp_002_batch_size_bs010_calldata_balanced_10tps"
-name = "Batch-size sweep: max batch size 10"
+id = "exp_001_batch_size_bs010_calldata_fcfs_10tps"
+name = "Batch-size sweep: fixed 10"
 batch_size = 10
 
 [[experiments]]
 factor = "batch_size"
-id = "exp_003_batch_size_bs025_calldata_balanced_10tps"
-name = "Batch-size sweep: max batch size 25"
-batch_size = 25
-
-[[experiments]]
-factor = "batch_size"
-id = "exp_004_batch_size_bs050_calldata_balanced_10tps"
-name = "Batch-size sweep: max batch size 50"
+id = "exp_002_batch_size_bs050_calldata_fcfs_10tps"
+name = "Batch-size sweep: fixed 50"
 batch_size = 50
 
 [[experiments]]
 factor = "batch_size"
-id = "exp_005_batch_size_bs100_calldata_balanced_10tps"
-name = "Batch-size sweep: max batch size 100"
+id = "exp_003_batch_size_bs100_calldata_fcfs_10tps"
+name = "Batch-size sweep: fixed 100"
 batch_size = 100
 
 [[experiments]]
 factor = "batch_size"
-id = "exp_006_batch_size_bs250_calldata_balanced_10tps"
-name = "Batch-size sweep: max batch size 250"
-batch_size = 250
-
-[[experiments]]
-factor = "batch_size"
-id = "exp_007_batch_size_bs500_calldata_balanced_10tps"
-name = "Batch-size sweep: max batch size 500"
+id = "exp_004_batch_size_bs500_calldata_fcfs_10tps"
+name = "Batch-size sweep: fixed 500"
 batch_size = 500
 
 [[experiments]]
 factor = "batch_size"
-id = "exp_008_batch_size_bs1000_calldata_balanced_10tps"
-name = "Batch-size sweep: max batch size 1000"
+id = "exp_005_batch_size_bs1000_calldata_fcfs_10tps"
+name = "Batch-size sweep: fixed 1000"
 batch_size = 1000
 
-# DA mode comparison (repeat selected sizes with matrix tooling by filter)
+[[experiments]]
+factor = "policy"
+id = "exp_010_policy_fcfs_bs100_calldata_10tps"
+name = "Scheduling sweep: FCFS"
+batch_size = 100
+policy = "FCFS"
+
+[[experiments]]
+factor = "policy"
+id = "exp_011_policy_feepriority_bs100_calldata_10tps"
+name = "Scheduling sweep: FeePriority"
+batch_size = 100
+policy = "FeePriority"
+
+[[experiments]]
+factor = "policy"
+id = "exp_012_policy_blobpacking_bs100_calldata_10tps"
+name = "Scheduling sweep: BlobPacking"
+batch_size = 100
+policy = "BlobPacking"
+
 [[experiments]]
 factor = "da_mode"
-id = "exp_101_da_mode_bs050_blob_balanced_10tps"
-name = "DA-mode comparison: blob DA"
+id = "exp_020_da_calldata_bs100_fcfs_10tps"
+name = "DA sweep: calldata"
+batch_size = 100
+da_mode = "calldata"
+
+[[experiments]]
+factor = "da_mode"
+id = "exp_021_da_blob_bs100_fcfs_10tps"
+name = "DA sweep: blob"
+batch_size = 100
 da_mode = "blob"
 
 [[experiments]]
 factor = "da_mode"
-id = "exp_102_da_mode_bs050_offchain_balanced_10tps"
-name = "DA-mode comparison: offchain DA"
+id = "exp_022_da_offchain_bs100_fcfs_10tps"
+name = "DA sweep: offchain"
+batch_size = 100
 da_mode = "offchain"
 
-# Workload classes
 [[experiments]]
-factor = "tx_mix"
-id = "exp_201_workload_bs050_calldata_light_10tps"
-name = "Workload comparison: light workload"
-tx_mix = "light"
+factor = "batch_policy"
+id = "exp_030_batch_policy_fixed100_bs100_calldata_fcfs_10tps"
+name = "Batch policy validation: fixed 100"
+batch_size = 100
+batch_policy = "fixed"
 
 [[experiments]]
-factor = "tx_mix"
-id = "exp_202_workload_bs050_calldata_heavy_10tps"
-name = "Workload comparison: heavy workload"
-tx_mix = "heavy"
-
-# Optional stress traffic for high batch caps
-[[experiments]]
-factor = "rate"
-id = "exp_301_rate_bs050_calldata_balanced_20tps"
-name = "Rate comparison: balanced workload at 20 TPS"
-rate_tps = 20
+factor = "batch_policy"
+id = "exp_031_batch_policy_fixed500_bs500_calldata_fcfs_10tps"
+name = "Batch policy validation: fixed 500"
+batch_size = 500
+batch_policy = "fixed"
 
 [[experiments]]
-factor = "rate"
-id = "exp_302_rate_bs050_calldata_balanced_50tps"
-name = "Rate comparison: balanced workload at 50 TPS"
-rate_tps = 50
+factor = "batch_policy"
+id = "exp_032_batch_policy_adaptive_bs500_calldata_fcfs_10tps"
+name = "Batch policy validation: adaptive"
+batch_size = 500
+batch_policy = "adaptive"
+
+[[experiments]]
+factor = "batch_policy"
+id = "exp_033_batch_policy_adaptive_blob_bs500_blob_blobpacking_10tps"
+name = "Batch policy validation: adaptive + blob packing"
+batch_size = 500
+batch_policy = "adaptive"
+policy = "BlobPacking"
+da_mode = "blob"

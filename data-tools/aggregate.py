@@ -112,6 +112,11 @@ def _load_run(run_dir: str) -> dict | None:
                     "p95_l2_l1_ms": _percentile(l2_l1, 95),
                     "avg_l1_gas_used": statistics.mean(gas_used) if gas_used else 0,
                     "avg_blob_utilization": statistics.mean(blobs) if blobs else 0,
+                    "avg_soft_commit_ms": statistics.mean([b.get("soft_commit_ms", 0) or 0 for b in batches]),
+                    "avg_hard_finality_ms": statistics.mean([b.get("hard_finality_ms", 0) or 0 for b in batches]),
+                    "avg_finality_gain_ms": statistics.mean([b.get("finality_gain_ms", 0) or 0 for b in batches]),
+                    "avg_total_cost_wei": statistics.mean([float(b.get("total_cost_wei", 0) or 0) for b in batches]),
+                    "avg_cost_per_tx_wei": statistics.mean([float(b.get("cost_per_tx_wei", 0) or 0) for b in batches]),
                     "total_batches": len(batches),
                 }
             )
@@ -140,8 +145,13 @@ def _load_batch_rows(run_dir: str) -> list[dict]:
                 "run_id": run_id,
                 "batch_id": bid,
                 "seal_reason": seq.get("seal_reason"),
+                "batch_policy": seq.get("batch_policy"),
+                "scheduling_policy": seq.get("scheduling_policy"),
+                "mempool_depth_at_batch": seq.get("mempool_depth_at_batch"),
                 "tx_count": seq.get("tx_count"),
                 "batch_data_bytes": seq.get("batch_data_bytes"),
+                "estimated_batch_bytes": seq.get("estimated_batch_bytes"),
+                "blob_utilization_sequencer": seq.get("blob_utilization"),
                 "oldest_tx_wait_ms": seq.get("oldest_tx_wait_ms"),
                 "total_gas_limit": seq.get("total_gas_limit"),
                 "fee_proxy_wei_sequencer": seq.get("fee_proxy_wei"),
@@ -157,10 +167,15 @@ def _load_batch_rows(run_dir: str) -> list[dict]:
                 "compressed_bytes": sub.get("compressed_bytes"),
                 "compression_ratio": sub.get("compression_ratio"),
                 "blob_count": sub.get("blob_count"),
-                "blob_utilization": sub.get("blob_utilization"),
+                "blob_utilization_submitter": sub.get("blob_utilization"),
                 "l1_gas_used": sub.get("l1_gas_used"),
                 "l1_latency_ms": sub.get("l2_l1_latency_ms"),
                 "fee_proxy_wei_submitter": sub.get("fee_proxy_wei"),
+                "soft_commit_ms": sub.get("soft_commit_ms"),
+                "hard_finality_ms": sub.get("hard_finality_ms"),
+                "finality_gain_ms": sub.get("finality_gain_ms"),
+                "total_cost_wei": sub.get("total_cost_wei"),
+                "cost_per_tx_wei": sub.get("cost_per_tx_wei"),
             }
         )
     return rows

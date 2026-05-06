@@ -1,9 +1,9 @@
 # RollupX Benchmark Suite
 
-This benchmark suite runs metrics-only experiments for the RollupX batch-size
-feasibility study. It is meant to show how batch inputs such as transaction
-count, serialized batch bytes, gas proxies, execution/proof timing, and L1
-submission metrics change as batch size changes.
+This benchmark suite runs metrics-only experiments for the RollupX batching
+study. It now covers fixed vs adaptive batch sizing, FCFS vs fee-priority vs
+blob-packing scheduling, calldata vs blob vs offchain DA, and soft-finality
+timing alongside cost breakdowns.
 
 The default path is Docker-based. Each experiment run recreates the RollupX
 `core` stack with that run's config and writes metrics into that run's output
@@ -69,7 +69,7 @@ bash benchmark-suite/scripts/run_matrix.sh --phase smoke --dry-run
 
 # Run one experiment only.
 bash benchmark-suite/scripts/run_matrix.sh \
-  --only exp_002_batch_size_bs010_calldata_balanced_10tps \
+  --only exp_001_batch_size_bs010_calldata_fcfs_10tps \
   --repeats 1 \
   --duration 20 \
   --warmup 5
@@ -79,6 +79,13 @@ bash benchmark-suite/scripts/run_matrix.sh \
   --filter batch_size \
   --repeats 1 \
   --duration 20 \
+  --warmup 5
+
+# Run the adaptive and blob-packing validation set.
+bash benchmark-suite/scripts/run_matrix.sh \
+  --filter batch_policy \
+  --repeats 1 \
+  --duration 30 \
   --warmup 5
 
 # Skip docker compose build during each stack recreation.
