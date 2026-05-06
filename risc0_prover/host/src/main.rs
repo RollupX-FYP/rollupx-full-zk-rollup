@@ -91,8 +91,8 @@ fn main() -> Result<()> {
     let zkvm_execution_ms = zkvm_exec_start.elapsed().as_millis() as u64;
     
     let receipt = prove_info.receipt;
-    // Extract RISC0 metrics from receipt metadata
-    let total_cycles = receipt.metadata.total_cycles;
+    // RISC0 2.x exposes execution stats on ProveInfo, not ReceiptMetadata.
+    let total_cycles = prove_info.stats.total_cycles;
     let total_segments = prove_info.stats.segments;
 
     let output_write_start = std::time::Instant::now();
