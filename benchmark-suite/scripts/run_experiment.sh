@@ -114,13 +114,18 @@ restart_docker_stack_for_run() {
     bash "$(dirname "$0")/wait_for_sequencer.sh" "$SEQ_HOST" "$SEQ_PORT" 60
     collect_docker_diagnostics "after_start"
 
-    # Copy L1 deployment info from shared volume
+    copy_l1_deployment
+}
+
+copy_l1_deployment() {
     if [[ -f "${ROOT_DIR}/runtime/contracts.json" ]]; then
         cp "${ROOT_DIR}/runtime/contracts.json" "${METRICS_ROOT}/l1_deployment.json"
         echo "[metrics] copied l1_deployment.json from shared volume"
-    elif docker exec rollupx-full-zk-rollup-submitter-1 ls /runtime/contracts.json >/dev/null 2>&1; then
+    elif command -v docker >/dev/null 2>&1 && docker exec rollupx-full-zk-rollup-submitter-1 ls /runtime/contracts.json >/dev/null 2>&1; then
         docker cp rollupx-full-zk-rollup-submitter-1:/runtime/contracts.json "${METRICS_ROOT}/l1_deployment.json"
         echo "[metrics] copied l1_deployment.json from submitter container"
+    else
+        echo "[metrics] WARNING: unable to find /runtime/contracts.json for l1_deployment.json"
     fi
 }
 
@@ -264,24 +269,81 @@ validate_l1_state() {
         return 1
     fi
 
-    local confirmed_batches
-    confirmed_batches=$(wc -l < "$sub_metrics")
-    if [[ "$confirmed_batches" -eq 0 ]]; then
-        echo "[validation] ERROR: submitter confirmed zero batches"
+    if [[ ! -f "$l1_deploy" ]]; then
+        copy_l1_deployment
+    fi
+    if [[ ! -f "$l1_deploy" ]]; then
+        echo "[validation] ERROR: l1_deployment.json missing"
         return 1
     fi
-    echo "[validation] [OK] submitter confirmed ${confirmed_batches} batches"
 
-    if [[ "$DA_MODE" == "blob" ]]; then
-        if ! grep -q '"blob_gas_used"' "$sub_metrics" || grep -q '"blob_gas_used":0' "$sub_metrics" || grep -q '"blob_gas_used":null' "$sub_metrics"; then
-            echo "[validation] ERROR: blob mode active but no non-zero blob_gas_used found in metrics"
-            return 1
-        fi
-        echo "[validation] [OK] blob gas usage detected"
+    python3 - "$sub_metrics" "$DA_MODE" <<'PYEOF'
+import json
+import sys
+
+path, da_mode = sys.argv[1], sys.argv[2].lower()
+rows = []
+with open(path, "r", encoding="utf-8") as fh:
+    for line_no, line in enumerate(fh, start=1):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rows.append(json.loads(line))
+        except json.JSONDecodeError as exc:
+            raise SystemExit(f"[validation] ERROR: invalid submitter JSON on line {line_no}: {exc}")
+
+submitted = [row for row in rows if row.get("submission_status") == "submitted"]
+if not submitted:
+    raise SystemExit("[validation] ERROR: submitter confirmed/submitted zero batches")
+
+missing_tx = [row.get("batch_id", "<unknown>") for row in submitted if not row.get("tx_hash")]
+if missing_tx:
+    raise SystemExit(f"[validation] ERROR: submitted rows missing tx_hash: {missing_tx[:5]}")
+
+missing_gas = [
+    row.get("batch_id", "<unknown>")
+    for row in submitted
+    if not isinstance(row.get("l1_gas_used"), int) or row.get("l1_gas_used", 0) <= 0
+]
+if missing_gas:
+    raise SystemExit(f"[validation] ERROR: submitted rows missing positive l1_gas_used: {missing_gas[:5]}")
+
+if da_mode == "blob":
+    blob_rows = [
+        row for row in submitted
+        if isinstance(row.get("blob_gas_used"), int) and row.get("blob_gas_used", 0) > 0
+    ]
+    if not blob_rows:
+        raise SystemExit("[validation] ERROR: blob mode active but no non-zero blob_gas_used found in metrics")
+    missing_blob_fee = [
+        row.get("batch_id", "<unknown>")
+        for row in blob_rows
+        if row.get("blob_base_fee_wei") is None
+    ]
+    if missing_blob_fee:
+        raise SystemExit(f"[validation] ERROR: blob rows missing blob_base_fee_wei: {missing_blob_fee[:5]}")
+
+print(f"[validation] [OK] submitter submitted {len(submitted)} batch(es) with receipt gas")
+PYEOF
+
+    if [[ "$USED_DOCKER_STACK" == "1" ]] && command -v docker >/dev/null 2>&1; then
+        echo "[validation] verifying Hardhat bridge state ..."
+        (
+            cd "$ROOT_DIR"
+            docker compose --profile core run --rm --no-deps \
+                -e DEPLOYMENT_FILE=/runtime/contracts.json \
+                -e EXPECT_MIN_NEXT_BATCH_ID=2 \
+                -e EXPECT_STATE_ROOT_CHANGED=1 \
+                -e RUNTIME_VALIDATION_OUT=/runtime/l1_state_validation.json \
+                contracts-deployer \
+                npx hardhat run scripts/verify-runtime.ts --network host_docker
+        )
+        docker cp rollupx-full-zk-rollup-submitter-1:/runtime/l1_state_validation.json "${METRICS_ROOT}/l1_state_validation.json" >/dev/null 2>&1 || true
+        echo "[validation] [OK] Hardhat bridge state advanced"
+    else
+        echo "[validation] WARNING: docker stack unavailable; skipped on-chain bridge state check"
     fi
-
-    # Optional: check on-chain state if we have a way to call into hardhat from here
-    # For now, relying on submitter metrics is a good first step.
 }
 
 collect_docker_diagnostics() {

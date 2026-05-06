@@ -44,7 +44,8 @@ const config: HardhatUserConfig = {
 
       // Gas configuration — must match what you state in your paper
       gasPrice: REFERENCE_GAS_PRICE_GWEI * 1e9,  // in wei
-      gas: 30_000_000,       // 30M gas limit = current Ethereum block gas limit
+      gas: "auto",           // estimate per transaction; do not force 30M gas on deploys
+      blockGasLimit: 30_000_000, // 30M block gas limit = current Ethereum block gas target
       
       // EIP-1559 base fee configuration
       // initialBaseFeePerGas: 0 disables EIP-1559 — don't do this for research
@@ -83,7 +84,7 @@ const config: HardhatUserConfig = {
       url: "http://127.0.0.1:8545",
       chainId: 31337,
       gasPrice: REFERENCE_GAS_PRICE_HIGH_GWEI * 1e9,
-      gas: 30_000_000,
+      gas: "auto",
     },
 
     // ── Docker internal network (CI / reproducibility) ────────────────────────

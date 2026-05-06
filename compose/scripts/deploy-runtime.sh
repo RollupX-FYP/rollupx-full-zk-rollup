@@ -25,7 +25,8 @@ DEPLOY_LOG="${RUNTIME_DIR}/contracts-deploy.log"
 cd /app
 
 echo "[contracts-deployer] deploying contracts against ${L1_RPC_HTTP}"
-npx hardhat run scripts/deploy-local.ts --network host_docker | tee "${DEPLOY_LOG}"
+L1_NODE_URL="${L1_RPC_HTTP}" DEPLOYMENT_OUT="${RUNTIME_DIR}/contracts.json" \
+    npx hardhat run scripts/deploy-local.ts --network host_docker | tee "${DEPLOY_LOG}"
 
 MOCK_VERIFIER_ADDRESS="$(awk '/MockVerifier:/ {print $2}' "${DEPLOY_LOG}" | tail -n 1)"
 CALLDATA_DA_ADDRESS="$(awk '/CalldataDA:/ {print $2}' "${DEPLOY_LOG}" | tail -n 1)"
@@ -34,7 +35,7 @@ OFFCHAIN_DA_ADDRESS="$(awk '/OffChainDA:/ {print $2}' "${DEPLOY_LOG}" | tail -n 
 BRIDGE_ADDRESS="$(awk '/ZKRollupBridge:/ {print $2}' "${DEPLOY_LOG}" | tail -n 1)"
 GENESIS_ROOT="$(awk '/GenesisRoot:/ {print $2}' "${DEPLOY_LOG}" | tail -n 1)"
 
-if [ -z "${MOCK_VERIFIER_ADDRESS}" ] || [ -z "${BRIDGE_ADDRESS}" ]; then
+if [ -z "${MOCK_VERIFIER_ADDRESS}" ] || [ -z "${CALLDATA_DA_ADDRESS}" ] || [ -z "${TEST_BLOB_DA_ADDRESS}" ] || [ -z "${OFFCHAIN_DA_ADDRESS}" ] || [ -z "${BRIDGE_ADDRESS}" ]; then
     echo "[contracts-deployer] failed to parse deployment output" >&2
     exit 1
 fi
@@ -54,11 +55,28 @@ EOF
 
 cat > "${RUNTIME_DIR}/contracts.json" <<EOF
 {
+  "network": "host_docker",
+  "chainId": ${L1_CHAIN_ID},
+  "bridge": "${BRIDGE_ADDRESS}",
+  "verifier": "${MOCK_VERIFIER_ADDRESS}",
+  "mockVerifier": "${MOCK_VERIFIER_ADDRESS}",
+  "calldataDA": "${CALLDATA_DA_ADDRESS}",
+  "blobDA": "${TEST_BLOB_DA_ADDRESS}",
+  "testBlobDA": "${TEST_BLOB_DA_ADDRESS}",
+  "offchainDA": "${OFFCHAIN_DA_ADDRESS}",
+  "genesisRoot": "${GENESIS_ROOT}",
+  "l1RpcHttp": "${L1_RPC_HTTP}",
+  "l1RpcWs": "${L1_RPC_WS}",
+  "startBlock": ${L1_START_BLOCK},
+  "daProviders": {
+    "calldata": { "id": 0, "address": "${CALLDATA_DA_ADDRESS}" },
+    "blob": { "id": 1, "address": "${TEST_BLOB_DA_ADDRESS}" },
+    "offchain": { "id": 2, "address": "${OFFCHAIN_DA_ADDRESS}" }
+  },
   "mock_verifier": "${MOCK_VERIFIER_ADDRESS}",
   "calldata_da": "${CALLDATA_DA_ADDRESS}",
   "test_blob_da": "${TEST_BLOB_DA_ADDRESS}",
   "offchain_da": "${OFFCHAIN_DA_ADDRESS}",
-  "bridge": "${BRIDGE_ADDRESS}",
   "genesis_root": "${GENESIS_ROOT}",
   "l1_rpc_http": "${L1_RPC_HTTP}",
   "l1_rpc_ws": "${L1_RPC_WS}",
@@ -100,6 +118,10 @@ network:
 
 contracts:
   bridge: "${BRIDGE_ADDRESS}"
+  verifier: "${MOCK_VERIFIER_ADDRESS}"
+  calldata_da: "${CALLDATA_DA_ADDRESS}"
+  blob_da: "${TEST_BLOB_DA_ADDRESS}"
+  offchain_da: "${OFFCHAIN_DA_ADDRESS}"
 
 da:
   mode: "${SUBMITTER_DA_MODE}"

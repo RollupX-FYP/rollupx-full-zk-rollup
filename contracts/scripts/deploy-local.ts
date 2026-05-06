@@ -1,6 +1,11 @@
 import { ethers } from "hardhat";
+import * as fs from "fs";
+import * as path from "path";
 
 async function main() {
+  const [deployer] = await ethers.getSigners();
+  const network = await ethers.provider.getNetwork();
+
   // Genesis root (dummy)
   const genesisRoot = ethers.ZeroHash;
 
@@ -31,12 +36,51 @@ async function main() {
   tx = await bridge.setDAProvider(2, await offchainDA.getAddress(), true);
   await tx.wait();
 
-  console.log("MockVerifier:", await mockVerifier.getAddress());
-  console.log("CalldataDA:", await calldataDA.getAddress());
-  console.log("TestBlobDA:", await testBlobDA.getAddress());
-  console.log("OffChainDA:", await offchainDA.getAddress());
-  console.log("ZKRollupBridge:", await bridge.getAddress());
+  const mockVerifierAddress = await mockVerifier.getAddress();
+  const calldataDAAddress = await calldataDA.getAddress();
+  const testBlobDAAddress = await testBlobDA.getAddress();
+  const offchainDAAddress = await offchainDA.getAddress();
+  const bridgeAddress = await bridge.getAddress();
+
+  const deployment = {
+    network: network.name,
+    chainId: Number(network.chainId),
+    deployer: deployer.address,
+    bridge: bridgeAddress,
+    verifier: mockVerifierAddress,
+    mockVerifier: mockVerifierAddress,
+    calldataDA: calldataDAAddress,
+    blobDA: testBlobDAAddress,
+    testBlobDA: testBlobDAAddress,
+    offchainDA: offchainDAAddress,
+    genesisRoot,
+    daProviders: {
+      calldata: { id: 0, address: calldataDAAddress },
+      blob: { id: 1, address: testBlobDAAddress },
+      offchain: { id: 2, address: offchainDAAddress },
+    },
+
+    // Legacy aliases consumed by older shell tooling.
+    mock_verifier: mockVerifierAddress,
+    calldata_da: calldataDAAddress,
+    test_blob_da: testBlobDAAddress,
+    offchain_da: offchainDAAddress,
+    genesis_root: genesisRoot,
+  };
+
+  const outFile = path.resolve(
+    process.env.DEPLOYMENT_OUT || "deployments/hardhat-local.json",
+  );
+  fs.mkdirSync(path.dirname(outFile), { recursive: true });
+  fs.writeFileSync(outFile, `${JSON.stringify(deployment, null, 2)}\n`);
+
+  console.log("MockVerifier:", mockVerifierAddress);
+  console.log("CalldataDA:", calldataDAAddress);
+  console.log("TestBlobDA:", testBlobDAAddress);
+  console.log("OffChainDA:", offchainDAAddress);
+  console.log("ZKRollupBridge:", bridgeAddress);
   console.log("GenesisRoot:", genesisRoot);
+  console.log("DeploymentOut:", outFile);
 }
 
 main().catch((e) => {
