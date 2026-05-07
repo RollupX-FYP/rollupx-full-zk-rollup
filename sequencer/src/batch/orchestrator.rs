@@ -446,7 +446,7 @@ impl BatchOrchestrator {
         let mut client = RollupServiceClient::connect(self.executor_grpc_url.clone()).await?;
         let payload = BatchPayload {
             batch_id: batch.batch_id.to_string(),
-            batch_data: serde_json::to_vec(&batch.transactions)?,
+            batch_data: Self::executor_batch_data(batch)?,
             pre_state_root: vec![0u8; 32],
             post_state_root: vec![0u8; 32],
             da_commitment: vec![0u8; 32],
@@ -456,6 +456,30 @@ impl BatchOrchestrator {
         let request = tonic::Request::new(payload);
         let response = client.publish_batch(request).await?;
         Ok(response.into_inner())
+    }
+
+    fn executor_batch_data(batch: &Batch) -> anyhow::Result<Vec<u8>> {
+        let txs: Vec<serde_json::Value> = batch
+            .transactions
+            .iter()
+            .map(|tx| match tx {
+                Transaction::Normal(ptx) => Ok(serde_json::json!({
+                    "Normal": serde_json::to_value(&ptx.tx)?,
+                })),
+                Transaction::Forced(ftx) => Ok(serde_json::json!({
+                    "Forced": {
+                        "from": ftx.from,
+                        "to": ftx.to,
+                        "value": ftx.value,
+                        "nonce": ftx.nonce,
+                        "gas_limit": ftx.gas_limit,
+                        "timestamp": ftx.timestamp,
+                    }
+                })),
+            })
+            .collect::<anyhow::Result<_>>()?;
+
+        Ok(serde_json::to_vec(&txs)?)
     }
 
     fn now_unix_ms() -> u64 {
@@ -503,6 +527,8 @@ impl BatchOrchestrator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{ForcedEventType, ForcedTransaction, PooledTransaction, UserTransaction};
+    use ethers::types::{Address, Signature, H256, U256};
 
     #[test]
     fn test_calculate_distribution_metrics_empty() {
@@ -536,5 +562,64 @@ mod tests {
     fn test_now_unix_ms() {
         let now = BatchOrchestrator::now_unix_ms();
         assert!(now > 1_700_000_000_000); // Sane value for 2024+
+    }
+
+    #[test]
+    fn test_executor_batch_data_strips_pool_metadata() {
+        let tx = UserTransaction {
+            from: Address::random(),
+            to: Address::random(),
+            value: U256::from(100),
+            nonce: 1,
+            gas_price: U256::from(10),
+            gas_limit: 21_000,
+            signature: Signature { r: U256::zero(), s: U256::zero(), v: 27 },
+            timestamp: 1234,
+            boost_bid: None,
+        };
+        let batch = Batch {
+            batch_id: 1,
+            transactions: vec![Transaction::Normal(PooledTransaction::new(tx, 1000, 1005))],
+            prev_state_root: H256::zero(),
+            timestamp: 1235,
+        };
+
+        let payload = BatchOrchestrator::executor_batch_data(&batch).unwrap();
+        let parsed: serde_json::Value = serde_json::from_slice(&payload).unwrap();
+        let normal = &parsed[0]["Normal"];
+
+        assert!(normal.get("from").is_some());
+        assert!(normal.get("tx").is_none());
+        assert!(normal.get("arrived_at").is_none());
+        assert!(normal.get("pool_entry_at").is_none());
+    }
+
+    #[test]
+    fn test_executor_batch_data_forced_uses_executor_shape() {
+        let batch = Batch {
+            batch_id: 1,
+            transactions: vec![Transaction::Forced(ForcedTransaction {
+                tx_hash: H256::random(),
+                from: Address::random(),
+                to: Address::random(),
+                value: U256::from(100),
+                nonce: 2,
+                gas_limit: 50_000,
+                l1_tx_hash: H256::random(),
+                l1_block_number: 42,
+                event_type: ForcedEventType::Deposit,
+                timestamp: 1234,
+            })],
+            prev_state_root: H256::zero(),
+            timestamp: 1235,
+        };
+
+        let payload = BatchOrchestrator::executor_batch_data(&batch).unwrap();
+        let parsed: serde_json::Value = serde_json::from_slice(&payload).unwrap();
+        let forced = &parsed[0]["Forced"];
+
+        assert!(forced.get("from").is_some());
+        assert!(forced.get("l1_tx_hash").is_none());
+        assert!(forced.get("event_type").is_none());
     }
 }
