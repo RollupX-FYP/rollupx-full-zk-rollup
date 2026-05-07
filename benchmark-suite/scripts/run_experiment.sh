@@ -66,6 +66,8 @@ METRICS_ROOT="${METRICS_ROOT:-metrics}/${EXP_ID}/${RUN_ID}"
 export METRICS_ROOT
 SHARED_METRICS_DIR="${SHARED_METRICS_DIR:-metrics/latest}"
 export SHARED_METRICS_DIR
+RISC0_HOST_WORK_DIR="${RISC0_HOST_WORK_DIR:-${ROOT_DIR}/benchmark-suite/risc0_work}"
+export RISC0_HOST_WORK_DIR
 
 should_use_docker_stack() {
     if [[ "$USE_DOCKER_STACK" == "1" || "$USE_DOCKER_STACK" == "true" ]]; then
@@ -103,6 +105,7 @@ restart_docker_stack_for_run() {
         SUBMITTER_DA_MODE="$DA_MODE" \
         SUBMITTER_PROOF_BACKEND="$PROVER" \
         REQUIRE_REAL_PROOFS="$REQUIRE_REAL_PROOFS" \
+        RISC0_HOST_WORK_DIR="$RISC0_HOST_WORK_DIR" \
         docker compose --profile core down -v --remove-orphans
 
         if [[ "${DOCKER_UP_BUILD:-1}" == "1" || "${DOCKER_UP_BUILD:-1}" == "true" ]]; then
@@ -124,6 +127,7 @@ restart_docker_stack_for_run() {
             SUBMITTER_DA_MODE="$DA_MODE" \
             SUBMITTER_PROOF_BACKEND="$PROVER" \
             REQUIRE_REAL_PROOFS="$REQUIRE_REAL_PROOFS" \
+            RISC0_HOST_WORK_DIR="$RISC0_HOST_WORK_DIR" \
             docker compose --profile core up -d --force-recreate --build
         else
             METRICS_DIR="$metrics_abs" \
@@ -144,6 +148,7 @@ restart_docker_stack_for_run() {
             SUBMITTER_DA_MODE="$DA_MODE" \
             SUBMITTER_PROOF_BACKEND="$PROVER" \
             REQUIRE_REAL_PROOFS="$REQUIRE_REAL_PROOFS" \
+            RISC0_HOST_WORK_DIR="$RISC0_HOST_WORK_DIR" \
             docker compose --profile core up -d --force-recreate
         fi
     )
@@ -425,6 +430,7 @@ if [[ "$CLEAN_METRICS_BEFORE_RUN" == "1" || "$CLEAN_METRICS_BEFORE_RUN" == "true
 fi
 mkdir -p "$METRICS_ROOT"
 mkdir -p "$SHARED_METRICS_DIR"
+mkdir -p "$RISC0_HOST_WORK_DIR"
 LOGFILE="$METRICS_ROOT/run.log"
 exec > >(tee -a "$LOGFILE") 2>&1
 
