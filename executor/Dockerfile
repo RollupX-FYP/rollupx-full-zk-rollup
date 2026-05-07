@@ -43,14 +43,20 @@ RUN cargo build --release \
 FROM public.ecr.aws/docker/library/debian:bookworm-slim
 WORKDIR /app
 ARG RISC0_R0VM_VERSION=2.3.1
+ARG DOCKER_CLI_VERSION=27.5.1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
-    docker.io \
     openssl \
     procps \
+    tar \
     && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_CLI_VERSION}.tgz" \
+    | tar -xz -C /tmp docker/docker --strip-components=1 \
+    && mv /tmp/docker /usr/local/bin/docker \
+    && chmod +x /usr/local/bin/docker
 
 RUN mkdir -p /var/lib/rollupx/executor/traces \
     /var/lib/rollupx/executor/state_db \
