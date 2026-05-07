@@ -24,6 +24,10 @@ async function main() {
   const TestBlobDA = await ethers.getContractFactory("TestBlobDA");
   const testBlobDA = await TestBlobDA.deploy();
   await testBlobDA.waitForDeployment();
+  const localMockBlobHash =
+    "0x0100000000000000000000000000000000000000000000000000000000000000";
+  let mockBlobTx = await testBlobDA.setMockBlobHash(0, localMockBlobHash);
+  await mockBlobTx.wait();
 
   const OffChainDA = await ethers.getContractFactory("OffChainDA");
   const offchainDA = await OffChainDA.deploy();
@@ -66,6 +70,7 @@ async function main() {
     test_blob_da: testBlobDAAddress,
     offchain_da: offchainDAAddress,
     genesis_root: genesisRoot,
+    local_mock_blob_hash: localMockBlobHash,
   };
 
   const outFile = path.resolve(
