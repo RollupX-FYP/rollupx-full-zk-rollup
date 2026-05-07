@@ -21,7 +21,7 @@ use crate::proto::rollup::{
 use crate::state::{RocksDbStateManager, StateManager};
 use crate::trace::{append_lifecycle, persist_trace, verify_trace_hash, TraceLifecycleStatus};
 use crate::tx_engine::{SimpleTransactionEngine, TransactionEngine};
-use crate::types::{normalize_transactions, SequencerTransaction, StreamingStats};
+use crate::types::{normalize_transactions, Account, Address, SequencerTransaction, StreamingStats};
 
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -89,6 +89,40 @@ fn touched_account_stats(
     (unique_touched_accounts, repeated_touched_accounts)
 }
 
+const DEFAULT_BENCHMARK_SENDER: &str = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266";
+const DEFAULT_GENESIS_BALANCE: u64 = 1_000_000_000_000_000_000;
+
+fn parse_address_hex(raw: &str) -> Result<Address> {
+    let trimmed = raw.strip_prefix("0x").unwrap_or(raw);
+    let bytes = hex::decode(trimmed)
+        .map_err(|e| anyhow::anyhow!("invalid genesis account address {raw}: {e}"))?;
+    if bytes.len() != 20 {
+        anyhow::bail!("invalid genesis account address {raw}: expected 20 bytes");
+    }
+    let mut address = [0u8; 20];
+    address.copy_from_slice(&bytes);
+    Ok(address)
+}
+
+fn seed_genesis_accounts(state: &mut RocksDbStateManager) -> Result<()> {
+    let accounts = std::env::var("EXECUTOR_GENESIS_ACCOUNTS")
+        .unwrap_or_else(|_| DEFAULT_BENCHMARK_SENDER.to_string());
+    let balance = std::env::var("EXECUTOR_GENESIS_BALANCE")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(DEFAULT_GENESIS_BALANCE);
+
+    for raw in accounts.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+        let address = parse_address_hex(raw)?;
+        state
+            .seed_account(address, Account { balance, nonce: 0 })
+            .map_err(|e| anyhow::anyhow!("failed to seed genesis account {raw}: {e}"))?;
+        info!("Seeded executor genesis account {raw} with balance {balance}");
+    }
+
+    Ok(())
+}
+
 #[derive(Clone)]
 struct ExecutorGrpcService {
     tx: broadcast::Sender<BatchPayload>,
@@ -134,6 +168,9 @@ impl RollupService for ExecutorGrpcService {
         let mut engine = self.engine.lock().await;
         engine.state.reset_to_genesis().map_err(|e| {
             Status::internal(format!("failed to reset state: {e}"))
+        })?;
+        seed_genesis_accounts(&mut engine.state).map_err(|e| {
+            Status::internal(format!("failed to seed genesis state: {e}"))
         })?;
         
         Ok(Response::new(ResetStateResponse {
@@ -430,8 +467,9 @@ pub async fn run_server_from_env() -> Result<()> {
 
     let (tx, _rx) = broadcast::channel::<BatchPayload>(1024);
     let metrics = Arc::new(Mutex::new(HashMap::new()));
-    let state = RocksDbStateManager::open(&state_db_path)
+    let mut state = RocksDbStateManager::open(&state_db_path)
         .map_err(|e| anyhow::anyhow!("failed to initialize RocksDB state backend: {e}"))?;
+    seed_genesis_accounts(&mut state)?;
     let engine = Arc::new(Mutex::new(SimpleTransactionEngine::new(state)));
     let prover_backend = backend_from_env()?;
 
