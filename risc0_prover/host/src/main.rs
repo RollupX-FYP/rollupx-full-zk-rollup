@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use risc0_zkvm::{default_prover, ExecutorEnv};
+use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts};
 use rollup_core::BlockTrace;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -86,7 +86,7 @@ fn main() -> Result<()> {
 
     let zkvm_exec_start = std::time::Instant::now();
     let prove_info = prover
-        .prove(env, &elf)
+        .prove_with_opts(env, &elf, &ProverOpts::groth16())
         .context("prove guest execution")?;
     let zkvm_execution_ms = zkvm_exec_start.elapsed().as_millis() as u64;
     
