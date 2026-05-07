@@ -93,6 +93,7 @@ services:
       - executor_risc0:/var/lib/rollupx/executor/risc0
       - ${METRICS_DIR:-./benchmark-suite/metrics/latest}:/var/lib/rollupx/metrics
       - runtime_config:/runtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "${EXECUTOR_HOST_PORT:-50051}:50051"
     healthcheck:

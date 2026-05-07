@@ -513,8 +513,7 @@ impl BatchOrchestrator {
 
     fn append_batch_metrics_row(&self, row: &SequencerBatchMetricsRow) {
         let metrics_root = std::env::var("METRICS_ROOT").unwrap_or_else(|_| "metrics".to_string());
-        let experiment_id = std::env::var("EXPERIMENT_ID").unwrap_or_else(|_| "default".to_string());
-        let path = std::path::Path::new(&metrics_root).join(format!("sequencer_batches_{}.jsonl", experiment_id));
+        let path = std::path::Path::new(&metrics_root).join("sequencer_batch_metrics.jsonl");
         if let Some(parent) = path.parent() { std::fs::create_dir_all(parent).ok(); }
         let file = std::fs::OpenOptions::new().create(true).append(true).open(path);
         if let Ok(mut file) = file {

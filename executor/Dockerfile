@@ -47,6 +47,7 @@ ARG RISC0_R0VM_VERSION=2.3.1
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
+    docker.io \
     openssl \
     procps \
     && rm -rf /var/lib/apt/lists/*
