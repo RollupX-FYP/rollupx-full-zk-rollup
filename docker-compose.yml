@@ -125,6 +125,9 @@ services:
       METRICS_ROOT: /var/lib/rollupx/metrics
       EXPERIMENT_ID: ${EXPERIMENT_ID:-compose_core}
       EXPERIMENT_NAME: ${EXPERIMENT_NAME:-compose core}
+      ETH_PRICE_USD: ${ETH_PRICE_USD:-2500}
+      REGULAR_GAS_PRICE_GWEI: ${REGULAR_GAS_PRICE_GWEI:-2}
+      BLOB_GAS_PRICE_GWEI: ${BLOB_GAS_PRICE_GWEI:-0.001}
     volumes:
       - submitter_data:/var/lib/rollupx/submitter
       - ${METRICS_DIR:-./benchmark-suite/metrics/latest}:/var/lib/rollupx/metrics

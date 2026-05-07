@@ -37,6 +37,9 @@ export POLICY=${POLICY:-FCFS}
 export DA_MODE=${DA_MODE:-calldata}
 export PROVER=${PROVER:-groth16}
 export REQUIRE_REAL_PROOFS=${REQUIRE_REAL_PROOFS:-true}
+export ETH_PRICE_USD=${ETH_PRICE_USD:-2500}
+export REGULAR_GAS_PRICE_GWEI=${REGULAR_GAS_PRICE_GWEI:-2}
+export BLOB_GAS_PRICE_GWEI=${BLOB_GAS_PRICE_GWEI:-0.001}
 export RATE_TPS=${RATE_TPS:-10}
 export DURATION_S=${DURATION_S:-120}
 export WARMUP_S=${WARMUP_S:-15}
@@ -105,6 +108,9 @@ restart_docker_stack_for_run() {
         SUBMITTER_DA_MODE="$DA_MODE" \
         SUBMITTER_PROOF_BACKEND="$PROVER" \
         REQUIRE_REAL_PROOFS="$REQUIRE_REAL_PROOFS" \
+        ETH_PRICE_USD="$ETH_PRICE_USD" \
+        REGULAR_GAS_PRICE_GWEI="$REGULAR_GAS_PRICE_GWEI" \
+        BLOB_GAS_PRICE_GWEI="$BLOB_GAS_PRICE_GWEI" \
         RISC0_HOST_WORK_DIR="$RISC0_HOST_WORK_DIR" \
         docker compose --profile core down -v --remove-orphans
 
@@ -127,6 +133,9 @@ restart_docker_stack_for_run() {
             SUBMITTER_DA_MODE="$DA_MODE" \
             SUBMITTER_PROOF_BACKEND="$PROVER" \
             REQUIRE_REAL_PROOFS="$REQUIRE_REAL_PROOFS" \
+            ETH_PRICE_USD="$ETH_PRICE_USD" \
+            REGULAR_GAS_PRICE_GWEI="$REGULAR_GAS_PRICE_GWEI" \
+            BLOB_GAS_PRICE_GWEI="$BLOB_GAS_PRICE_GWEI" \
             RISC0_HOST_WORK_DIR="$RISC0_HOST_WORK_DIR" \
             docker compose --profile core up -d --force-recreate --build
         else
@@ -148,6 +157,9 @@ restart_docker_stack_for_run() {
             SUBMITTER_DA_MODE="$DA_MODE" \
             SUBMITTER_PROOF_BACKEND="$PROVER" \
             REQUIRE_REAL_PROOFS="$REQUIRE_REAL_PROOFS" \
+            ETH_PRICE_USD="$ETH_PRICE_USD" \
+            REGULAR_GAS_PRICE_GWEI="$REGULAR_GAS_PRICE_GWEI" \
+            BLOB_GAS_PRICE_GWEI="$BLOB_GAS_PRICE_GWEI" \
             RISC0_HOST_WORK_DIR="$RISC0_HOST_WORK_DIR" \
             docker compose --profile core up -d --force-recreate
         fi
@@ -351,19 +363,37 @@ if missing_gas:
     raise SystemExit(f"[validation] ERROR: submitted rows missing positive l1_gas_used: {missing_gas[:5]}")
 
 if da_mode == "blob":
-    blob_rows = [
+    real_blob_rows = [
         row for row in submitted
-        if isinstance(row.get("blob_gas_used"), int) and row.get("blob_gas_used", 0) > 0
+        if row.get("real_eip4844_blob") is True
+        and isinstance(row.get("measured_blob_gas_used"), int)
+        and row.get("measured_blob_gas_used", 0) > 0
+        and isinstance(row.get("blob_gas_price_wei"), int)
+        and row.get("blob_gas_price_wei", 0) > 0
     ]
-    if not blob_rows:
-        raise SystemExit("[validation] ERROR: blob mode active but no non-zero blob_gas_used found in metrics")
-    missing_blob_fee = [
-        row.get("batch_id", "<unknown>")
-        for row in blob_rows
-        if row.get("blob_base_fee_wei") is None
+    hybrid_blob_rows = [
+        row for row in submitted
+        if row.get("real_eip4844_blob") is False
+        and row.get("cost_source") == "hybrid"
+        and row.get("blob_cost_source") == "estimated"
+        and isinstance(row.get("estimated_blob_gas_used"), int)
+        and row.get("estimated_blob_gas_used", 0) > 0
+        and int(row.get("total_cost_wei", "0") or "0") > 0
+        and int(row.get("cost_per_tx_wei", "0") or "0") > 0
     ]
-    if missing_blob_fee:
-        raise SystemExit(f"[validation] ERROR: blob rows missing blob_base_fee_wei: {missing_blob_fee[:5]}")
+    if real_blob_rows:
+        print(f"[validation] [OK] blob mode has {len(real_blob_rows)} receipt-level EIP-4844 blob row(s)")
+    elif hybrid_blob_rows:
+        print("[validation] [OK] blob mode uses local hybrid cost model: measured regular gas plus estimated blob gas")
+    else:
+        sample = submitted[-1]
+        raise SystemExit(
+            "[validation] ERROR: blob mode lacks either real blob receipt fields or valid hybrid cost fields; "
+            f"last_row={{cost_source:{sample.get('cost_source')}, "
+            f"blob_cost_source:{sample.get('blob_cost_source')}, "
+            f"real_eip4844_blob:{sample.get('real_eip4844_blob')}, "
+            f"estimated_blob_gas_used:{sample.get('estimated_blob_gas_used')}}}"
+        )
 
 print(f"[validation] [OK] submitter submitted {len(submitted)} batch(es) with receipt gas")
 PYEOF

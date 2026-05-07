@@ -243,8 +243,24 @@ All experiments are configured in `benchmark-suite/config/experiments.toml`. The
 - `policy`: Sequencer scheduling policy (`FCFS`, `FeePriority`, `TimeBoost`, `FairBFT`).
 - `da_mode`: Data availability mode (`calldata`, `blob`, `offchain`).
 - `prover`: Prover backend (`groth16`, `plonk`).
+- `eth_price_usd`: Fixed ETH/USD reference price used only for reproducible USD conversion.
+- `regular_gas_price_gwei`: Fixed EIP-1559 gas price reference if a receipt gas price is unavailable.
+- `blob_gas_price_gwei`: Fixed blob gas price reference for local mock-blob fee modeling.
 - `seeds`: Random seeds for reproducible workloads.
 - `repeats`: Number of iterations to run each experiment.
+
+</details>
+
+<details>
+<summary><strong>Scientific cost interpretation</strong></summary>
+
+The benchmark records deterministic contract execution gas separately from modeled price assumptions:
+- Calldata runs use measured receipt `l1_gas_used` for EVM execution gas.
+- Local blob runs use `cost_source=hybrid`: measured regular receipt gas plus `estimated_blob_gas_used = blob_count * 131072`.
+- A blob-capable network can report `cost_source=measured` when receipt-level `blobGasUsed` and blob gas price fields are available.
+- USD values use the recorded `eth_price_usd`, `regular_gas_price_gwei`, and `blob_gas_price_gwei` assumptions. Defaults are `$2,500/ETH`, `2 gwei` regular gas, and `0.001 gwei` blob gas.
+
+For paper wording, use: “Hardhat EVM gas measurements are deterministic for contract execution. USD values are derived from fixed reference prices. Local blob DA uses modeled blob fees unless receipt-level EIP-4844 blob gas fields are available.”
 
 </details>
 

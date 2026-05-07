@@ -145,7 +145,7 @@ impl CostBreakdown {
             blob_gas_used,
             blob_base_fee_wei,
             blob_fee_total,
-            actual_eip1559_gas.is_none(),
+            actual_eip1559_gas.is_none() || blob_gas_used.is_none() || blob_base_fee_wei.is_none(),
         )
     }
 
@@ -198,9 +198,15 @@ mod tests {
     #[test]
     fn test_calldata_breakdown_percentages_sum_near_100() {
         let bd = CostBreakdown::estimate_calldata(50_000, 256, None);
-        let total_pct = bd.proof_verify_pct + bd.da_pct + bd.overhead_pct
+        let total_pct = bd.proof_verify_pct
+            + bd.da_pct
+            + bd.overhead_pct
             + (bd.state_root_update_gas as f64 / bd.total_eip1559_gas as f64 * 100.0);
-        assert!((total_pct - 100.0).abs() < 0.1, "percentages should sum to ~100, got {:.2}", total_pct);
+        assert!(
+            (total_pct - 100.0).abs() < 0.1,
+            "percentages should sum to ~100, got {:.2}",
+            total_pct
+        );
     }
 
     #[test]
@@ -221,8 +227,16 @@ mod tests {
         let bd = CostBreakdown::estimate_blob(1, 128, Some(280_000), Some(131_072), None);
         assert_eq!(bd.total_eip1559_gas, 280_000);
         assert_eq!(bd.da_posting_blob_gas, BLOB_GAS_PER_BLOB);
+        assert!(bd.is_estimated);
         // blob gas is NOT in total_eip1559_gas
         assert_ne!(bd.total_eip1559_gas, 280_000 + BLOB_GAS_PER_BLOB);
+    }
+
+    #[test]
+    fn test_blob_breakdown_is_measured_only_with_receipt_blob_fields() {
+        let bd = CostBreakdown::estimate_blob(1, 128, Some(280_000), Some(131_072), Some(7));
+        assert_eq!(bd.blob_fee_total_wei, Some(131_072 * 7));
+        assert!(!bd.is_estimated);
     }
 
     #[test]

@@ -209,6 +209,9 @@ for index, exp in enumerate(experiments_to_run, start=1):
             "DA_MODE": exp["da_mode"],
             "PROVER": exp["prover"],
             "REQUIRE_REAL_PROOFS": "true",
+            "ETH_PRICE_USD": str(exp.get("eth_price_usd", baseline.get("eth_price_usd", 2500))),
+            "REGULAR_GAS_PRICE_GWEI": str(exp.get("regular_gas_price_gwei", baseline.get("regular_gas_price_gwei", 2))),
+            "BLOB_GAS_PRICE_GWEI": str(exp.get("blob_gas_price_gwei", baseline.get("blob_gas_price_gwei", 0.001))),
             "RATE_TPS": str(exp["rate_tps"]),
             "DURATION_S": str(duration_s),
             "WARMUP_S": str(warmup_s),
@@ -228,7 +231,9 @@ for index, exp in enumerate(experiments_to_run, start=1):
                     "ADAPTIVE_MEDIUM_LOAD_THRESHOLD", "ADAPTIVE_SMALL_BATCH_SIZE",
                     "ADAPTIVE_MEDIUM_BATCH_SIZE", "ADAPTIVE_LARGE_BATCH_SIZE",
                     "BLOB_TARGET_BYTES", "BLOB_FILL_TARGET",
-                    "POLICY", "DA_MODE", "RATE_TPS", "DURATION_S",
+                    "POLICY", "DA_MODE", "ETH_PRICE_USD",
+                    "REGULAR_GAS_PRICE_GWEI", "BLOB_GAS_PRICE_GWEI",
+                    "RATE_TPS", "DURATION_S",
                     "WARMUP_S", "SEED"
                 )
             )

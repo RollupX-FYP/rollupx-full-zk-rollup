@@ -249,7 +249,7 @@ def section_hypotheses(df: pd.DataFrame) -> str:
 
 
 def section_threats(df: pd.DataFrame) -> str:
-    return """## 6. Threats to Validity
+    return """## 7. Threats to Validity
 
 | Threat | Type | Mitigation |
 |--------|------|------------|
@@ -258,9 +258,17 @@ def section_threats(df: pd.DataFrame) -> str:
 | Single-machine bottleneck | External | CPU/RAM documented in run_metadata.json |
 | Sepolia congestion | External | Fixed RPC; submitter retry logic |
 | Low repeat count (n=5) | Statistical | CI reported; flag configs with n<3 |
-| Blob infra incomplete | Internal | Local archiver stub; noted in each blob experiment |
+| Local mock blob fees | Internal | Blob reports distinguish `hybrid` modeled fees from receipt-level EIP-4844 fields |
 | Proof backend gap (Halo2 deferred) | Internal | Explicitly excluded from matrix |
 | OFAT ignores interactions | Design | Noted; multi-factor cross-analysis deferred |
+
+"""
+
+
+def section_cost_methodology() -> str:
+    return """## 6. Cost Methodology
+
+Hardhat EVM gas measurements are deterministic for contract execution. USD values are derived from fixed reference prices recorded in the metrics. Local blob DA uses modeled blob fees unless receipt-level EIP-4844 blob gas fields are available; check `cost_source`, `blob_cost_source`, and `real_eip4844_blob` before interpreting blob cost claims.
 
 """
 
@@ -279,7 +287,7 @@ def section_figures(output_dir: str) -> str:
         ("figures/sensitivity_heatmap.png",    "Factor Sensitivity Heatmap"),
     ]
 
-    lines = ["## 7. Figures\n"]
+    lines = ["## 8. Figures\n"]
     for path, caption in figure_map:
         if os.path.exists(path):
             lines.append(f"### {caption}\n")
@@ -317,6 +325,7 @@ def generate(
         section_rankings(df),
         section_baseline_comparison(df),
         section_hypotheses(df),
+        section_cost_methodology(),
         section_threats(df),
         section_figures(figures_dir),
         "---\n\n*End of auto-generated summary.*\n",

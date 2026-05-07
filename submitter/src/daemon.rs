@@ -57,6 +57,18 @@ struct SubmitterMetrics {
     regular_gas_used: Option<u64>,
     regular_gas_price_gwei: Option<f64>,
     blob_gas_price_wei: Option<u64>,
+    measured_regular_gas_used: Option<u64>,
+    measured_blob_gas_used: Option<u64>,
+    estimated_blob_gas_used: u64,
+    regular_gas_price_reference_wei: String,
+    blob_gas_price_reference_wei: String,
+    eth_usd_reference: f64,
+    total_cost_usd: f64,
+    cost_per_tx_usd: f64,
+    cost_source: String,
+    blob_cost_source: String,
+    real_eip4844_blob: bool,
+    cost_model_version: String,
     proof_verify_gas_estimate: u64,
     state_root_update_gas_estimate: u64,
     da_posting_gas_estimate: u64,
@@ -143,9 +155,114 @@ fn estimate_fee_proxy_wei(batch_data: &[u8]) -> u128 {
     total
 }
 
+#[derive(Debug, Clone)]
+struct CostModelResult {
+    measured_regular_gas_used: Option<u64>,
+    measured_blob_gas_used: Option<u64>,
+    estimated_blob_gas_used: u64,
+    regular_gas_price_reference_wei: u128,
+    blob_gas_price_reference_wei: u128,
+    eth_usd_reference: f64,
+    total_cost_wei: u128,
+    cost_per_tx_wei: u128,
+    total_cost_usd: f64,
+    cost_per_tx_usd: f64,
+    cost_source: &'static str,
+    blob_cost_source: &'static str,
+    real_eip4844_blob: bool,
+    cost_model_version: &'static str,
+}
+
+fn env_f64(name: &str, default: f64) -> f64 {
+    std::env::var(name)
+        .ok()
+        .and_then(|v| v.parse::<f64>().ok())
+        .filter(|v| v.is_finite() && *v >= 0.0)
+        .unwrap_or(default)
+}
+
+fn gwei_to_wei(gwei: f64) -> u128 {
+    (gwei.max(0.0) * 1_000_000_000.0).round() as u128
+}
+
+fn wei_to_usd(wei: u128, eth_usd: f64) -> f64 {
+    (wei as f64 / 1e18) * eth_usd
+}
+
+fn compute_cost_model(
+    da_mode: DaMode,
+    tx_count: u32,
+    regular_gas_used: Option<u64>,
+    actual_regular_gas_price_gwei: Option<f64>,
+    measured_blob_gas_used: Option<u64>,
+    measured_blob_gas_price_wei: Option<u64>,
+    estimated_blob_gas_used: u64,
+) -> CostModelResult {
+    let eth_usd_reference = env_f64("ETH_PRICE_USD", 2_500.0);
+    let configured_regular_price_wei = gwei_to_wei(env_f64("REGULAR_GAS_PRICE_GWEI", 2.0));
+    let regular_gas_price_reference_wei = actual_regular_gas_price_gwei
+        .map(gwei_to_wei)
+        .filter(|v| *v > 0)
+        .unwrap_or(configured_regular_price_wei);
+    let configured_blob_price_wei = gwei_to_wei(env_f64("BLOB_GAS_PRICE_GWEI", 0.001));
+    let real_eip4844_blob = da_mode == DaMode::Blob
+        && measured_blob_gas_used.unwrap_or(0) > 0
+        && measured_blob_gas_price_wei.unwrap_or(0) > 0;
+    let blob_gas_price_reference_wei = if real_eip4844_blob {
+        measured_blob_gas_price_wei.unwrap_or(configured_blob_price_wei) as u128
+    } else {
+        configured_blob_price_wei
+    };
+
+    let regular_cost = regular_gas_used
+        .map(|gas| (gas as u128).saturating_mul(regular_gas_price_reference_wei))
+        .unwrap_or(0);
+    let blob_gas_for_cost = if da_mode == DaMode::Blob {
+        if real_eip4844_blob {
+            measured_blob_gas_used.unwrap_or(0)
+        } else {
+            estimated_blob_gas_used
+        }
+    } else {
+        0
+    };
+    let blob_cost = (blob_gas_for_cost as u128).saturating_mul(blob_gas_price_reference_wei);
+    let total_cost_wei = regular_cost.saturating_add(blob_cost);
+    let cost_per_tx_wei = if tx_count > 0 { total_cost_wei / tx_count as u128 } else { 0 };
+    let cost_source = match (da_mode, regular_gas_used.is_some(), real_eip4844_blob) {
+        (DaMode::Blob, true, true) => "measured",
+        (DaMode::Blob, true, false) => "hybrid",
+        (_, true, _) => "measured",
+        _ => "estimated",
+    };
+    let blob_cost_source = if da_mode == DaMode::Blob {
+        if real_eip4844_blob { "measured" } else { "estimated" }
+    } else {
+        "none"
+    };
+
+    CostModelResult {
+        measured_regular_gas_used: regular_gas_used,
+        measured_blob_gas_used,
+        estimated_blob_gas_used,
+        regular_gas_price_reference_wei,
+        blob_gas_price_reference_wei,
+        eth_usd_reference,
+        total_cost_wei,
+        cost_per_tx_wei,
+        total_cost_usd: wei_to_usd(total_cost_wei, eth_usd_reference),
+        cost_per_tx_usd: wei_to_usd(cost_per_tx_wei, eth_usd_reference),
+        cost_source,
+        blob_cost_source,
+        real_eip4844_blob,
+        cost_model_version: "v1_hardhat_hybrid",
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{estimate_fee_proxy_wei, parse_hex_u128};
+    use super::{compute_cost_model, estimate_fee_proxy_wei, parse_hex_u128};
+    use crate::config::DaMode;
 
     #[test]
     fn parse_hex_u128_parses_prefixed_and_plain_hex() {
@@ -177,6 +294,55 @@ mod tests {
         let fee = estimate_fee_proxy_wei(&raw);
         let expected = 21000u128 * 1_000_000_000u128 + 5000u128 * 2u128;
         assert_eq!(fee, expected);
+    }
+
+    #[test]
+    fn calldata_cost_uses_measured_regular_gas_and_price() {
+        let cost = compute_cost_model(DaMode::Calldata, 2, Some(100_000), Some(2.0), None, None, 0);
+
+        assert_eq!(cost.cost_source, "measured");
+        assert_eq!(cost.blob_cost_source, "none");
+        assert_eq!(cost.total_cost_wei, 200_000_000_000_000);
+        assert_eq!(cost.cost_per_tx_wei, 100_000_000_000_000);
+        assert_eq!(cost.measured_regular_gas_used, Some(100_000));
+        assert_eq!(cost.measured_blob_gas_used, None);
+        assert!(!cost.real_eip4844_blob);
+        assert!(cost.cost_per_tx_usd > 0.0);
+    }
+
+    #[test]
+    fn local_blob_cost_uses_hybrid_measured_regular_plus_estimated_blob_fee() {
+        let cost = compute_cost_model(DaMode::Blob, 1, Some(100_000), Some(2.0), None, None, 131_072);
+
+        let regular_cost = 100_000u128 * 2_000_000_000u128;
+        let estimated_blob_cost = 131_072u128 * 1_000_000u128;
+        assert_eq!(cost.cost_source, "hybrid");
+        assert_eq!(cost.blob_cost_source, "estimated");
+        assert_eq!(cost.estimated_blob_gas_used, 131_072);
+        assert_eq!(cost.total_cost_wei, regular_cost + estimated_blob_cost);
+        assert!(!cost.real_eip4844_blob);
+    }
+
+    #[test]
+    fn measured_blob_cost_prefers_receipt_blob_fields() {
+        let cost = compute_cost_model(
+            DaMode::Blob,
+            4,
+            Some(200_000),
+            Some(3.0),
+            Some(262_144),
+            Some(5),
+            131_072,
+        );
+
+        let regular_cost = 200_000u128 * 3_000_000_000u128;
+        let measured_blob_cost = 262_144u128 * 5u128;
+        assert_eq!(cost.cost_source, "measured");
+        assert_eq!(cost.blob_cost_source, "measured");
+        assert_eq!(cost.measured_blob_gas_used, Some(262_144));
+        assert_eq!(cost.total_cost_wei, regular_cost + measured_blob_cost);
+        assert_eq!(cost.cost_per_tx_wei, (regular_cost + measured_blob_cost) / 4);
+        assert!(cost.real_eip4844_blob);
     }
 }
 
@@ -492,6 +658,7 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
 
                     // Save Metrics (Simulated)
                     let bd = CostBreakdown::estimate_calldata(batch_data_bytes, proof_bytes.len(), None);
+                    let cost_model = compute_cost_model(cfg.da.mode, tx_count, None, None, None, None, bd.da_posting_blob_gas);
                     let metrics = SubmitterMetrics {
                         submission_status: "offchain_simulated".to_string(),
                         error: None,
@@ -527,6 +694,18 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                         regular_gas_used: None,
                         regular_gas_price_gwei: None,
                         blob_gas_price_wei: None,
+                        measured_regular_gas_used: cost_model.measured_regular_gas_used,
+                        measured_blob_gas_used: cost_model.measured_blob_gas_used,
+                        estimated_blob_gas_used: cost_model.estimated_blob_gas_used,
+                        regular_gas_price_reference_wei: cost_model.regular_gas_price_reference_wei.to_string(),
+                        blob_gas_price_reference_wei: cost_model.blob_gas_price_reference_wei.to_string(),
+                        eth_usd_reference: cost_model.eth_usd_reference,
+                        total_cost_usd: cost_model.total_cost_usd,
+                        cost_per_tx_usd: cost_model.cost_per_tx_usd,
+                        cost_source: cost_model.cost_source.to_string(),
+                        blob_cost_source: cost_model.blob_cost_source.to_string(),
+                        real_eip4844_blob: cost_model.real_eip4844_blob,
+                        cost_model_version: cost_model.cost_model_version.to_string(),
                         proof_verify_gas_estimate: bd.proof_verify_gas,
                         state_root_update_gas_estimate: bd.state_root_update_gas,
                         da_posting_gas_estimate: bd.da_posting_gas,
@@ -536,8 +715,8 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                         da_pct: bd.da_pct,
                         overhead_pct: bd.overhead_pct,
                         cost_breakdown_is_estimated: bd.is_estimated,
-                        total_cost_wei: "0".to_string(),
-                        cost_per_tx_wei: "0".to_string(),
+                        total_cost_wei: cost_model.total_cost_wei.to_string(),
+                        cost_per_tx_wei: cost_model.cost_per_tx_wei.to_string(),
                         gas_bumped: false,
                         gas_bump_count: 0,
                         original_gas_price_gwei: None,
@@ -664,9 +843,19 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                         let confirmations: u64 = 1; 
 
                         // Save Metrics
+                        let blob_count = if cfg.da.mode == DaMode::Blob {
+                            ((result.compressed_bytes.unwrap_or(batch_data_bytes) + BLOB_SIZE_BYTES - 1) / BLOB_SIZE_BYTES).max(1) as u64
+                        } else {
+                            0
+                        };
+                        let blob_utilization = if cfg.da.mode == DaMode::Blob && blob_count > 0 {
+                            let used = result.compressed_bytes.unwrap_or(batch_data_bytes);
+                            used as f64 / (blob_count as usize * BLOB_SIZE_BYTES) as f64
+                        } else {
+                            0.0
+                        };
                         let bd = if cfg.da.mode == DaMode::Blob {
-                            let blobs = ((result.compressed_bytes.unwrap_or(batch_data_bytes) + BLOB_SIZE_BYTES - 1) / BLOB_SIZE_BYTES).max(1) as u64;
-                            CostBreakdown::estimate_blob(blobs, proof_bytes.len(), result.gas_used, result.blob_gas_used, result.blob_base_fee_wei)
+                            CostBreakdown::estimate_blob(blob_count, proof_bytes.len(), result.gas_used, result.blob_gas_used, result.blob_base_fee_wei)
                         } else {
                             CostBreakdown::estimate_calldata(batch_data_bytes, proof_bytes.len(), result.gas_used)
                         };
@@ -684,6 +873,15 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                                 }
                             }
                         }
+                        let cost_model = compute_cost_model(
+                            cfg.da.mode,
+                            tx_count,
+                            result.gas_used,
+                            original_gas_price_gwei,
+                            result.blob_gas_used,
+                            result.blob_base_fee_wei,
+                            bd.da_posting_blob_gas,
+                        );
 
                         // Retrieve batch_receive_ms if available
                         let mut batch_receive_ms = None;
@@ -733,19 +931,8 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                     compressed_bytes: result.compressed_bytes,
                     compression_time_ms: None,
                     compression_ratio: result.compression_ratio,
-                    blob_count: if cfg.da.mode == DaMode::Blob {
-                                ((result.compressed_bytes.unwrap_or(batch_data_bytes) + BLOB_SIZE_BYTES - 1)
-                                    / BLOB_SIZE_BYTES) as u64
-                            } else {
-                                0
-                            },
-                            blob_utilization: if cfg.da.mode == DaMode::Blob {
-                                let used = result.compressed_bytes.unwrap_or(batch_data_bytes);
-                                let blobs = ((used + BLOB_SIZE_BYTES - 1) / BLOB_SIZE_BYTES).max(1);
-                                used as f64 / (blobs * BLOB_SIZE_BYTES) as f64
-                            } else {
-                                0.0
-                    },
+                    blob_count,
+                    blob_utilization,
                     l1_gas_used: result.gas_used,
                     fee_proxy_wei: fee_proxy_wei.to_string(),
                     blob_gas_used: result.blob_gas_used,
@@ -757,6 +944,18 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                     regular_gas_used: result.gas_used,
                     regular_gas_price_gwei: original_gas_price_gwei,
                     blob_gas_price_wei: result.blob_base_fee_wei,
+                    measured_regular_gas_used: cost_model.measured_regular_gas_used,
+                    measured_blob_gas_used: cost_model.measured_blob_gas_used,
+                    estimated_blob_gas_used: cost_model.estimated_blob_gas_used,
+                    regular_gas_price_reference_wei: cost_model.regular_gas_price_reference_wei.to_string(),
+                    blob_gas_price_reference_wei: cost_model.blob_gas_price_reference_wei.to_string(),
+                    eth_usd_reference: cost_model.eth_usd_reference,
+                    total_cost_usd: cost_model.total_cost_usd,
+                    cost_per_tx_usd: cost_model.cost_per_tx_usd,
+                    cost_source: cost_model.cost_source.to_string(),
+                    blob_cost_source: cost_model.blob_cost_source.to_string(),
+                    real_eip4844_blob: cost_model.real_eip4844_blob,
+                    cost_model_version: cost_model.cost_model_version.to_string(),
                     proof_verify_gas_estimate: bd.proof_verify_gas,
                     state_root_update_gas_estimate: bd.state_root_update_gas,
                     da_posting_gas_estimate: bd.da_posting_gas,
@@ -766,34 +965,8 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                     da_pct: bd.da_pct,
                     overhead_pct: bd.overhead_pct,
                     cost_breakdown_is_estimated: bd.is_estimated,
-                    total_cost_wei: match (result.gas_used, original_gas_price_gwei) {
-                        (Some(gas_used), Some(price_gwei)) => {
-                            let price_wei = (price_gwei * 1_000_000_000.0).max(0.0) as u128;
-                            let regular_cost = (gas_used as u128).saturating_mul(price_wei);
-                            let blob_cost = match (result.blob_gas_used, result.blob_base_fee_wei) {
-                                (Some(blob_gas), Some(blob_fee)) => (blob_gas as u128).saturating_mul(blob_fee as u128),
-                                _ => 0,
-                            };
-                            regular_cost.saturating_add(blob_cost).to_string()
-                        }
-                        _ => "0".to_string(),
-                    },
-                    cost_per_tx_wei: if tx_count > 0 {
-                        match (result.gas_used, original_gas_price_gwei) {
-                            (Some(gas_used), Some(price_gwei)) => {
-                                let price_wei = (price_gwei * 1_000_000_000.0).max(0.0) as u128;
-                                let regular_cost = (gas_used as u128).saturating_mul(price_wei);
-                                let blob_cost = match (result.blob_gas_used, result.blob_base_fee_wei) {
-                                    (Some(blob_gas), Some(blob_fee)) => (blob_gas as u128).saturating_mul(blob_fee as u128),
-                                    _ => 0,
-                                };
-                                (regular_cost.saturating_add(blob_cost) / tx_count as u128).to_string()
-                            }
-                            _ => "0".to_string(),
-                        }
-                    } else {
-                        "0".to_string()
-                    },
+                    total_cost_wei: cost_model.total_cost_wei.to_string(),
+                    cost_per_tx_wei: cost_model.cost_per_tx_wei.to_string(),
                     gas_bumped,
                     gas_bump_count,
                     original_gas_price_gwei,
@@ -893,6 +1066,7 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                     Err(e) => {
                         error!("Failed to submit batch: {}", e);
                         let latency = start_submit.elapsed();
+                        let cost_model = compute_cost_model(cfg.da.mode, tx_count, None, None, None, None, 0);
                         let metrics = SubmitterMetrics {
                             submission_status: "submit_failed".to_string(),
                             error: Some(e.to_string()),
@@ -928,6 +1102,18 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                             regular_gas_used: None,
                             regular_gas_price_gwei: None,
                             blob_gas_price_wei: None,
+                            measured_regular_gas_used: cost_model.measured_regular_gas_used,
+                            measured_blob_gas_used: cost_model.measured_blob_gas_used,
+                            estimated_blob_gas_used: cost_model.estimated_blob_gas_used,
+                            regular_gas_price_reference_wei: cost_model.regular_gas_price_reference_wei.to_string(),
+                            blob_gas_price_reference_wei: cost_model.blob_gas_price_reference_wei.to_string(),
+                            eth_usd_reference: cost_model.eth_usd_reference,
+                            total_cost_usd: cost_model.total_cost_usd,
+                            cost_per_tx_usd: cost_model.cost_per_tx_usd,
+                            cost_source: cost_model.cost_source.to_string(),
+                            blob_cost_source: cost_model.blob_cost_source.to_string(),
+                            real_eip4844_blob: cost_model.real_eip4844_blob,
+                            cost_model_version: cost_model.cost_model_version.to_string(),
                             proof_verify_gas_estimate: 0,
                             state_root_update_gas_estimate: 0,
                             da_posting_gas_estimate: 0,
@@ -937,8 +1123,8 @@ pub async fn run(config_path: PathBuf) -> Result<()> {
                             da_pct: 0.0,
                             overhead_pct: 0.0,
                             cost_breakdown_is_estimated: true,
-                            total_cost_wei: "0".to_string(),
-                            cost_per_tx_wei: "0".to_string(),
+                            total_cost_wei: cost_model.total_cost_wei.to_string(),
+                            cost_per_tx_wei: cost_model.cost_per_tx_wei.to_string(),
                             gas_bumped: false,
                             gas_bump_count: 0,
                             original_gas_price_gwei: None,

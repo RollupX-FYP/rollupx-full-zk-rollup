@@ -62,6 +62,9 @@ def _load_run(run_dir: str) -> dict | None:
                 "policy": cfg.get("policy", ""),
                 "da_mode": cfg.get("da_mode", ""),
                 "prover": cfg.get("prover", ""),
+                "eth_price_usd": cfg.get("eth_price_usd", ""),
+                "regular_gas_price_gwei": cfg.get("regular_gas_price_gwei", ""),
+                "blob_gas_price_gwei": cfg.get("blob_gas_price_gwei", ""),
                 "rate_tps": cfg.get("rate_tps", ""),
                 "tx_mix": cfg.get("tx_mix", ""),
                 "seed": cfg.get("seed", ""),
@@ -106,6 +109,10 @@ def _load_run(run_dir: str) -> dict | None:
             l2_l1 = [b.get("l2_l1_latency_ms", 0) or 0 for b in batches]
             gas_used = [b.get("l1_gas_used", 0) or 0 for b in batches]
             blobs = [b.get("blob_utilization", 0) or 0 for b in batches]
+            cost_usd = [float(b.get("total_cost_usd", 0) or 0) for b in batches]
+            cost_per_tx_usd = [float(b.get("cost_per_tx_usd", 0) or 0) for b in batches]
+            estimated_blob_gas = [b.get("estimated_blob_gas_used", 0) or 0 for b in batches]
+            measured_blob_gas = [b.get("measured_blob_gas_used", 0) or 0 for b in batches]
             row.update(
                 {
                     "avg_l2_l1_ms": statistics.mean(l2_l1),
@@ -117,6 +124,17 @@ def _load_run(run_dir: str) -> dict | None:
                     "avg_finality_gain_ms": statistics.mean([b.get("finality_gain_ms", 0) or 0 for b in batches]),
                     "avg_total_cost_wei": statistics.mean([float(b.get("total_cost_wei", 0) or 0) for b in batches]),
                     "avg_cost_per_tx_wei": statistics.mean([float(b.get("cost_per_tx_wei", 0) or 0) for b in batches]),
+                    "avg_total_cost_usd": statistics.mean(cost_usd) if cost_usd else 0,
+                    "avg_cost_per_tx_usd": statistics.mean(cost_per_tx_usd) if cost_per_tx_usd else 0,
+                    "avg_estimated_blob_gas_used": statistics.mean(estimated_blob_gas) if estimated_blob_gas else 0,
+                    "avg_measured_blob_gas_used": statistics.mean(measured_blob_gas) if measured_blob_gas else 0,
+                    "cost_source": batches[-1].get("cost_source"),
+                    "blob_cost_source": batches[-1].get("blob_cost_source"),
+                    "real_eip4844_blob": batches[-1].get("real_eip4844_blob"),
+                    "eth_usd_reference": batches[-1].get("eth_usd_reference"),
+                    "regular_gas_price_reference_wei": batches[-1].get("regular_gas_price_reference_wei"),
+                    "blob_gas_price_reference_wei": batches[-1].get("blob_gas_price_reference_wei"),
+                    "cost_model_version": batches[-1].get("cost_model_version"),
                     "total_batches": len(batches),
                 }
             )
@@ -169,6 +187,17 @@ def _load_batch_rows(run_dir: str) -> list[dict]:
                 "blob_count": sub.get("blob_count"),
                 "blob_utilization_submitter": sub.get("blob_utilization"),
                 "l1_gas_used": sub.get("l1_gas_used"),
+                "regular_gas_used": sub.get("regular_gas_used"),
+                "measured_regular_gas_used": sub.get("measured_regular_gas_used"),
+                "measured_blob_gas_used": sub.get("measured_blob_gas_used"),
+                "estimated_blob_gas_used": sub.get("estimated_blob_gas_used"),
+                "regular_gas_price_reference_wei": sub.get("regular_gas_price_reference_wei"),
+                "blob_gas_price_reference_wei": sub.get("blob_gas_price_reference_wei"),
+                "eth_usd_reference": sub.get("eth_usd_reference"),
+                "cost_source": sub.get("cost_source"),
+                "blob_cost_source": sub.get("blob_cost_source"),
+                "real_eip4844_blob": sub.get("real_eip4844_blob"),
+                "cost_model_version": sub.get("cost_model_version"),
                 "l1_latency_ms": sub.get("l2_l1_latency_ms"),
                 "fee_proxy_wei_submitter": sub.get("fee_proxy_wei"),
                 "soft_commit_ms": sub.get("soft_commit_ms"),
@@ -176,6 +205,8 @@ def _load_batch_rows(run_dir: str) -> list[dict]:
                 "finality_gain_ms": sub.get("finality_gain_ms"),
                 "total_cost_wei": sub.get("total_cost_wei"),
                 "cost_per_tx_wei": sub.get("cost_per_tx_wei"),
+                "total_cost_usd": sub.get("total_cost_usd"),
+                "cost_per_tx_usd": sub.get("cost_per_tx_usd"),
             }
         )
     return rows
