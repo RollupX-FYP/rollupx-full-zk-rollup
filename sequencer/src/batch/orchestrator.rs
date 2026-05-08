@@ -11,7 +11,7 @@ use crate::{
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tokio::time::{sleep, Duration, Instant};
+use tokio::time::{sleep, timeout, Duration, Instant};
 use tracing::{debug, error, info, warn};
 
 #[derive(Debug, serde::Serialize)]
@@ -443,6 +443,52 @@ impl BatchOrchestrator {
     }
 
     async fn publish_batch_to_executor(&self, batch: &Batch) -> anyhow::Result<PublishBatchResponse> {
+        let attempts = std::env::var("SEQUENCER_EXECUTOR_PUBLISH_RETRIES")
+            .ok()
+            .and_then(|v| v.parse::<u32>().ok())
+            .filter(|v| *v > 0)
+            .unwrap_or(5);
+        let timeout_ms = std::env::var("SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .filter(|v| *v > 0)
+            .unwrap_or(10_000);
+        let mut last_error = String::new();
+
+        for attempt in 1..=attempts {
+            let publish = self.publish_batch_to_executor_once(batch);
+            match timeout(Duration::from_millis(timeout_ms), publish).await {
+                Ok(Ok(response)) => return Ok(response),
+                Ok(Err(e)) => {
+                    last_error = e.to_string();
+                    warn!(
+                        "Failed to publish batch #{} to executor (attempt {}/{}): {}",
+                        batch.batch_id, attempt, attempts, last_error
+                    );
+                }
+                Err(_) => {
+                    last_error = format!("timed out after {}ms", timeout_ms);
+                    warn!(
+                        "Timed out publishing batch #{} to executor (attempt {}/{})",
+                        batch.batch_id, attempt, attempts
+                    );
+                }
+            }
+
+            if attempt < attempts {
+                sleep(Duration::from_millis(250 * attempt as u64)).await;
+            }
+        }
+
+        Err(anyhow::anyhow!(
+            "failed to publish batch #{} to executor after {} attempt(s): {}",
+            batch.batch_id,
+            attempts,
+            last_error
+        ))
+    }
+
+    async fn publish_batch_to_executor_once(&self, batch: &Batch) -> anyhow::Result<PublishBatchResponse> {
         let mut client = RollupServiceClient::connect(self.executor_grpc_url.clone()).await?;
         let payload = BatchPayload {
             batch_id: batch.batch_id.to_string(),
