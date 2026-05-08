@@ -71,6 +71,8 @@ cat > "$METRICS_ROOT/run_metadata.json" <<EOF
     "eth_price_usd": "${ETH_PRICE_USD:-2500}",
     "regular_gas_price_gwei": "${REGULAR_GAS_PRICE_GWEI:-2}",
     "blob_gas_price_gwei": "${BLOB_GAS_PRICE_GWEI:-0.001}",
+    "sequencer_executor_publish_retries": "${SEQUENCER_EXECUTOR_PUBLISH_RETRIES:-5}",
+    "sequencer_executor_publish_timeout_ms": "${SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS:-10000}",
     "rate_tps":      "${RATE_TPS:-unknown}",
     "duration_s":    "${DURATION_S:-unknown}",
     "warmup_s":      "${WARMUP_S:-unknown}",
