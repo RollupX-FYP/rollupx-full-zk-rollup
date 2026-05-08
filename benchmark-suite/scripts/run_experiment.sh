@@ -592,4 +592,12 @@ if command -v jq &>/dev/null && [[ -f "$METADATA_FILE" ]]; then
     jq --arg ts "$END_TS" '.timestamp_end = $ts' "$METADATA_FILE" > "$tmp" && mv "$tmp" "$METADATA_FILE"
 fi
 
+# ── 8. Generate analysis report ────────────────────────────────────────────────
+if command -v python3 &>/dev/null; then
+    echo "[report] generating analysis report ..."
+    python3 "$(dirname "$0")/generate_analysis_report.py" "$METRICS_ROOT"
+else
+    echo "[report] WARNING: python3 not found; skipping analysis report generation"
+fi
+
 echo "[DONE] $RUN_ID  →  $METRICS_ROOT"
