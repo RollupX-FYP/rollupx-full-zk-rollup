@@ -54,6 +54,7 @@ def generate_report(metrics_root):
     submitter_metrics = load_json(metrics_path / "submitter_metrics.json")
     l1_validation = load_json(metrics_path / "l1_state_validation.json")
     l1_deployment = load_json(metrics_path / "l1_deployment.json")
+    resource_metrics = load_json(metrics_path / "resource_metrics.json")
     
     # Build report as markdown
     lines = []
@@ -112,6 +113,16 @@ def generate_report(metrics_root):
             lines.append(f"| Prover | {config.get('prover', 'N/A')} |")
             lines.append(f"| Rate | {config.get('rate_tps', 'N/A')} TPS |")
             lines.append(f"| Duration | {config.get('duration_s', 'N/A')}s |")
+        lines.append("")
+    
+    # Resource Metrics
+    if resource_metrics:
+        lines.append("### Resource Usage")
+        lines.append("")
+        lines.append("| Metric | Value |")
+        lines.append("|--------|-------|")
+        lines.append(f"| Max Memory (MB) | {resource_metrics.get('max_memory_usage_mb', 0):,.0f} |")
+        lines.append(f"| Max Memory (GB) | {resource_metrics.get('max_memory_usage_gb', 0):.2f} |")
         lines.append("")
     
     # Sequencer Analysis

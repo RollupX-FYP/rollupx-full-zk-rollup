@@ -19,6 +19,8 @@ set -euo pipefail
 EXP_ID=${1:?Usage: run_experiment.sh <experiment_id> <repeat_index>}
 REPEAT=${2:?Usage: run_experiment.sh <experiment_id> <repeat_index>}
 RUN_ID="${EXP_ID}_r$(printf '%02d' "$REPEAT")"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+RUN_ID_WITH_TIMESTAMP="${RUN_ID}_${TIMESTAMP}"
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 
 # ── defaults for env vars (override via environment) ──────────────────────────
@@ -67,7 +69,7 @@ export HARDHAT_MINING_INTERVAL=${HARDHAT_MINING_INTERVAL:-12000}
 export SEQUENCER_EXECUTOR_PUBLISH_RETRIES=${SEQUENCER_EXECUTOR_PUBLISH_RETRIES:-5}
 export SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS=${SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS:-10000}
 
-METRICS_ROOT="${METRICS_ROOT:-metrics}/${EXP_ID}/${RUN_ID}"
+METRICS_ROOT="${METRICS_ROOT:-metrics}/${EXP_ID}/${RUN_ID_WITH_TIMESTAMP}"
 export METRICS_ROOT
 SHARED_METRICS_DIR="${SHARED_METRICS_DIR:-metrics/latest}"
 export SHARED_METRICS_DIR
@@ -448,7 +450,48 @@ collect_docker_diagnostics() {
         docker exec rollupx-full-zk-rollup-sequencer-1 sh -lc 'echo "METRICS_ROOT=$METRICS_ROOT"; echo "EXPERIMENT_ID=$EXPERIMENT_ID"; ls -lah /var/lib/rollupx/metrics' > "${diag_dir}/sequencer_metrics_env.txt" 2>&1 || true
         docker exec rollupx-full-zk-rollup-executor-1 sh -lc 'echo "METRICS_ROOT=$METRICS_ROOT"; echo "EXPERIMENT_ID=$EXPERIMENT_ID"; ls -lah /var/lib/rollupx/metrics' > "${diag_dir}/executor_metrics_env.txt" 2>&1 || true
         docker exec rollupx-full-zk-rollup-submitter-1 sh -lc 'echo "METRICS_ROOT=$METRICS_ROOT"; echo "EXPERIMENT_ID=$EXPERIMENT_ID"; ls -lah /var/lib/rollupx/metrics' > "${diag_dir}/submitter_metrics_env.txt" 2>&1 || true
+        
+        # Capture Docker memory stats
+        echo "[diagnostics] collecting docker memory stats..."
+        docker compose --profile core stats --no-stream > "${diag_dir}/docker_stats.txt" 2>&1 || true
     )
+}
+
+collect_memory_metrics() {
+    """Collect current memory usage from docker containers"""
+    if ! command -v docker &>/dev/null; then
+        return
+    fi
+    
+    (
+        cd "$ROOT_DIR"
+        # Get memory stats from all running containers
+        docker compose --profile core stats --no-stream 2>/dev/null | grep -E "sequencer|executor|submitter|hardhat"
+    ) 2>/dev/null || true
+}
+
+save_resource_metrics() {
+    local metrics_file="$METRICS_ROOT/resource_metrics.json"
+    local max_memory_mb=0
+    local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    
+    # Try to get max memory from docker if available
+    if command -v docker &>/dev/null; then
+        # Get max memory usage during the run from docker events/stats
+        max_memory_mb=$(docker compose --profile core stats --no-stream 2>/dev/null | awk '{sum+=$6} END {print int(sum)}' 2>/dev/null || echo "0")
+    fi
+    
+    # Create resource metrics JSON
+    cat > "$metrics_file" <<EOF
+{
+  "timestamp": "$timestamp",
+  "max_memory_usage_mb": $max_memory_mb,
+  "max_memory_usage_gb": $(echo "scale=2; $max_memory_mb / 1024" | bc 2>/dev/null || echo "0"),
+  "note": "max_memory_usage represents peak container memory usage during experiment"
+}
+EOF
+    
+    echo "[metrics] saved resource metrics → $metrics_file"
 }
 
 # ── traps — always clean up sequencer ─────────────────────────────────────────
@@ -591,6 +634,9 @@ if command -v jq &>/dev/null && [[ -f "$METADATA_FILE" ]]; then
     tmp=$(mktemp)
     jq --arg ts "$END_TS" '.timestamp_end = $ts' "$METADATA_FILE" > "$tmp" && mv "$tmp" "$METADATA_FILE"
 fi
+
+# ── 7b. Collect resource metrics ───────────────────────────────────────────────
+save_resource_metrics
 
 # ── 8. Generate analysis report ────────────────────────────────────────────────
 if command -v python3 &>/dev/null; then
