@@ -234,11 +234,39 @@ metric_rows() {
     fi
 }
 
+metric_unique_batch_ids() {
+    local src="$1"
+    if [[ ! -f "$src" ]]; then
+        echo 0
+        return 0
+    fi
+    python3 - "$src" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+batch_ids = set()
+with open(path, "r", encoding="utf-8") as handle:
+    for line in handle:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            row = json.loads(line)
+        except Exception:
+            continue
+        batch_id = row.get("batch_id")
+        if batch_id is not None:
+            batch_ids.add(str(batch_id))
+print(len(batch_ids))
+PY
+}
+
 component_metric_counts() {
     local seq exe sub
-    seq=$(metric_rows "${METRICS_ROOT}/sequencer_batch_metrics.jsonl")
-    exe=$(metric_rows "${METRICS_ROOT}/executor_batch_metrics.jsonl")
-    sub=$(metric_rows "${METRICS_ROOT}/submitter_metrics.json")
+    seq=$(metric_unique_batch_ids "${METRICS_ROOT}/sequencer_batch_metrics.jsonl")
+    exe=$(metric_unique_batch_ids "${METRICS_ROOT}/executor_batch_metrics.jsonl")
+    sub=$(metric_unique_batch_ids "${METRICS_ROOT}/submitter_metrics.json")
     echo "$seq $exe $sub"
 }
 
@@ -262,7 +290,7 @@ summarize_component_metrics() {
         "${METRICS_ROOT}/executor_batch_metrics.jsonl" \
         "${METRICS_ROOT}/submitter_metrics.json"; do
         if [[ -f "$src" ]]; then
-            echo "  [OK] $(basename "$src") ($(wc -l < "$src") rows, $(wc -c < "$src") bytes)"
+            echo "  [OK] $(basename "$src") ($(wc -l < "$src") rows, $(metric_unique_batch_ids "$src") batch_ids, $(wc -c < "$src") bytes)"
         else
             echo "  [MISS] $(basename "$src")"
             missing=$((missing + 1))
@@ -595,7 +623,15 @@ echo "[wait] waiting for component metrics to flush ..."
 PREV_SIZE=0
 STABLE_COUNT=0
 
-SUBMITTER_WAIT_MAX=${SUBMITTER_WAIT_MAX:-120}
+if [[ -z "${SUBMITTER_WAIT_MAX:-}" ]]; then
+    # Real proving runs can take several minutes per batch; use a larger default wait
+    # so the harness does not declare failure while the async executor queue is draining.
+    if [[ "$PROVER" == "groth16" || "${REQUIRE_REAL_PROOFS:-}" == "1" || "${REQUIRE_REAL_PROOFS:-}" == "true" ]]; then
+        SUBMITTER_WAIT_MAX=600
+    else
+        SUBMITTER_WAIT_MAX=120
+    fi
+fi
 COMPONENT_STABLE_POLLS=${COMPONENT_STABLE_POLLS:-$((TIMEOUT_MS / 3000 + 5))}
 for poll in $(seq 1 "$SUBMITTER_WAIT_MAX"); do
     sleep 3
