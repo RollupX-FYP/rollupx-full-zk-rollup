@@ -209,7 +209,9 @@ fn compute_cost_model(
         && measured_blob_gas_used.unwrap_or(0) > 0
         && measured_blob_gas_price_wei.unwrap_or(0) > 0;
     let blob_gas_price_reference_wei = if real_eip4844_blob {
-        measured_blob_gas_price_wei.unwrap_or(configured_blob_price_wei) as u128
+        measured_blob_gas_price_wei
+            .map(|price| price as u128)
+            .unwrap_or(configured_blob_price_wei)
     } else {
         configured_blob_price_wei
     };
