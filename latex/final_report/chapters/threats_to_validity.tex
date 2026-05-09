@@ -1,0 +1,10 @@
+\chapter{Threats to Validity}
+\label{ch:threats_to_validity}
+
+\section{Internal and Construct Validity}
+The primary threat to validity is the use of synthetic workloads (Poisson distribution) and a parameterized mock prover. While these abstractions are necessary to allow for controlled isolation of specific configuration variables (such as DA mode and batch size), they do not perfectly represent the bursty, complex execution patterns of real-world decentralized finance (DeFi) interactions on a production network.
+
+The simplified executor state model also abstracts away specific EVM intricacies (like varying gas costs for specific opcodes) that could impact the proving time of a real zkEVM.
+
+\section{External Validity}
+The experimental results are derived from a local Hardhat environment running inside Docker containers on a single host machine. Network latency between globally distributed rollup nodes, mainnet Ethereum congestion spikes, and real-world EIP-1559 base fee fluctuations are not fully captured by this controlled environment. Therefore, absolute throughput numbers should not be directly extrapolated to mainnet performance, but rather viewed as relative behavioral indicators between configurations.

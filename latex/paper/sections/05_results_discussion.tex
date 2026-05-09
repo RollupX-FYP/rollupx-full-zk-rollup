@@ -1,0 +1,34 @@
+\section{Results and Discussion}
+
+\subsection{Evaluation Results}
+
+The evaluation framework reports multi-dimensional metrics across the configured experimental space. Table~\ref{tab:results_summary} presents preliminary benchmark outputs obtained under controlled synthetic workloads.
+
+All measurements were collected using the same benchmark harness across configurations. The values should be interpreted as relative comparisons between configurations rather than claims of production mainnet performance. Since the prototype uses a mock-prover mode for these runs, the reported proof time represents parameterized proving delay rather than full circuit execution time.
+
+\input{paper/tables/results_summary}
+
+\subsection{Throughput, Latency, and Cost Trade-offs}
+
+The preliminary results show that throughput, latency, data availability footprint, and cost do not improve uniformly across configurations. Configurations with simpler batching and calldata-based submission can achieve higher committed throughput, but they may also produce a larger DA footprint and higher amortized submission cost. For example, C1 achieves the highest committed throughput of 357.1 TPS with an average latency of 2.1 s, but it posts a larger DA footprint of 120 KB. In contrast, C3 reduces the DA footprint to 95 KB, but committed throughput decreases to 280.4 TPS and P95 latency increases to 7.2 s.
+
+Data availability choices also affect the cost profile. Compared with calldata-based configurations such as C1 and C2, blob-based configurations such as C4 and C5 reduce the reported cost per transaction under the synthetic workload. This supports the motivation for separately evaluating calldata and EIP-4844-style blob submission paths when studying rollup cost behavior.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{result_tps_latency.pdf}
+    \caption{Committed throughput comparison across experimental configurations under parameterized proof delay.}
+    \label{fig:result_tps_latency}
+\end{figure}
+
+\subsection{Design Implications}
+
+These results suggest several implications for modular rollup benchmarking. First, committed TPS alone is insufficient to characterize rollup performance because it can hide latency, DA footprint, and cost differences. Second, batching and DA choices should be evaluated together because lower submission cost may come with different queueing or finalization behavior. Third, proof-delay contribution must be reported separately from sequencing and submission overhead, especially when mock or parameterized proving is used.
+
+\begin{itemize}
+    \item Batch sizes should be selected according to the application's latency tolerance and cost sensitivity.
+    \item Transaction-aware batching may be useful when workloads contain heterogeneous transaction classes with different DA footprints or proof-delay costs.
+    \item Proof-delay contribution should be monitored as a separate metric instead of being conflated with sequencing or submission delay.
+    \item The choice of DA mode should align with the target security, availability, and cost assumptions.
+    \item Soft finality at Layer-2 should be reported separately from Layer-1 finalization.
+\end{itemize}

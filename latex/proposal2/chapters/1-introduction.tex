@@ -1,0 +1,263 @@
+\lstdefinestyle{yamlStyle}{
+  language=YAML,
+  basicstyle=\ttfamily,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{green},
+  morecomment=[l]{\#},
+  morekeywords={example, key, value}
+}
+
+\vspace{12pt}
+
+Blockchain technology has emerged as a transformative innovation, attracting attention from academia, industry, and governments alike. It provides a secure, distributed ledger that enables trust among untrusted entities without relying on centralized authorities or intermediaries. Its defining properties, including immutability, transparency, auditability, autonomy,  and resilience, position blockchain as one of the most disruptive digital technologies of the past decade~\cite{sanka2021systematic}.
+
+\vspace{12pt}
+
+Initially conceived as the foundation of Bitcoin~\cite{nakamoto2008bitcoin}, blockchain’s applications have rapidly expanded beyond cryptocurrencies. Ethereum~\cite{buterin2014ethereum} introduced programmability through smart contracts, enabling decentralized applications (DApps) that support diverse use cases. Today, blockchain is being deployed in finance, insurance, supply chain management, healthcare, identity management, registry services, stock trading, the Internet of Things (IoT), and energy systems~\cite{sanka2021systematic}.
+
+\vspace{12pt}
+
+Industry projections highlight this momentum. Deloitte’s 2019 survey reported that 86\% of enterprises anticipated blockchain’s mainstream adoption, with 81\% planning integration into their systems. Gartner forecasted blockchain’s business value to surpass \$176 billion by 2025 and \$3.1 trillion by 2030, while Cisco predicted that 10\% of global GDP would rely on blockchain by 2027~\cite{sanka2021systematic}. These estimates underscore blockchain’s disruptive potential and reinforce the urgency of addressing its fundamental challenges.
+
+\vspace{12pt}
+
+Among these challenges, the surge in adoption has brought to light scalability as the most critical barrier to widespread adoption~\cite{slogix2025scalability}. The inherent limitation in the number of transactions these networks can process per second has prompted efforts within the blockchain community to develop a wide range of innovative solutions~\cite{zkp2025rollups, alghamdi2024survey}.
+
+\vspace{12pt}
+
+\subsection{Motivation}
+
+\vspace{12pt}
+
+Public blockchains are constrained by the ``scalability trilemma'': decentralization, security, and scalability cannot be maximized simultaneously \cite{aldoubaee2024systematic}. Ethereum, one of the most prominent public blockchains, exemplifies this trade-off \cite{zhou2020survey}. 
+
+\vspace{12pt}
+
+Ethereum has deliberately optimized for decentralization and security---now under Proof-of-Stake---at the cost of base-layer throughput \cite{buterin2014ethereum}. In practice, Ethereum L1 capacity remains modest at roughly $15$--$25$~TPS, with real-time trackers often showing about $20$~TPS \cite{chainspect_eth_tps,chainspect_eth_page}. When demand spikes, finite blockspace leads to congestion and fee volatility; as of September~2025, the \emph{average} L1 fee typically ranges around \$0.40--\$0.60 per transaction \cite{ycharts_avgfee2025,bitinfocharts_eth_fee}, while daily transaction counts hover around $1.3$--$1.7$ million \cite{ycharts_eth_tx_per_day,bitinfocharts_eth_tx_per_day}.
+
+\vspace{12pt}
+
+To scale without compromising Ethereum's security guarantees, the ecosystem has converged on Layer-2 (L2) \emph{rollups}. Rollups execute transactions off-chain and post succinct data/proofs to Ethereum, thereby inheriting L1 security while reducing L1 computation and bandwidth \cite{vitalik_serenity,eth_scaling,eth_zk_rollups,eth_optimistic_rollups}. Within this family, \emph{ZK-Rollups} offer cryptographic validity proofs that enable faster finality than optimistic rollups (which require a challenge window) \cite{eth_zk_rollups,eth_optimistic_rollups}. Post--EIP-4844 (``Dencun''), user fees on major L2s dropped by roughly one to two orders of magnitude, often to sub-cent or few-cent levels, catalyzing sustained activity growth \cite{cointelegraph_dencun_fees,theblock_dencun_fees,galaxy_150d_dencun}.
+
+\vspace{12pt}
+
+Table~\ref{tab:l1-vs-l2} summarizes indicative, \emph{recent} orders of magnitude comparing Ethereum L1 with high-throughput L2s (e.g., Base, Arbitrum). While exact numbers fluctuate daily, L2s routinely process \emph{millions} of transactions per day (e.g., Base exceeded 300M user operations over a 30-day window in mid-2025, i.e., $\sim$10M/day on average) \cite{l2beat_activity}.
+
+\vspace{12pt}
+
+\input{tables/Indicative_scale_compariso}
+
+\vspace{12pt}
+
+Yet a gap persists between ZK-Rollups’ theoretical scalability and their observed, end-to-end performance \cite{habib2025bottlenecks}. Prior studies surface key constraints (e.g., proof generation time) but stop short of a comprehensive, reproducible analysis of which tuning levers—\emph{batch size/frequency}, \emph{sequencer scheduling}, and \emph{data-availability (DA) compression}—most effectively shift the throughput–latency–cost frontier in real deployments~\cite{habib2025bottlenecks,gogol2025scalingdefi}. Despite widespread L2 adoption, we still lack clear guidance on which configuration choices most improve these metrics. By running controlled, reproducible experiments, we aim to identify the true bottlenecks (e.g., proving) and produce practical tuning guidance for the ecosystem~\cite{habib2025bottlenecks}.
+
+\vspace{12pt}
+
+To make the study reproducible and low-friction, we will implement a \emph{simple, educational} proof-of-concept (PoC) ZK-rollup rather than a fully EVM-compatible system (too complex for our scope). The PoC will exercise the target knobs—\emph{batch size/frequency}, \emph{sequencer scheduling}, and \emph{data-availability (DA) compression}—using minimal operations: \emph{token transfers, deposits, withdrawals, and balance updates}. The novel contribution of this work is the creation of an
+open-source, modular framework specifically designed for controlled, empirical analysis of ZK-Rollup performance trade-offs, which is currently lacking in the ecosystem. We will release the prototype, experiment harness, datasets, and analysis notebooks as \emph{open source} (permissive license, e.g., Apache-2.0) to support future researchers and education; a public repository will host build scripts (Docker), reproducibility configs, and documentation. Prior work reports
+non-trivial compatibility effort when porting real DeFi code to ZK-Rollups (e.g., adapting
+Uniswap V2 to zkSync required substantial engineering due to compiler version changes, stricter type handling, and error propagation), hence we avoid full EVM compatibility in this phase~\cite{gogol2025scalingdefi}.
+
+\vspace{12pt}
+
+\subsection{Background}
+
+\vspace{12pt}
+
+\subsubsection{Blockchain Technology and Scalability Challenges}
+
+\vspace{12pt}
+
+Blockchain technology underpins decentralized systems, enabling secure, transparent, and tamper-resistant transaction processing through a distributed ledger maintained by a network of nodes~\cite{nakamoto2008bitcoin}. A blockchain consists of a chain of blocks, each containing a list of transactions validated through a consensus mechanism, such as proof-of-work (PoW) or proof-of-stake (PoS). The decentralized nature ensures no single entity controls the network, fostering trust and resilience. However, scalability remains a critical challenge, as blockchains must handle increasing transaction volumes while preserving security and decentralization.
+
+\vspace{12pt}
+
+Blockchain scalability refers to the ability of a blockchain network to efficiently process increasing volumes of transactions and user demand without undermining its foundational principles of security and decent
+ralization~\cite{buterin2014ethereum,khan2021challenges}. Traditional blockchains like Bitcoin achieve high security and decentralization but suffer from low throughput (e.g., Bitcoin processes approximately 7 TPS). This limitation arises due to constraints in block size, block time, and consensus overhead, which restrict the number of transactions that can be processed in a given time frame.
+
+\vspace{12pt}
+
+\subsubsection{Scalability of Ethereum}
+
+\vspace{12pt}
+
+Ethereum, introduced in 2015, extends blockchain functionality beyond simple transactions by supporting smart contracts—self-executing programs that enable complex decentralized applications (dApps). Ethereum's Layer-1 (L1) blockchain, initially based on PoW and later transitioned to PoS via the Ethereum Merge in 2022, processes approximately 15–25 TPS under typical conditions~\cite{buterin2014ethereum,ethScalingDocs}. This throughput is insufficient for global-scale applications, such as decentralized finance (DeFi) or gaming, which demand significantly higher transaction rates. Two primary strategies have emerged to address this limitation: \emph{base-layer (L1) scaling} and \emph{Layer-2 (L2) scaling}.
+\vspace{12pt}
+
+Modern high-throughput L1s illustrate the design space: Solana targets very high throughput via its Proof-of-History pipeline~\cite{yakovenko2018solana}, while Sui’s Lutris architecture combines broadcast and consensus for low-latency confirmation~\cite{blackshear2023sui}. Although these systems can achieve greater raw throughput, they may lack the security budget, liquidity, and ecosystem maturity of Ethereum, raising migration and fragmentation costs~\cite{habib2025bottlenecks}.
+
+\vspace{12pt}
+
+However, L1 changes are complex, requiring consensus upgrades and extensive testing to maintain security. In contrast, L2 scaling leverages off-chain solutions that process transactions outside the main chain while relying on L1 for security and finality. Among L2 solutions, rollups have emerged as Ethereum's preferred scalability mechanism due to their ability to inherit L1 security while significantly increasing throughput~\cite{ethScalingDocs}. Rollups execute transactions off-chain (on L2), then post succinct data and/or proofs back to L1 to ensure verifiable, secure state transitions. Two main families are prominent:
+
+\vspace{12pt}
+
+\begin{itemize}
+   \item \textbf{Optimistic Rollups} assume batches are valid by default and rely on fraud-proofs during a challenge window; withdrawals are delayed until the window elapses~\cite{ethOptimisticRollups}.
+  \vspace{12pt}
+  \item \textbf{ZK-Rollups} attach validity proofs that allow immediate verification on L1, enabling faster finality while preserving Ethereum’s security model. However, they introduce non-trivial proving and verification costs, and their efficiency and economics remain active areas of study~\cite{habib2025bottlenecks}.
+\end{itemize}
+
+\vspace{12pt}
+
+L1 redesigns can deliver large performance gains but face technical and governance hurdles. L2 rollups scale \emph{today}, yet introduce complexities such as data-availability bandwidth and proof-generation overhead (especially for ZK variants), and can still experience congestion-driven fee pressure during demand spikes~\cite{habib2025bottlenecks,ethScalingDocs}. Both strategies navigate the decentralization–security–scalability trade-space, and ongoing research continues to evaluate their practical efficiency and economic implications.
+
+\vspace{12pt}
+\subsubsection{The Blockchain Trilemma}
+\vspace{12pt}
+
+A foundational concept in blockchain design is the blockchain trilemma (Fig.~\ref{fig:trilemma}), introduced by Vitalik Buterin~\cite{buterin2014ethereum}. Similar to the CAP theorem in distributed systems~\cite{gilbert2002brewer}, the blockchain trilemma highlights the inherent trade-offs among three essential properties of a blockchain system: \textit{security}, \textit{scalability}, and \textit{decentralization}~\cite{zhou2020solutions}. It asserts that no blockchain can fully optimize all three simultaneously; instead, systems typically achieve two at the expense of the third.
+
+\vspace{12pt}
+For instance, Bitcoin—the pioneering blockchain—prioritizes security and decentralization to ensure tamper-resistance and censorship-resistance. However, this comes at the cost of scalability, resulting in relatively low transaction throughput~\cite{khan2021challenges}. Conversely, attempts to improve scalability often rely on a smaller number of more powerful nodes, which inherently reduces decentralization~\cite{chen2024survey}. Similarly, increasing throughput and confirmation speed to enhance scalability can inadvertently weaken security, introducing new vulnerabilities~\cite{chen2024survey}.
+
+\vspace{12pt}
+The trilemma is therefore not merely descriptive but a fundamental design constraint: no blockchain can maximize all three properties simultaneously. Instead, each system optimizes for two pillars while compromising the third, depending on the requirements of its intended application. Recognizing this trade-off is essential when evaluating scalability solutions, as it shapes what can realistically be considered “success” in decentralized systems.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.55\linewidth]{figures/What-is-Blockchain-Trilemma.png}
+  \caption{The Blockchain Trilemma}
+  \label{fig:trilemma}
+\end{figure}
+\vspace{12pt}
+
+\subsubsection{Merkle Trees}
+
+A Merkle tree, also known as a hash tree, is a rooted binary tree in cryptography where each leaf node contains the cryptographic hash of a data block, and each internal node holds the hash of its child nodes, culminating in a single Merkle root that serves as a compact commitment to the entire dataset \cite{merkle1988digital}. This structure ensures tamper-evidence, as any modification to a leaf propagates through the hash chain to alter the root, making inconsistencies detectable. Membership verification is efficient, requiring only an \(O(\log n)\) Merkle proof consisting of sibling hashes along the path from the leaf to the root, which allows recomputation and comparison without accessing the full tree \cite{wiki_merkle}. Common implementations employ collision-resistant hash functions like SHA-256, with variants including binary (two children per node) or k-ary trees for optimized depth in large datasets \cite{geeks_merkle}.
+
+Merkle trees can be used in distributed systems for efficient data verification and synchronization.
+
+\input{figures/merkle tree}
+
+
+\subsubsection{Zero-Knowledge Proofs}
+\vspace{12pt}
+
+Zero-Knowledge Proofs (ZKPs) are a foundational cryptographic primitive that enables one party (the prover) to demonstrate to another party (the verifier) that a specific assertion is true without revealing any additional information beyond the truth of the statement itself. The prover possesses some secret information—such as a private key or the solution to a computational problem—and can convince the verifier of a claim (for example, knowledge of the secret) by providing a cryptographic proof that reveals nothing else about the secret \cite{GMR89}. This concept was first introduced in 1985 by Shafi Goldwasser, Silvio Micali, and Charles Rackoff in their seminal paper “The Knowledge Complexity of Interactive Proof-Systems,” which laid the groundwork for a new paradigm in cryptographic protocols and security research \cite{GMR89}.
+
+ZKPs can be categorized into interactive and non-interactive variants. 
+\vspace{12pt}
+
+\begin{itemize}
+  \item \textbf{Interactive ZKPs:} as originally proposed, involve multiple rounds of communication between the prover and verifier, where the verifier issues challenges and the prover responds accordingly to build confidence in the proof's validity. A small detail is that this interactivity ensures soundness through randomness in challenges, but it requires online participation from both parties, which can be inefficient for certain applications \cite{GMR89}.
+
+  \vspace{12pt}
+
+  \item \textbf{Non-interactive ZKPs (NIZKs):} on the other hand, eliminate the need for back-and-forth interaction by transforming the protocol into a single-message proof, often using techniques like the Fiat-Shamir heuristic, which replaces verifier challenges with hash-based pseudorandom values derived from the prover's initial commitment \cite{FS86}. This makes NIZKs more practical and suitable for blockchain scenarios, where efficiency, offline verification, and scalability are crucial, though they may rely on additional assumptions like the random oracle model \cite{FS86}. Specialized non-interactive forms include zk-SNARKs, which are highly succinct and efficient, making them the most suitable for blockchain applications due to small proof sizes and fast verification times, and zk-STARKs, which offer transparency without trusted setups and post-quantum security but with larger proofs \cite{Gro16,Tra23,Gog25,Hab25}.
+\end{itemize}
+
+\vspace{12pt}
+
+In the context of blockchain technology, ZKPs allow for the verification of transaction validity or state transitions without exposing sensitive data. This capability makes them particularly useful for enhancing privacy and scalability in decentralized systems. A robust ZKP protocol must satisfy three core properties \cite{Lav23}:
+
+\vspace{12pt}
+
+\begin{itemize}
+    \item \textbf{Completeness:} If the statement is true and both parties follow the protocol, the honest verifier will accept the prover’s proof.
+    \item \textbf{Soundness:} If the statement is false, no dishonest prover can convince an honest verifier that it is true, except with negligible probability.
+    \item \textbf{Zero-Knowledge:} The verifier learns nothing from the proof apart from the fact that the statement is true (no additional knowledge is leaked).
+\end{itemize}
+
+\vspace{12pt}
+
+Collectively, these properties ensure that ZKPs can be applied securely in trust-minimized, decentralized environments, where verifiability is paramount. In other words, even on a public blockchain, one can prove a transaction or computation is valid without revealing the underlying private data, preserving confidentiality while still guaranteeing correctness \cite{Cha24,DWF25}.
+
+\vspace{12pt}
+\subsubsection{zk-SNARKs}
+\vspace{12pt}
+
+Building on the principles of ZKPs, zk-SNARKs (Zero-Knowledge Succinct Non-Interactive Arguments of Knowledge) represent a specialized subset of non-interactive zero-knowledge proofs optimized for efficiency in blockchain applications; they are considered the most suitable for blockchain due to their ability to handle complex computations with minimal overhead in resource-constrained environments \cite{Gro16,Sta24}. As non-interactive ZKPs, zk-SNARKs allow the prover to generate a single, compact proof that the verifier can check without ongoing communication, making them highly suitable for distributed systems \cite{FS86}. The defining features of zk-SNARKs are their succinctness (proofs are very small and quick to verify) and non-interactivity (the proof can be verified without any back-and-forth communication between prover and verifier). These properties make zk-SNARKs ideal for resource-constrained environments like public blockchains, supporting scalable and privacy-preserving operations without compromising security \cite{Cha24,Gro16}. In practice, zk-SNARK-based systems can verify complex computations with minimal overhead, which is why they are used in applications ranging from privacy coins (e.g., Zcash) to Layer-2 rollups for scaling Ethereum \cite{Cyr24}.
+
+\vspace{12pt}
+
+A prominent example of a zk-SNARK system is the Groth16 protocol, proposed by Jens Groth in 2016. Groth16 operates through three main steps \cite{Gro16,Lav23}:
+
+\vspace{12pt}
+
+\begin{itemize}
+    \item \textbf{Key Generation:} A trusted setup phase generates a public proving key and verification key from some secret parameters.
+    \item \textbf{Proof Generation:} Using the proving key, the prover computes a compact proof of the statement’s truth (for a given private witness and public inputs).
+    \item \textbf{Verification:} Using the verification key, the verifier checks the proof’s validity. If the proof is valid, the statement is accepted as true.
+\end{itemize}
+
+\vspace{12pt}
+
+Groth16 is highly efficient—its proofs can be as small as three group elements, and verifying a proof requires only a single pairing check. This efficiency has made Groth16 a cornerstone of many ZK-rollups and privacy-focused systems like Zcash \cite{Gro16}. However, Groth16 requires a trusted setup; if the setup is compromised (i.e., if the secret trapdoor from the key generation were leaked or misused), the soundness of the system could be undermined. This limitation has prompted ongoing research into setup-free or universal setup alternatives (such as Sonic, PLONK, and zk-STARKs) that remove or downplay the need for a trusted setup \cite{Ban25,BBHR18,GWC19,MBKM19,Hab25}.
+
+\vspace{12pt}
+
+\subsubsection{zk-STARKs}
+
+\vspace{12pt}
+
+zk-STARKs (Zero-Knowledge Scalable Transparent ARguments of Knowledge) are another advanced form of non-interactive ZKPs, distinguished by their transparency and scalability. Unlike many zk-SNARKs, zk-STARKs do not require a trusted setup, relying instead on public randomness and collision-resistant hash functions for security. This makes them "transparent" and resistant to certain attacks associated with secret parameters\cite{BBHR18}. A small detail is that zk-STARKs use algebraic intermediate representations (AIR) and low-degree testing via the FRI protocol to achieve post-quantum security, though this comes at the cost of larger proof sizes compared to zk-SNARKs\cite{chainlink}. As non-interactive proofs, they enable efficient verification of large-scale computations without interaction, making them suitable for high-throughput blockchain scaling solutions\cite{BBHR18}. zk-STARKs are particularly valuable in environments demanding quantum resistance and full transparency, such as advanced Layer-2 protocols\cite{chainlink}.
+
+\vspace{12pt}
+
+\subsubsection{Data Availability}
+
+\vspace{12pt}
+
+Data Availability (DA) in distributed systems ensures that all necessary data for verifying state transitions is accessible, preventing data withholding attacks where malicious entities might conceal information \cite{motepalli2023sok}. DA mechanisms can be categorized into on-chain and off-chain approaches: on-chain DA publishes transaction data or state diffs directly to the base layer (e.g., via calldata or EIP-4844 blobs for cost efficiency), while off-chain DA relies on external storage solutions with on-chain commitments (e.g., data availability committees or layers like Celestia using erasure coding and sampling) \cite{gogol2025scalingdefi, lavaur2023modular}. This ensures data integrity and retrievability, with trade-offs in cost, security, and scalability.
+Data availability can be used in distributed systems for efficient data verification and synchronization.
+
+\vspace{12pt}
+\subsection{Problem Statement}
+\vspace{12pt}
+
+Ethereum, a leading public blockchain, faces significant scalability limitations that hinder its ability to support high-volume decentralized applications (dApps) such as decentralized finance (DeFi), non-fungible tokens (NFTs), and gaming \cite{buterin2014ethereum}. Under typical conditions, Ethereum’s Layer-1 (L1) processes approximately 15–25 transactions per second (TPS), far below the thousands of TPS required for global-scale adoption \cite{wood2014ethereum, zhou2020solutions}. This low throughput leads to network congestion, exorbitant transaction fees during peak demand, and delays in transaction finality, creating barriers to usability and mass adoption. These challenges are rooted in the blockchain trilemma, where Ethereum prioritizes security and decentralization at the expense of scalability \cite{fu2024trilemma}.
+\vspace{12pt}
+
+Zero-knowledge rollups (ZK rollups) have emerged as a promising Layer-2 (L2) solution to address Ethereum’s scalability issues \cite{tran2023implementation}. By processing thousands of transactions off-chain and submitting compact validity proofs (e.g., zk-SNARKs or zk-STARKs) to L1, ZK rollups can theoretically achieve significantly higher throughput while inheriting Ethereum’s robust security model. However, real-world deployments of ZK rollups reveal critical bottlenecks that limit their practical effectiveness. These include computationally intensive proof generation, inefficient sequencer scheduling, and high data availability (DA) costs, which increase latency and transaction fees \cite{habib2025bottlenecks}. Additionally, implementing general-purpose smart contracts on ZK rollups, such as through the zkEVM framework, introduces further complexity and performance overhead \cite{chaliasos2024analyzing}.
+
+\vspace{12pt}
+This project addresses these gaps by implementing and empirically evaluating a modular ZK-Rollup prototype on the Ethereum testnet (e.g., Sepolia). The core focus is to benchmark baseline metrics against Ethereum L1 and explore targeted optimizations—such as dynamic batch sizing, advanced sequencer policies, and DA compression strategies (including EIP-4844 blobs)—to enhance throughput, reduce latency, and minimize costs without compromising security or decentralization \cite{chaliasos2024analyzing}. Through controlled experiments and original data generation, this study aims to provide actionable, reproducible insights that bridge theoretical scalability claims with practical ecosystem improvements.
+
+\vspace{12pt}
+\subsection{Research Questions}
+\vspace{12pt}
+
+To guide this investigation, the project will answer the following research questions:
+
+\begin{enumerate}
+    \item \textbf{RQ1:} What is the quantitative impact of batch size on the throughput (TPS), proof generation latency, and per-transaction cost of a ZK-Rollup?
+    \item \textbf{RQ2:} How do different sequencer scheduling policies (e.g., FIFO vs. priority fee) affect transaction confirmation times, particularly for high-value transactions under network congestion?
+    \item \textbf{RQ3:} What are the cost and throughput implications of using different data availability mechanisms, specifically comparing on-chain calldata with EIP-4844 blobs?
+\end{enumerate}
+These questions are designed to yield empirical, reproducible evidence to guide the design and optimization of ZK-Rollup systems.
+
+\vspace{12pt}
+\subsection{Research Objectives}
+\vspace{12pt}
+
+The objectives of this project are structured to systematically address the research questions through a combination of development, experimentation, and analysis. They emphasize modularity and reproducibility to facilitate future extensions in the blockchain community:
+\begin{enumerate}
+    \item To develop a modular ZK-Rollup prototype framework deployable on the Ethereum testnet (e.g., using tools like zkSync or Polygon zkEVM for core components).
+    \item To benchmark baseline performance metrics (e.g., throughput, latency, gas costs, and storage requirements) of the prototype against Ethereum L1 real-world values, using standardized workloads like token transfers and simple smart contract interactions.
+    \item To investigate throughput improvement strategies through controlled experiments, including:
+    \begin{itemize}
+        \item Batch size and frequency tuning to optimize proof overhead and transaction bundling.
+        \item Sequencer scheduling policies (e.g., decentralized or shared sequencers for better load balancing).
+        \item Data availability compression techniques, leveraging EIP-4844 blobs for reduced calldata costs.
+    \end{itemize}
+
+
+
+
+\end{enumerate}
+
+\vspace{12pt}
+\subsection{Research Outcomes}
+\vspace{12pt}
+
+Upon completion, this project will yield several key outcomes that advance both academic understanding and practical deployment of ZK-Rollups in Ethereum ecosystems. These outcomes are designed to be open and extensible, promoting further research and real-world applications:
+\begin{enumerate}
+    \item A fully functional, modular ZK-Rollup prototype deployed on the Ethereum testnet, complete with configurable components for batching, sequencing, and DA handling (e.g., integrated with EIP-4844 for blob-based storage).
+    \item Comprehensive benchmarking datasets and scripts, capturing metrics like TPS, proof latency, gas costs, and confirmation times under varied loads, benchmarked against Ethereum L1 (e.g., achieving 100--1,000+ TPS improvements as per recent evaluations).
+    \item Empirical insights from optimization experiments, including quantitative trade-off analyses (e.g., batch size increases yielding 20--50\% throughput gains but 10--30\% higher latency) and recommendations for sequencer decentralization to mitigate single-point failures.
+    \item A detailed technical report (or thesis) with visualizations, statistical validations, and comparisons to state-of-the-art implementations (e.g., zkSync Era or Polygon zkEVM), potentially submitted to conferences like IEEE Blockchain or arXiv for dissemination.
+    \item Open-source artifacts, including the prototype codebase (e.g., on GitHub under Apache-2.0 license), experiment harnesses (Dockerized for reproducibility), raw datasets, and Jupyter notebooks for analysis, enabling community validation and extensions (e.g., integration with DeFi protocols).
+\end{enumerate}
+These outcomes will not only validate optimization strategies but also contribute to sustainable blockchain scaling, potentially reducing L2 fees by orders of magnitude and supporting applications in education, finance, and beyond.

@@ -1,0 +1,19 @@
+\headerbox{Dynamic Batching Model}{name=dynamicbatch,column=0,below=objectives,span=1}{ 
+\small 
+\[ 
+U(N)=Cost(N)+\gamma \cdot Latency(N) 
+\] 
+\[ 
+Cost(N)=\frac{C_{\mathrm{fixed}}+\mathrm{BlobCost}(N)}{N} 
+\] 
+\[ 
+Latency(N)=\frac{N}{2\lambda}+P(N)+T_{L1} 
+\] 
+ 
+\begin{itemize}[leftmargin=0.8em,itemsep=0.1em,topsep=0pt] 
+    \item Selects batch size \(N^*\) with minimum penalty. 
+    \item Captures blob step-costs and user waiting time. 
+    \item Used for adaptive benchmarking, not production claims. 
+\end{itemize} 
+}
+

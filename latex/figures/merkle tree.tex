@@ -1,0 +1,66 @@
+% Preamble:
+% \usepackage{tikz}
+% \usetikzlibrary{arrows.meta,positioning}
+% \usepackage{adjustbox}
+
+\begin{figure}[t]
+  \centering
+  \begin{adjustbox}{max width=\linewidth}
+  \begin{tikzpicture}[
+    scale=0.95, transform shape,
+    level distance=12mm,
+    sibling distance=26mm,
+    edge from parent/.style={draw,-{Latex[length=2mm]}},
+    every node/.style={
+      draw, rectangle, rounded corners, align=center,
+      minimum width=22mm, minimum height=8mm, font=\footnotesize
+    },
+    highlight/.style={fill=green!20, draw=green!50!black, very thick},
+    sibedge/.style={draw=red!60!black, dashed, very thick},
+    sibnode/.style={draw=red!60!black, dashed}
+  ]
+
+  % Root
+  \node (root) [fill=gray!20] {Merkle root\\$H\!\big(H(AB)\,\|\,H(CD)\big)$};
+
+  % Level 1
+  \node (ab) [below left=10mm and 18mm of root, sibnode]
+        {H(AB)\\$H\!\big(H(A)\,\|\,H(B)\big)$};
+  \node (cd) [below right=10mm and 18mm of root, highlight]
+        {H(CD)\\$H\!\big(H(C)\,\|\,H(D)\big)$};
+
+  % Level 2
+  \node (a) [below left=10mm and 9mm of ab] {H(A)};
+  \node (b) [below right=10mm and 9mm of ab] {H(B)};
+  \node (c) [below left=10mm and 9mm of cd, highlight] {H(C)};
+  \node (d) [below right=10mm and 9mm of cd, sibnode] {H(D)};
+
+  % On-path edges (proof path / authentication path)
+  \draw (root) -- (cd);
+  \draw (cd) -- (c);
+
+  % Other tree edges
+  \draw (ab) -- (a);
+  \draw (ab) -- (b);
+
+  % Sibling edges required for the proof
+  \draw[sibedge] (root) -- (ab); % sibling hash at root level
+  \draw[sibedge] (cd) -- (d);    % sibling hash at next level
+
+  % Annotations
+  \node[above=2mm of root, font=\footnotesize] {Merkle tree};
+  \node[below=1mm of c, font=\footnotesize, text=green!50!black]
+       {Merkle proof / authentication path for $C$};
+  \node[left=1mm of ab, font=\footnotesize, rotate=90, text=red!60!black, anchor=south]
+       {Sibling hash};
+  \node[right=1mm of d, font=\footnotesize, text=red!60!black, anchor=west]
+       {Sibling hash};
+
+  \end{tikzpicture}
+  \end{adjustbox}
+  \caption{Binary Merkle tree. The inclusion proof (authentication path) for $C$
+  follows $H(C)\!\to\!H(CD)\!\to\!\text{Merkle root}$ (green) and requires the sibling
+  hashes $H(D)$ and $H(AB)$ (dashed red).}
+  \label{fig:merkle_tree}
+\end{figure}
+

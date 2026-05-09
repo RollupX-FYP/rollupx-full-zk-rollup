@@ -1,0 +1,55 @@
+\section{System Architecture}
+
+\subsection{Overview}
+
+The proposed framework is designed as a modular ZK-Rollup research prototype for controlled performance evaluation. Rather than targeting production deployment, the architecture separates transaction ordering, state transition execution, proof handling, Layer-1 submission, and data availability concerns into distinct components. This separation allows individual policies to be varied while keeping the rest of the pipeline fixed, supporting reproducible analysis of throughput, latency, and cost trade-offs.
+
+\begin{figure}[t]
+    \centering
+    \includegraphics[width=\linewidth]{architecture.pdf}
+    \caption{Architecture of the proposed modular ZK-Rollup benchmarking prototype.}
+    \label{fig:architecture}
+\end{figure}
+
+\begin{table}[t] 
+\centering 
+\caption{Prototype components and experimental controls} 
+\label{tab:components} 
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{lll} 
+\toprule 
+\textbf{Component} & \textbf{Role} & \textbf{Experimental Control} \\ 
+\midrule 
+Sequencer & Orders and batches transactions & FCFS/FIFO scheduling, batch sizing \\ 
+Executor & Applies state transitions & Simple transfers, Merkle state updates \\ 
+Prover & Models proof-related delay & Mock delay simulation, RISC Zero path where applicable \\ 
+Submitter & Commits batches to Layer-1 & Calldata and EIP-4844 blob submission \\ 
+Layer-1 Contract & Records commitments & Bridge, DA, and verifier abstraction stubs \\ 
+\bottomrule 
+\end{tabular} 
+}
+\end{table}
+
+\subsection{Transaction Lifecycle and Components}
+
+The end-to-end transaction lifecycle, shown in Fig.~\ref{fig:architecture}, begins with synthetic transaction generation and proceeds through sequencing, execution, proof handling, submission, and telemetry collection.
+
+\textbf{Workload Generator:} The workload generator produces synthetic transfer-centric transaction traffic at controlled rates. The current workload model uses a Poisson arrival process to emulate configurable transaction arrival patterns for repeatable experiments.
+
+\textbf{Sequencer:} The sequencer maintains a transaction pool and orders incoming transactions using the currently implemented FCFS/FIFO policy. It also coordinates batch formation according to configured batch-size and timing parameters. This component provides the main control point for studying how ordering and batching choices affect queueing delay and committed throughput.
+
+\textbf{Executor:} The executor implements a simplified state-transition engine for transfer-style workloads. It validates transaction nonces and balances, applies state updates, and maintains Merkle-based state commitments. The executor is intended to model rollup-style state transition and commitment behavior; it is not a full EVM or zkEVM execution environment.
+
+\textbf{Prover:} The proving interface supports a mock-prover mode that injects parameterized proof-generation delay into the pipeline. A RISC Zero proving path is included where applicable, but the current benchmark results should be interpreted as controlled proof-delay measurements rather than full cryptographic prover throughput. This design allows the evaluation to isolate the effects of sequencing, batching, DA, and submission choices without requiring PLONK/Groth16 circuit execution for every benchmark run.
+
+\textbf{Submitter and Layer-1 Contract:} The submitter packages executed batches and commits the corresponding metadata to Layer-1. It supports calldata-based submission and EIP-4844 blob-based submission, allowing the evaluation to compare different data-posting cost profiles. The Layer-1 contract side provides bridge, DA, and verifier abstraction stubs for testing the submission flow rather than production-grade proof verification.
+
+\textbf{Telemetry:} Telemetry hooks collect timing and cost-related measurements across the pipeline, including queueing delay, proof-delay contribution, submission cost, batch finalization time, and committed throughput. These measurements support configuration-level comparison rather than production mainnet performance claims.
+
+\subsection{Design Rationale}
+
+The prototype deliberately prioritizes modularity, observability, and reproducibility over production completeness. Production ZK-Rollups are optimized for deployment, user compatibility, and operational reliability, making it difficult to independently vary internal policies under identical workloads. In contrast, the proposed framework exposes batching, proof-delay, and data availability mechanisms as experimental controls.
+
+This design allows the same workload to be replayed across different batch sizes and data availability modes while keeping the remaining pipeline fixed. As a result, performance changes can be attributed more directly to specific architectural choices rather than to unrelated implementation differences.
+
+The separation between the sequencer, executor, prover, submitter, and Layer-1 contract also supports controlled bottleneck isolation. For example, mock-prover mode parameterizes proof delay, while calldata and blob-based submission paths isolate data-posting overhead. This makes the prototype suitable for studying the throughput--latency--cost frontier of ZK-Rollup systems, while remaining clear that it is not production-ready and does not provide full zkEVM compatibility.

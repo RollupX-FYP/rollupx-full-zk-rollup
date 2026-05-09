@@ -1,0 +1,51 @@
+% =========================================================
+% MERCon / IEEE Conference Paper Main File
+% This file is intended to be compiled from the project root via:
+%   \input{paper/mercon_main}
+%
+% Expected root-level shared files:
+%   IEEEtran.cls
+%   macros.tex
+%   authors.tex
+%   refs.bib
+% =========================================================
+
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+% Shared packages and commands from root folder
+\input{macros}
+
+\begin{document}
+
+\title{A Modular ZK-Rollup Prototype for Benchmarking Layer-2 Scalability Bottlenecks}
+
+% Shared author block from root folder
+\input{authors}
+
+\maketitle
+
+\begin{abstract}
+Ethereum's limited Layer-1 throughput has motivated the adoption of Layer-2 rollups, where ZK-Rollups improve scalability by executing transactions off-chain and submitting validity proofs or proof metadata to Layer-1. However, practical ZK-Rollup performance is shaped by interacting configuration choices, including batch formation, sequencing policy, data availability mode, Layer-1 submission cost, and proof-generation overhead. Existing production rollups are highly optimized for deployment, but their complexity makes controlled and reproducible experimentation difficult.
+
+This paper presents a modular ZK-Rollup benchmarking prototype designed for controlled performance evaluation. The prototype separates sequencing, execution, proof handling, submission, and data availability concerns, enabling experiments over different batching, scheduling, and data-posting configurations. The current evaluation uses controlled synthetic workloads and parameterized proof-delay measurements to compare relative behavior across configurations using metrics such as committed throughput, latency, gas cost per transaction, batch finalization time, data availability footprint, and proof-delay contribution.
+
+The preliminary results show how modular benchmarking can expose throughput--latency--cost trade-offs in the rollup pipeline without claiming production-level performance. The framework provides a reproducible basis for studying ZK-Rollup scalability bottlenecks and supports future extension toward full cryptographic prover benchmarking and trace-driven workloads.
+\end{abstract}
+
+\begin{IEEEkeywords}
+ZK-Rollups, Ethereum, Layer-2 Scaling, Blockchain Scalability, Benchmarking, Sequencer, Data Availability
+\end{IEEEkeywords}
+
+\input{paper/sections/01_introduction}
+\input{paper/sections/02_related_work}
+\input{paper/sections/03_system_architecture}
+\input{paper/sections/04_methodology}
+\input{paper/sections/05_results_discussion}
+\input{paper/sections/06_conclusion}
+
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
+\end{document}
+

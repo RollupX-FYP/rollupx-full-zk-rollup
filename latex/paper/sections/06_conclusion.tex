@@ -1,0 +1,15 @@
+\section{Conclusion and Future Work}
+
+This paper presented a modular ZK-Rollup research prototype for controlled benchmarking of Layer-2 scalability bottlenecks. By separating sequencing, execution, proof handling, submission, and data availability concerns, the framework enables configuration-level experiments over batching, ordering, DA mode, and parameterized proof-delay settings. The preliminary synthetic evaluation demonstrates how these choices shift throughput, latency, data footprint, and cost behavior, while avoiding claims of production mainnet performance.
+
+\subsection{Limitations}
+The dynamic batching model currently depends on estimated or parameterized values for proof delay, blob fee, and user latency preference. Therefore, its selected batch size should be interpreted as a heuristic operating point rather than a globally optimal policy. More accurate calibration requires real prover benchmarks, serialized DA payload measurements, and sensitivity analysis over different \(\gamma\) values.
+
+
+The proposed prototype is a research tool, not a production-ready rollup or a full zkEVM. The current executor supports simplified transfer-style state transitions rather than general smart contract execution. The evaluation relies on synthetic workloads in a local or controlled test environment, and therefore may not capture complex DeFi interactions, adversarial transaction patterns, or mainnet network conditions. In addition, the mock-prover mode simulates computational delay and does not capture the full cryptographic complexity, memory usage, or hardware sensitivity of real proof generation.
+
+\subsection{Future Work}
+Future work will integrate the dynamic batch-size controller directly into the sequencer policy layer and evaluate it against fixed-size, fixed-interval, and soft-cap batching. The evaluation will include sensitivity analysis over the impatience factor \(\gamma\), empirical calibration of \(P(N)\) using real prover measurements, and DA payload measurements for calldata and EIP-4844 blob submission.
+
+
+Future work will focus on integrating and benchmarking full cryptographic prover execution to measure actual proving latency and hardware overhead. The framework will also be extended with trace-driven workloads, a complete trustless deposit and withdrawal path, decentralized sequencing experiments, and real off-chain DA backends such as Celestia or Avail. Finally, releasing the benchmark harness, configurations, and datasets as a public reproducibility package would support broader comparison of ZK-Rollup design choices.

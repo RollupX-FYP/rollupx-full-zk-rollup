@@ -1,0 +1,106 @@
+
+This research proposal adopts a systematic review approach to comprehensively investigate the current state-of-the-art in blockchain scalability. This methodology is chosen due to its rigorous and transparent nature, enabling a thorough and unbiased synthesis of existing research, identifying trends, solutions, performance metrics, and prevailing challenges. This systematic process ensures that all relevant aspects of blockchain scalability, including write-performance, read-performance, storage solutions, and performance analysis, are covered, addressing the limitations of prior reviews which often focus on narrow aspects.
+
+\subsection{Research Design}
+The research design is structured around a multi-stage systematic review process, as illustrated in the provided source (similar to Fig.~4 in Sanka \& Cheung). This process typically involves:
+\begin{enumerate}
+    \item Defining research questions,
+    \item Identifying relevant studies,
+    \item Selecting papers based on defined criteria,
+    \item Extracting and synthesising data, and
+    \item Reporting the findings.
+\end{enumerate}
+
+The primary objective is to build a thorough knowledge base in blockchain technology, specifically concerning solutions to scalability issues. By exploring the implementation and techniques of various state-of-the-art scalability solutions, this study aims to:
+\begin{itemize}
+    \item Provide a deeper understanding of these solutions,
+    \item Construct a performance metric of listed scalability solutions,
+    \item Evaluate the limitations encountered with the integration of these solutions.
+\end{itemize}
+
+\subsection{Data Collection Strategy}
+The data collection strategy is designed to ensure comprehensive coverage of relevant literature from both academic and grey areas, following a robust, multi-phase approach.
+
+\subsubsection{Database Selection}
+To maximise the breadth of coverage, the search will be conducted across a selection of major, reputable science-related databases. These include:
+\begin{itemize}
+    \item IEEE Xplore
+    \item ACM Digital Library
+    \item ScienceDirect
+    \item Springer Link
+    \item Wiley Online Library
+    \item Web of Science
+    \item Google Scholar (particularly useful for capturing grey literature such as white papers and reports)
+    \item Scopus
+\end{itemize}
+
+\subsubsection{Timeframe and Publication Types}
+\begin{itemize}
+    \item \textbf{Timeframe:} The search will cover publications released within the range of 2012--202X. This period captures the emergence of significant blockchain research and development beyond Bitcoin's initial phase.
+    \item \textbf{Publication Types:} Conferences, Journals, White papers, Archives, Reports, Symposiums, Workshops, and Patents.
+    \item \textbf{Language:} Only papers written in English will be included.
+\end{itemize}
+
+\subsubsection{Phase 2: Secondary Phase (Manual/Supplementary Search)}
+Recognising that automated searches may miss some relevant papers, a manual, supplementary search will be conducted. This involves checking the references and citations of all papers selected in the primary phase. Additional relevant papers will then be added to the primary set.
+
+\textbf{Inclusion Criteria:} Papers directly addressing blockchain scalability issues, proposing solutions, conducting performance analyses, or reviewing scalability aspects. Focus on public blockchain platforms. \\
+\textbf{Exclusion Criteria:} Papers not directly related to blockchain scalability, short abstracts or posters without substantial content, duplicate entries, or non-English publications.
+
+\subsection{Data Analysis and Synthesis}
+The selected papers will undergo a systematic data extraction and synthesis process to address the research questions and achieve the objectives.
+
+\subsubsection{Classification Framework}
+All selected papers will be classified using a multi-tiered framework derived from the proposed five-layer conceptual model for the blockchain ecosystem:
+\begin{itemize}
+    \item \textbf{Main Categories:}
+    \begin{itemize}
+        \item Scalability Solution Proposals
+        \item Performance-Analysis Studies
+        \item Review/Survey Papers
+    \end{itemize}
+    \item \textbf{Sub-Classification of Scalability Solutions:}
+    \begin{itemize}
+        \item Write-Performance Solutions: On-Chain (reducing block data, increasing block size, sharding, DAG, parallel executions) and Off-Chain (payment channels, sidechains, cross-chains, off-chain computations).
+        \item Consensus Layer Solutions: probabilistic, non-probabilistic, hybrid.
+        \item Network Layer Solutions: network structure improvements, data compression, other optimisations.
+        \item Platform Layer Solutions: platform-specific (e.g., Hyperledger Fabric, Ethereum 2.0).
+        \item Read-Performance Solutions.
+        \item Storage Solutions.
+    \end{itemize}
+    \item \textbf{Sub-Classification of Performance Analysis Studies:}
+    \begin{itemize}
+        \item Modelling Analysis Studies,
+        \item Benchmarking Studies,
+        \item Performance Evaluation Studies.
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Performance Metric Construction and Comparative Analysis}
+For each identified scalability solution, relevant performance data will be extracted and compiled to construct a comprehensive performance metric. Key performance indicators (KPIs)\cite{your-kpi-source} to be analysed include:
+\begin{itemize}
+    \item Transaction Throughput (TPS),
+    \item Transaction Latency (confirmation time),
+    \item Data Read Throughput/Latency,
+    \item Data Storage Volume,
+    \item Security and Decentralisation implications,
+    \item Energy Consumption.
+\end{itemize}
+
+A comparative analysis will then be performed, highlighting strengths, weaknesses, and trade-offs (e.g., improved throughput at the cost of decentralisation).
+
+\subsubsection{Qualitative Analysis and Identification of Research Gaps}
+Beyond quantitative metrics, a qualitative assessment will be conducted focusing on:
+\begin{itemize}
+    \item Underlying mechanisms and technological approaches,
+    \item Applicability to public, private, and consortium blockchains,
+    \item Practical challenges during implementation,
+    \item Extent to which solutions address the blockchain quadrilemma.
+\end{itemize}
+
+Finally, critical research gaps and future opportunities will be identified, including the need for:
+\begin{itemize}
+    \item More robust benchmarking tools,
+    \item Innovative hybrid scalability solutions,
+    \item Greater exploration of under-researched areas (e.g., read-performance, holistic storage solutions).
+\end{itemize}

@@ -1,0 +1,339 @@
+% Gemini theme
+% See: https://rev.cs.uchicago.edu/k4rtik/gemini-uccs
+% A fork of https://github.com/anishathalye/gemini
+% Adapted by Nisansa de Silva 27/03/2025
+
+\documentclass[final,dvipsnames]{beamer}
+
+% ====================
+% Packages
+% ====================
+%  width=233.68,height=116.84,
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[size=custom,width=65,height=130,orientation=portrait,scale=1.0]{beamerposter}
+\usetheme{gemini}
+\usecolortheme{uom}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hhline}
+\usepackage{tikz}
+% \usepackage{pgfplots}
+% \pgfplotsset{compat=1.17}
+\usepackage[numbers,square,sort&compress]{natbib}
+\renewcommand\bibfont{\scriptsize}
+\usepackage{makecell}
+\usepackage{multicol}
+\usepackage{amsmath}
+\usepackage{soul}
+\usepackage[group-separator={,}]{siunitx}
+\usepackage{multirow,tabularx}
+    \newcolumntype{L}{>{\raggedright\arraybackslash}X}
+    \newcolumntype{V}{>{\raggedleft\arraybackslash}m{3.5cm}}
+%    \newcolumntype{Z}{>{\centering\arraybackslash}X}
+    \newcolumntype{Y}{>{\centering\arraybackslash}X}
+    \newcolumntype{Z}{>{\raggedleft\arraybackslash}X}
+
+\usepackage{listings}
+\usepackage{framed}
+\usepackage{colortbl}
+\usepackage{tcolorbox}
+\usepackage{algorithm2e}
+\usepackage{subcaption}
+\lstset{
+%basicstyle=\tiny,
+firstnumber=1,
+frame = single,
+float,
+breaklines=true,
+basicstyle=\ttfamily
+}
+\renewcommand{\lstlistingname}{Code}
+\usepackage{cuted}
+%\usepackage{enumitem}
+%\usepackage[dvipsnames]{xcolor}
+
+%\usepackage[backend=biber,style=numeric]{biblatex}
+%\addbibresource{opEm.bib}
+%\addbibresource{sample-base.bib}
+
+\usepackage[dvipsnames]{xcolor}
+\usepackage{pifont}
+\newcommand{\tick}{\textcolor{Green}{\ding{51}}}
+\newcommand{\cross}{\textcolor{Red}{\ding{55}}}
+\newcommand{\cTwo}{Lavender}
+\newcommand{\cThree}{SkyBlue}
+\newcommand{\Goal}{\textcolor{YellowOrange}{[Goal]}}
+\newcommand{\Sol}[1]{\textcolor{RoyalBlue}{[Sol#1]}}
+
+\usepackage{amsmath}
+\usepackage[utf8]{inputenc}
+\usepackage{pgfplots}
+%\usepackage{subfigure}
+%\usepackage[nomessages]{fp} %Math
+\pgfplotsset{compat=1.14}
+\usepackage{filecontents}
+
+\usepackage{lipsum}  %Generate Lorem Ipsum
+%\input{header}
+
+\lstdefinelanguage{json}{
+    basicstyle=\footnotesize\ttfamily,
+    commentstyle=\color{gray},
+    stringstyle=\color{orange},
+    morestring=[b]",
+    morecomment=[l]{//},
+    morecomment=[s]{/*}{*/},
+    moredelim=[is][\color{blue}]{\#}{\#}
+}
+
+
+% ====================
+% Lengths
+% ====================
+
+% If you have N columns, choose \sepwidth and \colwidth such that
+% (N+1)*\sepwidth + N*\colwidth = \paperwidth
+\newlength{\sepwidth}
+\newlength{\colwidth}
+\setlength{\sepwidth}{0.025\paperwidth}
+\setlength{\colwidth}{0.46\paperwidth}
+
+\newcommand{\separatorcolumn}{\begin{column}{\sepwidth}\end{column}}
+\newcommand{\Gray}{\cellcolor[gray]{0.8}}
+\newcommand{\Number}[1]{{\small #1}}
+\newcommand*{\affmark}[1][*]{\textsuperscript{#1}}
+
+
+\usebackgroundtemplate%
+{%
+    \includegraphics[width=\paperwidth,height=\paperheight]{poster/images/Poster_Template.pdf}%
+}
+
+
+% ====================
+% Title
+% ====================
+
+\title{Enter Your Final Year Project Title Here}
+
+
+
+\author{Student One\affmark[1], Student Two, Student Three, Student Four}
+
+\institute[shortinst]{Department of Computer Science \& Engineering, University of Moratuwa, Sri Lanka}
+
+% ====================
+% Footer (optional)
+% ====================
+
+\footercontent{
+ % \href{https://nsfcbl.cs.uoregon.edu/}{https://nsfcbl.cs.uoregon.edu/} 
+ \hfill
+Supervised by: Internal Supervisor, External Supervisor \hfill
+ % \href{mailto:nisansa@cs.uoregon.edu}{\{nisansa,dou\}@cs.uoregon.edu}
+ }
+% (can be left out to remove footer)
+
+% ====================
+% Logo (optional)
+% ====================
+
+% use this to include logos on the left and/or right side of the header:
+% \logoright{\includegraphics[height=7cm]{logo1.pdf}}
+% \logoleft{\includegraphics[height=7cm]{logo2.pdf}}
+
+% ====================
+% Body
+% ====================
+
+
+
+% Keep these %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand{\Pair}[2]{(#1,#2)}
+
+\newcommand{\dnd}{D\&D}
+\newcommand{\keyvalue}{key-value}
+
+\newcommand{\articles}{over 44,000 articles}
+\newcommand{\articleDate}{June 2022}
+
+\newcommand{\subTopic}[2]{ \begin{center}{\normalsize \textbf{#1}}\end{center}\vspace{#2}}
+
+
+\begin{document}
+\addtobeamertemplate{headline}{}
+{
+%    \begin{tikzpicture}[remember picture,overlay]
+%      \node [anchor=north west, inner sep=3cm] at ([xshift=0.0cm,yshift=1.0cm]current page.north west)
+%      {\includegraphics[height=5.0cm]{logos/uc-logo-white.eps}}; % also try shield-white.eps
+%      \node [anchor=north east, inner sep=3cm] at ([xshift=0.0cm,yshift=2.5cm]current page.north east)
+%      {\includegraphics[height=8.0cm]{logos/cs-logo-white.png}};
+ %   \end{tikzpicture}
+}
+
+\begin{frame}[t]
+
+%\includegraphics[width=\textwidth]{poster/images/Poster_Template.pdf}
+
+%\begin{tikzpicture}[remember picture,overlay,anchor=south west]
+%\node at (-0.1,3.0) {\includegraphics[width=0.05\textwidth]{logos/cse_logo.png}};
+%\node at (77,3.0) {\includegraphics[width=0.05\textwidth]{logos/University_of_Moratuwa_logo.png}};
+%\end{tikzpicture}
+\large
+\begin{columns}[t]
+\separatorcolumn
+
+\begin{column}{\colwidth}
+
+\begin{alertblock}{Abstract}
+\large{\justifying{\lipsum[1]}}
+\end{alertblock}
+
+\begin{block}{Project Objectives}
+\large
+\begin{itemize}
+\justifying
+  \item \textbf{Specificum:} De exitibus optatis specificus esto
+  \item\textbf{Mensurabilis:} Ut proposita tua mensurabilia sint, ad ea assequenda essentiale est.
+  \item \textbf{Assequibile:} Fac ut proposita crees quae realiter assequi possis, ne te obruantur expectationibus irrealibus.  
+  \item \textbf{Pertinens:} Proposita tua ad investigationem tuam et ad metam tuam generalem pertinere fac.
+  \item \textbf{Temporis fundatum:} Termina temporis constituere potes ut processum investigationis tuae in cursu maneas.
+\end{itemize}
+\end{block}
+
+\begin{block}{Related work}
+\large
+Hoc opus valde pertinet~\cite{de2025survey}.  Hoc autem demonstravit mala esse aurantia~\cite{aravinda2025sinllama}. Tandem, methodum ab~\citet{wickramasinghe2023sinhala} descriptam sequi constituimus. Cur discipuli non plus attentionis ad inquisitionem litterarum dant? Nihil prodest conari rotam denuo invenire. Tempus eorum sicut nostrum terentes.
+
+Sed commodo posuere pede. Mauris ut est. Ut quis purus. Sed acodio. Sed vehicula hendrerit sem. Duis non odio. Morbi ut dui. Sed accumsan risus eget odio. In hac habitasse platea dictumst. Pellentesque non elit. 
+\end{block}
+
+\begin{block}{Methodology}
+\lipsum[2] Details shown in Figure~\ref{fig:examples}.
+
+\begin{figure}[!htb]	
+	\centering 
+\includegraphics[width=0.875\textwidth] 
+{poster/images/transfor}
+\caption{Imago omnino pertinens quam addidimus~\cite{de2025survey}
+}
+\label{fig:examples}
+\end{figure}
+
+\lipsum[3]
+
+Hae columnae aequilibratae esse debent. Intellegisne? Sed noli eam muris textus implere.
+
+\end{block}
+
+
+
+\end{column}
+
+\Large
+
+\separatorcolumn
+
+\begin{column}{\colwidth}
+
+\begin{block}{Experiments}
+\large
+
+\begin{table}[!htbp]\centering
+\begin{center}
+\resizebox{0.58\textwidth}{!}{
+\begin{tabularx}{0.7\textwidth}{|l|Z|Z|Z|Z|}
+
+ \hline \multirow{2}{*}{ \textbf{Domain}} 
+ & \multicolumn{2}{c|}{\makecell[c]{\textbf{Important}\\\textbf{Experiment 1}}} & \multicolumn{2}{c|}{\makecell[c]{\textbf{Important}\\\textbf{Experiment 2}}} \\
+ \hhline{~----}
+& \texttt{Model 1} & \texttt{Model 2} & \texttt{Model 1} & \texttt{Model 2}\\
+
+ \hline
+Data Set 1 & 50.00 & 100.00 & 0.00 & 50.00 \\
+% \hline
+Data Set 2 & 50.00 & 100.00 & 50.00 & 0.00 \\
+% \hline
+Data Set 3 & 75.00 & 0.00 & 100.00 & 0.00 \\
+% \hline
+Data Set 4 & 36.36 & 81.82 & 25.00 & 25.00 \\
+ %\hline
+Data Set 5 & 50.00 & 50.00 & 25.00 & 75.00 \\
+% \hline
+Data Set 7 & 66.67 & 100.00 & 0.00 & 50.00 \\
+ %\hline
+Data Set 8 & 55.56 & 66.67 & 40.00 & 70.00 \\
+% \hline
+Data Set 9 & 57.14 & 71.43 & 50.00 & 66.67 \\
+ \hline
+\end{tabularx}
+}
+\end{center}
+\caption{Magna Nostra Experimenta}\label{tab:stats_domains}
+\end{table}
+
+\begin{figure}[!hbt]	
+	\centering 
+\includegraphics[width=0.475\textwidth] 
+{poster/images/cats}
+\includegraphics[width=0.475\textwidth] 
+{poster/images/size}
+\caption{Graphica Habemus \textbf{Left:} Hoc graphum a sinistra est \textbf{Right:} Hoc graphum ad dextram est}
+\label{fig:cats}
+\end{figure}
+
+\end{block}
+
+\begin{block}{Results}
+\large
+
+\begin{figure}[!hbt]	
+	\centering 
+\includegraphics[width=0.65\textwidth] 
+{poster/images/dist}
+\caption{Resultata Praeclara Praeclara Sunt}
+\label{fig:dist}
+\end{figure}
+
+\lipsum[6]
+
+Tempora optima, pessima, aetas sapientiae, aetas stultitiae, aetas fidei, aetas incredulitatis, tempus Lucis, tempus Tenebrarum, ver spei, hiems desperationis, omnia ante nos habebamus, nihil ante nos habebamus, omnes directe in Caelum ibamus, omnes directe in alteram partem ibamus. Ita, verba significationes habent.
+
+\lipsum[7]
+
+\end{block}
+
+%Conclusion
+\begin{block}{Conclusions}
+\large
+\begin{itemize}
+\justifying
+  \item Invenimus feles esse optima animalia domestica.
+  \item Paene totum diem hoc exemplar faciendo impendi.
+  \item Non satis pro hoc stipendium accipio.
+\end{itemize}
+\end{block}
+
+\begin{block}{References}
+{\fontsize{1}{1} \selectfont 
+\bibliographystyle{IEEEtranN}
+\bibliography{custom}
+}
+\end{block}
+{\small\usebeamercolor[fg]{headline}\hfill\affmark[1]correspondingAuthor@cse.mrt.ac.lk
+}
+\end{column}
+
+\separatorcolumn
+\end{columns}
+
+
+
+\end{frame}
+
+
+
+\end{document}
+
+

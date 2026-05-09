@@ -1,0 +1,25 @@
+\headerbox{5. Experimental Results}{name=progress,column=1,below=conclusion,span=2,boxColorOne=LightBlueTint}{
+
+\begin{itemize}[leftmargin=1pt]
+    \item \textbf{Proving System:} Uses a parameterized mock-prover and RISC Zero backend to isolate sequencer and DA layer bottlenecks without full cryptographic overhead.
+    \item \textbf{Data Availability:} Benchmarks Calldata against EIP-4844 Blob configurations.
+    \item \textbf{Testing:} Evaluated using synthetic Poisson workloads modeling transfer-centric environments.
+\end{itemize}
+
+\vspace{1em}
+\begin{center}
+\resizebox{0.9\textwidth}{!}{
+\begin{tabular}{@{}lcccccc@{}}
+\toprule
+\textbf{Config} & \textbf{Comm. TPS} & \textbf{Avg. Lat.} & \textbf{P95 Lat.} & \textbf{Cost/Tx} & \textbf{Mock Delay} & \textbf{DA Bytes} \\ \midrule
+C1 (Calldata) & 357.1 & 2.1s & 4.5s & 1.2M & 0.5s & 120KB \\
+C3 (Calldata) & 280.4 & 3.5s & 7.2s & 1.1M & 0.8s & 95KB \\
+C4 (Blob) & 290.8 & 3.2s & 6.8s & 0.4M & 0.8s & 98KB \\
+C5 (Blob) & 250.2 & 4.1s & 8.5s & 0.3M & 1.2s & 85KB \\ \bottomrule
+\end{tabular}
+}
+\captionof{table}{Preliminary synthetic benchmark outputs with parameterized proof delay}
+\end{center}
+
+}
+

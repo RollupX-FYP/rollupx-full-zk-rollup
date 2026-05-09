@@ -1,0 +1,13 @@
+\chapter{Experimental Results}
+\label{ch:results}
+
+\section{Throughput and Latency}
+The preliminary experimental results indicate the classic batching dilemma: larger batch sizes significantly increase overall committed throughput by aggressively amortizing the static L1 submission costs. However, this is achieved at the direct expense of higher individual transaction latency, primarily due to increased queueing time as early transactions wait for the batch to fill. 
+
+\section{Data Availability Mode Comparison}
+Experiments comparing standard \texttt{calldata} versus blob (EIP-4844) Data Availability modes demonstrate a substantial reduction in L1 gas costs when utilizing blobs. This shifts the throughput--latency--cost trade-off favorably, lowering the economic floor for rollup viability.
+
+\section{Proof Delay Impact}
+By sweeping the mock proof delay parameter within the Executor stage, we observed clear bottleneck shifts. When the proof time is artificially increased, the Sequencer's internal mempool queue grows rapidly, causing the system to transition from an L1-submission-bound state to a compute-bound state. 
+
+\textit{Note: The current prototype records detailed granular metrics through the telemetry pipeline, but the available repository snapshot focuses on the structural benchmarking framework rather than containing final, massive, long-running production datasets.}

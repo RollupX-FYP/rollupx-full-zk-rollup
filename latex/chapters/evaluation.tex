@@ -1,0 +1,41 @@
+
+The evaluation section critically assesses the performance and characteristics of the identified blockchain scalability solutions, drawing upon the compiled performance metrics and qualitative analyses from the literature review. The primary goal is to determine the effectiveness of these solutions in addressing the multifaceted challenges of blockchain scalability, while simultaneously considering their impact on the fundamental properties of security, decentralisation, and trust as defined by the blockchain quadrilemma~\cite{sanka2021systematic}.
+
+\subsection{Framework for Evaluation}
+The evaluation is systematically conducted against the core scalability issues previously identified: low throughput, high transaction latency, massive energy consumption, and substantial data storage requirements. Each solution is scrutinised based on its ability to enhance these performance metrics. Furthermore, the evaluation explicitly considers the trade-offs inherent in the blockchain quadrilemma~\cite{sanka2021systematic}:
+
+\begin{itemize}
+    \item \textbf{Scalability:} How much does the solution improve transaction throughput, reduce latency, and manage storage?
+    \item \textbf{Security:} Does the solution maintain or compromise the network's resilience against attacks (e.g., 51\% attacks, double-spending, DoS)?
+    \item \textbf{Decentralisation:} Does the solution preserve or diminish the distributed nature of the network, preventing central points of control?
+    \item \textbf{Trust:} Does the solution introduce reliance on trusted third parties or maintain a trustless environment?
+\end{itemize}
+
+\subsection{Key Performance Indicators (KPIs) and Empirical Data}
+The evaluation relies on empirical data reported in the reviewed literature, focusing on the following KPIs~\cite{sustainabilityKPIs,wood2014ethereum}:
+
+\begin{itemize}
+    \item \textbf{Transaction Throughput (TPS):} A crucial measure of blockchain processing power. Solutions are evaluated on their reported TPS, comparing them against the baseline of Bitcoin (3–4 TPS) and Ethereum (15 TPS), and targeting performance closer to traditional systems like Visa (1667 TPS) or PayPal (193 TPS). For example, Monoxide achieves 11,694 TPS, while Conflux reaches 6,400 TPS, representing significant advancements for sharding and DAG-based solutions. The Lightning Network’s claim of 40 million TPS for payment channels will also be critically assessed.
+    \item \textbf{Transaction Latency (Confirmation Time):} Measures the speed of finality. Solutions are evaluated on their ability to reduce the time from transaction submission to irreversible inclusion in the blockchain. RapidChain’s 8.7-second confirmation time is a notable improvement over Bitcoin’s approximate one hour. Both average first-block waiting time and fixed finality will be considered.
+    \item \textbf{Data Read Throughput/Latency:} Although less researched, the performance of solutions in responding to data queries is assessed. The goal is to reduce latency in accessing historical blockchain data, particularly for lightweight nodes.
+    \item \textbf{Storage Size (Data Volume):} Solutions are evaluated on their ability to mitigate blockchain storage growth (e.g., Bitcoin $>$280 GB, Ethereum $>$562 GB). Techniques such as pruning, compression, and off-chain storage are considered for reducing node storage burdens.
+    \item \textbf{Energy Consumption:} For PoW-based systems, solutions that enhance efficiency or adopt less energy-intensive consensus mechanisms (e.g., PoS, DPoS, DAGs) are evaluated for their role in reducing energy use.
+    \item \textbf{Network Resource Utilisation:} Solutions that minimise bandwidth requirements (e.g., compact block relay, Txilm) are evaluated for their efficiency in network resource usage.
+\end{itemize}
+
+\subsection{Comparative Analysis of Solution Categories}
+A comparative analysis is conducted across solution categories, highlighting their strengths and weaknesses in detail. The results are summarised in Table~\ref{tab:scalability_solutions}, which provides a comparative assessment of blockchain write-performance scalability solutions.
+
+\input{tables/Comparative_Assessment_of_Blockchain_Write-Performance_Scalability_Solutions}
+
+\subsection{Benchmarking Tools and Performance Analysis Studies}
+The reliability of these evaluations depends heavily on robust benchmarking.
+
+\textbf{Benchmarking Tools:} Tools such as BlockBench~\cite{dinh2017blockbench} (for private blockchains), Hyperledger Caliper~\cite{hyperledger2020caliper} (supports multiple platforms including Hyperledger and Ethereum), and Prism (for resource utilisation) are essential for empirical performance analyses. These tools measure TPS, latency, success rates, and resource utilisation, providing quantifiable data for comparison.
+
+\textbf{Performance Analysis Studies:} Numerous studies have evaluated consensus protocols (e.g., PBFT, PoW, PoS, DAG) and platforms (e.g., Hyperledger Fabric, Bitcoin, Ethereum, Libra). These studies vary parameters such as block size, network size, and workload to reveal performance bottlenecks and optimisation opportunities. Comparative analyses between blockchain and traditional databases (e.g., Ethereum vs. MySQL, Hyperledger Fabric vs. Cassandra) also highlight the performance gap.
+
+\bigskip
+The evaluation demonstrates that while individual solutions offer significant improvements in specific scalability dimensions, none universally solve the problem without introducing trade-offs, especially within the blockchain quadrilemma framework. Achieving an optimal blockchain system requires a careful balance and, increasingly, hybrid approaches that integrate multiple solutions to meet the desired levels of scalability, security, decentralisation, and trust.
+
+

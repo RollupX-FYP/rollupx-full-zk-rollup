@@ -1,0 +1,76 @@
+\documentclass[portrait,paperwidth=65cm,paperheight=130cm,fontscale=0.35,dvipsnames]{poster/baposter}
+% ====================
+% Packages
+% ====================
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{booktabs}
+\usepackage{hhline}
+\usepackage{tikz}
+\usepackage[numbers,square,sort&compress]{natbib}
+\usepackage{makecell}
+\usepackage{multicol}
+\usepackage{amsmath}
+\usepackage{soul}
+\usepackage[group-separator={,}]{siunitx}
+\usepackage{multirow,tabularx}
+\usepackage{listings}
+\usepackage{framed}
+\usepackage{colortbl}
+\usepackage{tcolorbox}
+\usepackage{algorithm2e}
+\usepackage{subcaption}
+\usepackage{cuted}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{pifont}
+\usepackage[utf8]{inputenc}
+\usepackage{pgfplots}
+\usepackage{filecontents}
+\usepackage{lipsum}
+\usepackage{enumitem}
+\usepackage{tikz}
+\usetikzlibrary{fit,positioning,arrows.meta,shapes.geometric}
+
+% ---------- Components ----------
+\input{poster/components/styles}    % colours, fonts, custom commands
+\input{poster/components/header}    % background image + logo commands
+\input{poster/components/header2}   % title + authors commands
+\input{poster/components/footer}    % footer overlay command
+% --------------------------------
+
+\begin{document}
+\begin{poster}
+{
+  background=none,
+  headerheight=0.13\textheight,
+  bgColorOne=white,
+  bgColorTwo=white,
+  boxColorOne=white,
+  borderColor=DeepSeaBlue,
+  headerColorOne=DeepSeaBlue,
+  headerColorTwo=DeepSeaBlue,
+  headerFontColor=white,
+  textborder=rounded,
+  headershape=rounded,
+  boxshade=none,
+  headerborder=closed,
+  cornerradius=12pt,
+  boxpadding=10mm,
+  linewidth=1.5pt,
+  colspacing=1.5em,
+  columns=3
+}
+{\posterLogoLeft}
+{\posterHeader \posterFooter \posterTitle}
+{\posterAuthors}
+{\posterLogoRight}
+
+% ---------- Body ----------
+\input{poster/components/body}
+% --------------------------
+
+\end{poster}
+\end{document}
+

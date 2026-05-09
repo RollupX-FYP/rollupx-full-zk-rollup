@@ -1,0 +1,54 @@
+% ---- Preamble (once) ----
+% \usepackage{booktabs,tabularx,xcolor,pifont}
+% \newcommand{\yes}{\textcolor{green!60!black}{\ding{51}}}   % ✓
+% \newcommand{\no}{\textcolor{red!70!black}{\ding{55}}}      % ✗
+% \newcommand{\partial}{\textcolor{gray!70!black}{$\circ$}}  % ○
+
+\begin{table}[ht]
+\centering
+\setlength{\tabcolsep}{7pt}          % column padding
+\renewcommand{\arraystretch}{1.25}    % row height
+\caption{Configurability \& Data-Availability Policy Matrix — zkSync Era vs Polygon zkEVM vs Our Modular PoC}
+\label{tab:config-matrix}
+% \rowcolors{3}{gray!4}{white}          % zebra striping (starts after header)
+\begin{tabularx}{\linewidth}{@{}l
+  >{\raggedright\arraybackslash}X
+  >{\raggedright\arraybackslash}X
+  >{\raggedright\arraybackslash}X@{}}
+\toprule
+% \rowcolor{white}
+\textbf{Parameter} & \textbf{zkSync Era} & \textbf{Polygon zkEVM} & \textbf{Our Modular PoC} \\
+\midrule
+Batch size
+  & \partial\; Partial — sequencer-set
+  & \partial\; Partial — sequencer-set
+  & \yes\; Config flag \\
+Sequencing policy
+  & \no\; Operator-controlled; no priority fees
+  & \no\; Trusted sequencer; \texttt{sequenceBatches()}
+  & \yes\; FIFO / fee-priority / custom \\
+Commitment policy
+  & \no\; Protocol rules
+  & \no\; Protocol rules
+  & \yes\; Tunable interval / thresholds \\
+Prover configuration
+  & \no\; Internal state-diff / compression
+  & \no\; Fixed protocol stack
+  & \yes\; Pluggable; parallelism knobs \\
+State update policy
+  & \no\; Internal state-diff / compression
+  & \no\; Protocol-defined
+  & \yes\; Tree / commit granularity \\
+DA config / policy
+  & \no\; On-chain DA; calldata \& EIP-4844 blobs
+  & \no\; On-chain DA; EIP-4844 enabled
+  & \yes\; Switchable: on-chain \& off-chain  compression toggles \\
+\bottomrule
+\end{tabularx}
+
+\vspace{3pt}
+\scriptsize \emph{Legend:} \yes\;=\;user-configurable,\quad
+\partial\;=\;partial/limited by sequencer,\quad
+\no\;=\;protocol-/operator-controlled.
+\end{table}
+

@@ -1,0 +1,226 @@
+
+\documentclass[11pt]{article}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{caption}
+
+\geometry{margin=1in}
+
+\title{\textbf{Experiment Proposal: Optimal Batching Policies for ZK-Rollups Under Heterogeneous Transaction Loads}}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Problem Statement}
+
+ZK-rollups amortize proof generation and L1 data availability costs by batching transactions. In practice, rollup workloads are highly heterogeneous: transactions differ substantially in proving complexity, execution cost, and data footprint. Current sequencer batching strategies (e.g., fixed-size or fixed-interval batching) are largely heuristic-driven and do not explicitly optimize for this heterogeneity.
+
+\textbf{Core question:}
+\begin{quote}
+How should a centralized ZK-rollup sequencer batch heterogeneous transactions to minimize total proving and posting cost while satisfying latency constraints?
+\end{quote}
+
+This experiment provides a systematic, simulation-based evaluation of batching policies under realistic heterogeneous workloads, with the goal of producing actionable guidance for rollup designers and operators.
+
+\section{Scope and Assumptions}
+
+To ensure feasibility and clarity, the experiment is explicitly bounded:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item Centralized sequencer with parallel provers (industry-standard model).
+    \item Single rollup instance; no cross-rollup interactions.
+    \item Trace-driven simulation (no live deployment).
+    \item Evaluation of a small, controlled batching policy space.
+\end{itemize}
+
+\textbf{Out of scope:}
+\begin{itemize}[leftmargin=1.5em]
+    \item Decentralized sequencing
+    \item MEV extraction strategies
+    \item Cryptographic proof construction details
+\end{itemize}
+
+\section{Fee and Cost Model}
+
+Rollup transaction fees reflect resource usage across both Layer 2 (off-chain execution and proving) and Layer 1 (data availability and verification).
+
+\subsection{Total Transaction Fee}
+
+\begin{equation}
+Tx_{fee} = L2_{fee} + L1_{fee}
+\end{equation}
+
+\subsection{Layer 2 Fee Component}
+
+\begin{equation}
+L2_{fee} = (\rho_{l2} + \delta) \times g
+\end{equation}
+
+\begin{itemize}[leftmargin=1.5em]
+    \item $\rho_{l2}$: L2 base fee (EIP-1559-style).
+    \item $\delta$: Priority tip to the sequencer.
+    \item $g$: L2 gas used for execution and amortized proving cost.
+\end{itemize}
+
+\subsection{Layer 1 Fee Component}
+
+\begin{equation}
+L1_{fee} = (\rho_{blob} \cdot Scalar_{blob} \cdot b_{tx}) + C_{tx} + S_{tx}
+\end{equation}
+
+\begin{itemize}[leftmargin=1.5em]
+    \item $\rho_{blob}$: Blob base fee (or calldata equivalent).
+    \item $b_{tx}$: Bytes contributed by the transaction.
+    \item $C_{tx}$: L1 gas for batch commitment.
+    \item $S_{tx}$: L1 gas for ZK proof verification.
+\end{itemize}
+
+The simulator focuses on \emph{relative cost comparisons} across batching policies rather than precise fee prediction.
+
+\section{Transaction Cost Profiles}
+
+Transactions are categorized into three abstract but realistic classes:
+
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Type A (Light)}: Simple transfers
+    \begin{itemize}
+        \item Low proving cost
+        \item Low DA footprint
+    \end{itemize}
+
+    \item \textbf{Type B (Medium)}: ERC-20 transfers or swaps
+    \begin{itemize}
+        \item Moderate proving cost
+        \item Moderate DA footprint
+    \end{itemize}
+
+    \item \textbf{Type C (Heavy)}: Complex smart contract calls
+    \begin{itemize}
+        \item High proving cost
+        \item Relatively small DA footprint
+    \end{itemize}
+\end{itemize}
+
+Cost parameters are derived from public rollup documentation, benchmarks, and academic literature, with sensitivity analysis applied to test robustness.
+
+\section{Batching Policy Space}
+
+\subsection{Baseline (Agnostic) Policies}
+
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Fixed-Size ($N$)}: Batch closes after $N$ transactions.
+    \item \textbf{Fixed-Interval ($T$)}: Batch closes every $T$ seconds.
+\end{itemize}
+
+These policies ignore transaction heterogeneity and serve as control baselines.
+
+\subsection{Soft-Cap (Reactive) Policies}
+
+Used in production rollups (e.g., zkSync Era):
+https://github.com/matter-labs/zksync-era/blob/main/core/node/state_keeper/src/seal_criteria/conditional_sealer.rs
+
+\begin{quote}
+Close the batch when the first resource limit is reached.
+\end{quote}
+
+\begin{itemize}[leftmargin=1.5em]
+    \item Prover cycle budget
+    \item L2 gas limit
+    \item DA size limit
+    \item Maximum latency timeout
+\end{itemize}
+
+\subsection{Transaction-Aware (Proactive) Policies}
+
+\begin{itemize}[leftmargin=1.5em]
+    \item \textbf{Isolation / Side Queues}: Heavy transactions scheduled only when prover slack exists.
+    \item \textbf{Greedy Bin Packing}: Batch construction as a 2D packing problem
+    \begin{itemize}
+        \item Dimension 1: Proving cost
+        \item Dimension 2: DA size
+    \end{itemize}
+    \item \textbf{Bounded Mixing}: Upper bounds on heavy transaction ratios per batch.
+\end{itemize}
+
+\section{Experimental Design}
+
+\subsection{Workload Regimes}
+
+\begin{itemize}[leftmargin=1.5em]
+    \item Balanced steady-state workload
+    \item Increasing skew toward heavy transactions
+    \item Bursty arrivals under strict latency SLAs
+\end{itemize}
+
+\subsection{Experiment Phases}
+
+\textbf{Phase 1: Baseline Benchmarking}
+\begin{itemize}
+    \item Steady workload
+    \item Fixed-size and fixed-interval batching
+\end{itemize}
+
+\textbf{Phase 2: Heterogeneity Sensitivity}
+\begin{itemize}
+    \item Gradual increase in Type C fraction
+    \item Constant arrival rate
+\end{itemize}
+
+\textbf{Phase 3: Latency-Constrained Evaluation}
+\begin{itemize}
+    \item SLA: max waiting time = 30s
+    \item Compare soft-cap vs. transaction-aware policies
+\end{itemize}
+
+\section{Prover Performance Model}
+
+\begin{itemize}[leftmargin=1.5em]
+    \item Proving time modeled using abstract cycle counts.
+    \item Batch proving latency determined by the slowest sub-proof plus recursion overhead.
+    \item Parallel provers with finite capacity and queueing effects.
+\end{itemize}
+
+\section{Evaluation Metrics}
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+\textbf{Metric} & \textbf{Purpose} \\
+\midrule
+Average / P99 latency & User experience and SLA compliance \\
+Throughput (tx/s) & System efficiency \\
+Cost per transaction & Economic efficiency \\
+Prover utilization & Resource efficiency \\
+Expired transactions & SLA violations \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Hypotheses}
+
+\begin{itemize}[leftmargin=1.5em]
+    \item H1: Agnostic batching becomes unstable as transaction heterogeneity increases.
+    \item H2: Soft-cap policies improve robustness but waste prover capacity.
+    \item H3: Transaction-aware batching strictly dominates naive batching beyond a heterogeneity threshold.
+\end{itemize}
+
+\section{Expected Contributions}
+
+\begin{itemize}[leftmargin=1.5em]
+    \item An open-source, reusable batching simulator for ZK-rollups.
+    \item Empirical identification of failure regimes for mixed batching.
+    \item Clear cost–latency Pareto frontiers for batching policy selection.
+    \item Practical guidance for sequencer and prover pipeline design.
+\end{itemize}
+
+\end{document}
+```
+

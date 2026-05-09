@@ -1,0 +1,37 @@
+\chapter{Individual Contributions}
+\label{ch:individual_contributions}
+
+This research project was designed, implemented, and evaluated as a collaborative team effort. The following table outlines the primary areas of responsibility. 
+
+\textit{Note: As this is a highly integrated system, many tasks overlapped, and this matrix serves as a broad overview of primary ownership based on the repository history.}
+
+\begin{table}[H]
+\centering
+\caption{Team Contribution Matrix}
+\label{tab:contributions}
+\small
+\begin{tabularx}{\textwidth}{l X}
+\toprule
+\textbf{Team Member} & \textbf{Primary Focus Areas (To be verified by the team)} \\
+\midrule
+Fernando T.H.L. & Sequencer architecture, Domain-Driven Design integration, JSON-RPC API, and batching logic implementation. \\
+Gamage M.S. & Submitter architecture, Layer-1 integration, Data Availability formatting (Calldata/Blob), and Saga workflow implementation. \\
+Lishan S.D. & Executor adaptation, gRPC communication layer, state transition engine configuration, and Prover backend integration. \\
+Perera M.V.D.P.D.S. & Benchmarking suite, Workload Generator (Python), Data Tools analytics pipeline, Smart Contract testing, and orchestration scripts. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\chapter{Conclusion and Future Work}
+\label{ch:conclusion}
+
+\section{Conclusion}
+This report demonstrated the design, implementation, and evaluation of a modular ZK-Rollup benchmarking prototype. By cleanly isolating the sequencing, execution, proving, and submission stages, the framework allowed for a systematic analysis of the fundamental throughput--latency--cost trade-offs inherent in Layer-2 scaling solutions. The empirical observations highlight the severe impact of batch sizes, data availability modes (specifically the efficiency gains of EIP-4844 blobs over calldata), and parameterized proof generation delays on overall system performance.
+
+\section{Future Work}
+Future research directions include:
+\begin{itemize}
+    \item Replacing the parameterized mock prover with a fully integrated, real cryptographic prover cluster under heavy, parallelized load.
+    \item Transitioning from synthetic Poisson-based load generators to trace-driven workloads based on historical mainnet dataset replays, which would provide greater external validity.
+    \item Implementing dynamic, adaptive batching policies that automatically adjust based on real-time Layer-1 fee conditions and mempool depth.
+\end{itemize}

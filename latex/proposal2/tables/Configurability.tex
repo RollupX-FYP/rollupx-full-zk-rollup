@@ -1,0 +1,22 @@
+\begin{table*}[htbp]
+\centering
+\caption{Configurability \& Data-Availability Policy Matrix — zkSync Era vs Polygon zkEVM vs Our Modular PoC}
+\label{tab:rollup_comparison}
+\begin{tabular}{|l|p{0.3\textwidth}|p{0.3\textwidth}|p{0.3\textwidth}|}
+\hline
+\textbf{Parameter} & \textbf{zkSync Era (today)} & \textbf{Polygon zkEVM (today)} & \textbf{Our modular PoC} \\
+\hline
+Batch size & Partial – sequencer forms batches; you can increase load but not set internal batch sizing. Post-4844 contracts constrain posting (e.g., support up to 6 blobs per batch, 1 batch per tx) \cite{zkSyncDocs}. & Partial – batches queued by the trusted sequencer via sequenceBatches(). Users can’t tune internal batching \cite{Polygon}. & Yes – batch size is a config flag (A/B testable). \\
+\hline
+Sequencing policy & No – ordering is operator-controlled; priority fees not used on zkSync chains (recommend maxPriorityFeePerGas=0) \cite{zkSyncDocs}. & No – sequencing handled by the zkEVM sequencer/sequenceBatches(); not pluggable by users \cite{Polygon}. & Yes – switch between FIFO / fee-priority / time-boost, etc. \\
+\hline
+Commitment policy (L1 posting rules) & No – contract-level rules (e.g., 1 batch/tx; up to 6 blobs) define posting; not end-user adjustable \cite{zkSyncDocs}. & No – commitment/aggregation path fixed by protocol \& L1 contracts \cite{Polygon}. & Yes – commit interval, blob/tx thresholds configurable. \\
+\hline
+Prover configuration & No – Boojum stack used; backend/parallelism not swappable on mainnet by users \cite{zkSyncDocs}. & No – prover/aggregator fixed by protocol \cite{Polygon}. & Yes – pluggable provers; parallelism knobs exposed. \\
+\hline
+State update policy & No – rollup is state-diff based with internal compression; mechanics are not user-tunable \cite{zkSyncDocs}. & No – state transition/verification path is protocol-defined \cite{Polygon}. & Yes – tree type \& commit granularity are experimentable. \\
+\hline
+Data Availability (DA) configuration/policy & No – on-chain DA to Ethereum; historically calldata, now contracts support EIP-4844 blobs (type-3 tx) with limits (e.g., up to 6 blobs per batch/tx). zkSync also applies pubdata/state-diff compression; users can’t switch modes \cite{zkSyncDocs}. & No – on-chain DA to Ethereum; EIP-4844 support shipped via Feijoa. “Validium/DAC/DAL” options are for Polygon CDK stacks, not zkEVM mainnet. User-level toggles aren’t exposed \cite{Polygon}. & Yes – selectable on-chain DA (calldata vs blob), plus off-chain DA modes: DAC (committee signatures) or DAL (e.g., Celestia/Avail with erasure-coded data availability sampling). Compression on/off and packing strategies are tunable for cost experiments \cite{L2BEAT}. \\
+\hline
+\end{tabular}
+\end{table*}

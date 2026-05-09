@@ -1,0 +1,10 @@
+\chapter{Literature Review}
+\label{ch:literature_review}
+
+\section{Rollup Benchmarking and Public Datasets}
+Existing studies often analyze production rollup traces, public datasets, deployed systems, cost behavior, and rollup bottlenecks \cite{silva2025zksyncdataset,chaliasos2024benchmarking,habib2025bottlenecks}. These studies provide valuable, empirical insight into real-world rollup behavior. However, because they primarily observe existing, live deployments, they are less suited for isolating the causal impact of individual configuration choices. In production environments, it is difficult or impossible to independently modify batching rules, sequencing policies, proof-delay behavior, and Data Availability (DA) modes under strictly identical workloads.
+
+\section{Positioning of This Work}
+While prior work provides insight into deployed rollups and production traces, the prototype proposed in this project focuses on controlled, configuration-level experimentation under comparable synthetic workloads. 
+
+Production systems (such as zkSync Era, Polygon zkEVM, and Starknet) prioritize reliability, EVM compatibility, and user-facing deployment. In contrast, our prototype prioritizes controlled experimentation, modularity, and observability. By intentionally exposing and parameterizing batching, sequencing, DA, and proof-delay controls, our benchmarking framework enables repeatable, isolated studies to observe exactly how individual design choices shift the fundamental throughput--latency--cost behavior of the system.

@@ -1,0 +1,49 @@
+\documentclass[12pt,a4paper]{report}
+
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{amsmath}
+\usepackage{tabularx}
+\usepackage{float}
+\usepackage{cite}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+
+\title{Improving Blockchain Scalability: Throughput Enhancement in ZK-Rollups}
+\author{Final Year Research Project}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+Ethereum Layer-1 provides strong security and decentralization but remains constrained by limited throughput. ZK-Rollups offer a Layer-2 scaling solution by executing transactions off-chain and submitting cryptographic validity proofs to Layer-1. However, practical ZK-Rollup performance depends on complex interactions between batching, sequencing policies, proof generation overhead, and data availability strategies. This report presents a modular ZK-Rollup benchmarking prototype designed to isolate and evaluate these performance factors under controlled synthetic workloads. We explore the design and implementation of the sequencer, executor, submitter, and smart contracts. Through rigorous benchmarking, we analyze the throughput--latency--cost trade-offs across different batching and data availability configurations. The findings contribute to a deeper understanding of Layer-2 scalability bottlenecks.
+\end{abstract}
+
+\tableofcontents
+
+\include{chapters/introduction}
+\include{chapters/background}
+\include{chapters/literature_review}
+\include{chapters/problem_objectives}
+\include{chapters/system_architecture}
+\include{chapters/methodology}
+\include{chapters/implementation}
+\include{chapters/experimental_setup}
+\include{chapters/results}
+\include{chapters/discussion}
+\include{chapters/threats_to_validity}
+\include{chapters/individual_contributions}
+
+\bibliographystyle{plain}
+\bibliography{references}
+
+\appendix
+\include{chapters/appendices}
+
+\end{document}

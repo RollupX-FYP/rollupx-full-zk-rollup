@@ -1,0 +1,113 @@
+This section provides an overview of updated the project timeline, completed phases, current progress status, and remaining work.
+
+\vspace{12pt}
+\subsection{Project Phases}
+\vspace{12pt}
+The project is structured into six key phases, each with specific objectives and deliverables. The phases are:
+\begin{enumerate}
+    \item \textbf{Project Initiation and Research} (Completed): Identified the research problem, defined project scope and objectives, and conducted a comprehensive literature review.
+    \item \textbf{System Architecture Design} (Completed): Defined the modular system architecture, including sequencer, executor, prover, and data availability components, and planned experimental parameters.
+    \item \textbf{Prototype Implementation} (Completed): Developed the modular ZK-Rollup framework with configurable batching, sequencing, and DA strategies, and successfully deployed on an Ethereum testnet.
+    \item \textbf{Conduct Experiments, Benchmarking and Optimization} (In Progress): Establishing benchmarking metrics, conducting controlled experiments with various configurations, and performing optimization.
+    \item \textbf{Data Analysis} (Planned): Perform statistical analysis of experimental results and validate findings against theoretical predictions.
+    \item \textbf{Documentation and Presentation} (Planned): Prepare the final documentation, research paper, and present the project results.
+\end{enumerate}
+
+\vspace{12pt}
+\subsection{Milestones}
+\vspace{12pt}
+The project includes six key milestones that serve as checkpoints for monitoring progress:
+\begin{enumerate}
+    \item \textbf{Literature Review Completion} (Achieved): Completed comprehensive review of ZK-Rollup literature, scalability solutions, and benchmarking methodologies.
+    \item \textbf{Project Proposal Submission} (Achieved): Successfully submitted the detailed project proposal with system architecture and experimental design.
+    \item \textbf{Prototype Implementation} (Achieved): Deployed functional modular ZK-Rollup prototype on Ethereum testnet with configurable sequencer, executor, prover, and DA components.
+    \item \textbf{Complete Experiments}: Complete optimization experiments, benchmark analysis, and performance optimization across multiple configuration parameters.
+    \item \textbf{Research Paper Submission}: Submit research paper detailing methodology, experimental results, and key findings.
+    \item \textbf{Final Report Submission}: Submit comprehensive final report documenting the complete project.
+\end{enumerate}
+
+\vspace{12pt}
+\subsection{Progress Status}
+\vspace{12pt}
+The project has made substantial progress, with three of the six planned phases fully completed. As of the current reporting period:
+
+\begin{itemize}
+    \item \textbf{Completed Phases}: Project Initiation and Research, System Architecture Design, and Prototype Implementation
+    \item \textbf{Current Phase}: Conduct Experiments, Benchmarking and Optimization
+    \item \textbf{Workload Completion}: Approximately 1,600 hours completed out of 2,240 total hours (~71\% complete)
+\end{itemize}
+
+The successful implementation of the modular ZK-Rollup prototype represents a significant achievement. The sequencer component, implemented in Rust, includes configurable scheduling policies (FCFS, fee-priority, time-boost, and fair BFT ordering), proper handling of forced transactions from L1, and dynamic batching mechanisms. The prototype is now ready for comprehensive benchmarking across various configuration parameters.
+
+\vspace{12pt}
+\subsection{Updated Timeline}
+\vspace{12pt}
+The project experienced a minor delay of approximately two weeks against the original timeline. However, built-in buffers in the schedule have successfully absorbed this delay without impacting final delivery targets.
+
+\vspace{12pt}
+\begin{figure}[htbp]
+ \begin{adjustwidth}{0cm}{}
+  \centering
+  \includegraphics[height=0.84\linewidth, angle=0]{figures/Gantt_Chart_Updated.png}
+  \caption{Updated Gantt Chart.}
+  \label{fig:gantt-updated}
+ \end{adjustwidth}
+\end{figure}
+
+\vspace{12pt}
+\subsection{Workload Calculation}
+\vspace{12pt}
+The total estimated workload for the whole project is 2,240 hours. The following table provides a detailed breakdown of the time that will be spent on each task.
+
+\vspace{12pt}
+\begin{figure}[H]
+ \begin{adjustwidth}{0cm}{}
+  \centering
+  \includegraphics[height=0.8\linewidth, angle=0]{figures/Workload.png}
+  \caption{Workload calculation for the project.}
+  \label{fig:workload-breakdown}
+ \end{adjustwidth}
+\end{figure}
+
+The total workload is distributed across the four members, with each member contributing approximately 560 hours over the project duration. The approximate time allocation per member for each phase is detailed below.
+
+\vspace{12pt}
+\input{tables/Workload_per_member}
+
+\vspace{12pt}
+\subsection{Individual Contributions}
+\vspace{12pt}
+Each member takes primary responsibility for a core component of the ZK-Rollup prototype. The modular architecture has enabled parallel development while maintaining clear integration points between components.
+
+\vspace{12pt}
+\begin{table}[H]
+\centering
+\begin{tabular}{|l|p{10cm}|}
+\hline
+\textbf{Team Member} & \textbf{Primary Contribution} \\ \hline
+Fernando T.H.L: 210167E (Harshana) & \textbf{Submitter and Smart Contracts}: Responsible for implementing the submitter component that packages transactions, state roots, and validity proofs for L1 submission. Developed the on-chain smart contracts (RollupBridge.sol and Verifier.sol) that serve as the canonical anchor on Ethereum, managing deposits, withdrawals, state root storage, and ZK proof verification. \\ \hline
+Gamage M.S: 210176F (Malindu) & \textbf{Executor}: Responsible for implementing the executor component, including the state manager with Sparse Merkle Tree (SMT) implementation, state transition engine for applying transactions, and block constructor for producing ordered blocks with updated state roots. Ensures efficient state updates and coordination with the sequencer and prover. \\ \hline
+Lishan S.D: 210339J (Lishan) & \textbf{Sequencer}: Responsible for implementing the sequencer component in Rust, including the transaction pool, forced transaction queue, L1 event listener, configurable scheduler with multiple policies (FCFS, fee-priority, time-boost, fair BFT ordering), batch engine with dynamic batching mechanisms, and local state cache for fast read access. \\ \hline
+Perera M.V.D.P.D.S: 210466U (Shalindra) & \textbf{Prover}: Responsible for implementing the prover component, including circuit design for verifying token balance updates and state transitions (OldRoot → NewRoot), integration of ZK proof backends (Circom with Groth16/Plonk as default, with optional Plonky2 and Halo2 support), and proof generation pipeline coordination with the executor and submitter. \\ \hline
+\end{tabular}
+\caption{Individual component responsibilities and contributions.}
+\label{tab:individual-contributions}
+\end{table}
+
+\vspace{12pt}
+While each member leads a specific component, the collaborative nature of the project requires continuous integration, testing, and cross-component coordination. All team members have contributed to system architecture design, integration testing, documentation, and the preparation of benchmarking experiments. The modular design has facilitated this collaborative approach while allowing specialized development within each component.
+
+\vspace{12pt}
+\subsection{Remaining Work and Risk Mitigation}
+\vspace{12pt}
+With the prototype implementation successfully completed, the remaining work focuses on empirical evaluation and documentation:
+
+\begin{itemize}
+    \item \textbf{Experimentation Phase} (Current): Systematic benchmarking across batch sizes, sequencing policies, DA modes (calldata vs. EIP-4844 blobs), and proof systems to quantify throughput, latency, and cost trade-offs.
+    \item \textbf{Analysis Phase} (Upcoming): Statistical analysis of experimental results, validation against theoretical predictions, and identification of optimal configurations.
+    \item \textbf{Documentation Phase} (Final): Preparation of research paper, final report, and open-source release of the framework with reproducible experimental harnesses.
+\end{itemize}
+
+The project remains on track for successful completion within the planned timeframe. The modular architecture and configurable design have proven effective for controlled experimentation, positioning the team well for the critical benchmarking and analysis phases ahead.
+
+\clearpage

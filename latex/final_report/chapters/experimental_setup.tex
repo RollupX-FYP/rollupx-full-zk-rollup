@@ -1,0 +1,31 @@
+\chapter{Experimental Setup}
+\label{ch:experimental_setup}
+
+\section{Environment and Containerization}
+The local experimental environment is fully containerized and orchestrated via Docker Compose to ensure reproducibility across different hardware setups. The system is divided into specific profiles:
+\begin{itemize}
+    \item \texttt{--profile core}: Starts the essential infrastructure, including the Hardhat node, deployment scripts, Executor, Submitter, and Sequencer.
+    \item \texttt{--profile bench}: Initiates the benchmark suite and Workload Generator.
+    \item \texttt{--profile report}: Triggers the data-tools analytics pipeline to process the metrics.
+\end{itemize}
+
+\section{Network Configuration}
+A custom Docker image (\texttt{contracts/Dockerfile.node}) running \texttt{npx hardhat node} is utilized for the L1 network instead of standard Geth. This provides a deterministic dev-chain environment with pre-funded test accounts, which is strictly necessary for automated continuous testing without the unpredictability of public testnet block times.
+
+The YAML configuration templates (e.g., \texttt{sequencer.docker.yaml}) inject the proper Docker network hostnames (rather than \texttt{127.0.0.1}) ensuring smooth internal gRPC and HTTP communication between the microservices.
+
+\begin{table}[H]
+\centering
+\caption{Experiment Scenario Matrix}
+\label{tab:scenarios}
+\small
+\begin{tabularx}{\textwidth}{l l l X}
+\toprule
+\textbf{Scenario} & \textbf{Batch Policy} & \textbf{DA Mode} & \textbf{Expected Observation} \\
+\midrule
+Cost Amortization & Varied (10-1000) & Calldata & Larger batches reduce cost/tx but increase latency \\
+Blob Efficiency & Fixed (100) & Blob (4844) & Drastic reduction in L1 gas costs compared to calldata \\
+Prover Bottleneck & Fixed (100) & Calldata & High parameterized proof delay causes sequencer queue growth \\
+\bottomrule
+\end{tabularx}
+\end{table}

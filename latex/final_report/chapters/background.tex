@@ -1,0 +1,20 @@
+\chapter{Background}
+\label{ch:background}
+
+\section{Ethereum Scalability and Rollups}
+Ethereum's primary bottleneck is its sequential execution model and consensus mechanism, which traditionally limits the network to approximately 15 transactions per second (TPS). The community's rollup-centric scaling roadmap relies on Layer-2 systems that move execution off-chain while continuing to use Layer-1 for settlement, verification, and data availability. 
+
+By grouping many off-chain transactions into large batches, rollups amortize the fixed Layer-1 submission and verification costs across multiple transactions. This approach retains Ethereum as the ultimate security and settlement layer while dramatically increasing effective throughput.
+
+\section{ZK-Rollups}
+ZK-Rollups extend the standard rollup model by utilizing advanced cryptographic validity proofs (such as SNARKs or STARKs) to mathematically attest to the correctness of off-chain state transitions \cite{groth2016snark,ben2018stark}. This allows the Layer-1 smart contracts to verify a single, compact proof artifact rather than wastefully re-executing every transaction within the batch.
+
+\section{ZK-Rollup Performance Factors}
+The practical performance of a ZK-Rollup is shaped by a complex interplay of cryptographic and systems-level factors:
+
+\begin{itemize}
+    \item \textbf{Proof Generation:} Generating ZK proofs is highly computationally intensive and can easily become a major bottleneck in the system \cite{habib2025bottlenecks,chaliasos2024benchmarking}.
+    \item \textbf{Batching:} The batch size directly affects queueing delay (latency), finalization time, and cost amortization.
+    \item \textbf{Sequencer Policies:} The transaction ordering policy within the sequencer affects latency and fairness, as the sequencer dictates transaction inclusion \cite{motepalli2023sequencers}.
+    \item \textbf{Data Availability (DA):} Posting rollup transaction data to Layer-1 is essential for security but historically expensive when using standard transaction \texttt{calldata}. EIP-4844 introduced blob-carrying transactions, providing a cheaper, specialized data availability layer on Ethereum \cite{eip4844}. The EVM cannot directly access blob contents, but commitments to blob data are accessible, fundamentally altering the cost structure of rollup submissions \cite{saif2024dataavailability,lavaur2023modular}.
+\end{itemize}

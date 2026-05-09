@@ -1,0 +1,104 @@
+\subsection{Feasibility Analysis of Implemented Components}
+\vspace{12pt}
+
+The development and deployment of the modular ZK-rollup framework have demonstrated both the \textbf{technical feasibility} and the \textbf{practical implementability} of the proposed architecture. The work progressed beyond conceptual design into a functioning prototype, showing that core rollup responsibilities can be decomposed into independently engineered modules without breaking end-to-end correctness. In particular, the prototype validates the central research premise that a \textbf{modular approach to Proving and Data Availability (DA)} enables controlled experimentation and configuration-driven optimization, while still preserving the fundamental security expectations of a rollup-style settlement workflow.
+
+This feasibility is supported by the fact that the system is not limited to isolated components: the implemented Sequencer, Executor/Prover integration, Submitter, and Solidity contracts collectively form an integrated pipeline capable of producing and committing L2 batch transitions under multiple configurations.
+
+\subsubsection{Technical Feasibility}
+\vspace{12pt}
+
+The implemented prototype confirms that each major subsystem can be built, integrated, and executed in a coherent pipeline. The following components provide direct evidence of technical feasibility:
+
+\begin{itemize}
+    \item \textbf{Smart Contracts}: The \texttt{ZKRollupBridge.sol} contract and associated verifier components were deployed and tested on the Sepolia testnet. The contract-level modularity is realized through a Strategy Pattern that maps \texttt{verifierId} values to distinct \texttt{IVerifier} implementations, enabling multiple verification paths (Groth16, Plonky2, Halo2) to be supported without introducing proxy upgrade requirements. The inclusion of \texttt{Ownable2Step} further strengthens feasibility from a governance perspective by providing a structured mechanism to manage critical parameters (e.g., sequencer address updates and verifier registration).
+    
+    \item \textbf{Off-chain Sequencer}: The Rust-based Sequencer has been implemented as an operational service capable of receiving signed transactions, applying admission checks, ordering transactions, forming batches, and coordinating state synchronization with the Executor. The dual-queue design for normal and forced transactions is functional, and its existence directly supports the censorship-resistance requirements expected in rollup designs where L1-triggered priority operations must not be suppressed by a centralized sequencer.
+    
+    \item \textbf{Submitter Service}: The Submitter’s Hexagonal Architecture (Ports and Adapters) has proven effective in practice by separating batch-orchestration logic from infrastructure-dependent concerns. The \texttt{Orchestrator} executes a repeatable submission lifecycle while delegating DA-specific logic to adapter modules. Runtime switching between DA modes (Calldata, Blob, Off-Chain) through configuration demonstrates that the system’s DA layer is genuinely modular rather than hard-coded. In addition, the custom bit-packing \texttt{CompressionStrategy} demonstrates feasibility of applying application-layer optimization before L1 submission and of collecting quantitative compression metrics as part of the submission workflow.
+    
+    \item \textbf{Proof Systems}: The Executor’s integration with the \texttt{Prover} trait enables the system to generate real Groth16 proofs using Arkworks, confirming that the cryptographic proving path is implementable and operational in the prototype. This provides a concrete foundation for benchmarking alternative proving backends under the same execution and batching pipeline.
+\end{itemize}
+
+\paragraph{Validation from Prototype Implementation}
+The functional prototype validates the following architectural properties in a direct and implementation-backed manner:
+
+\begin{itemize}
+    \item \textbf{Modularity}: The ability to hot-swap DA strategies via the \texttt{DaStrategy} trait and to route proving backends via a \texttt{Prover} abstraction confirms that the decomposed architecture is feasible, maintainable, and extensible. This is not only a conceptual claim: the implementation supports configuration-driven switching without requiring structural refactoring of the submission pipeline.
+    
+    \item \textbf{Cost Efficiency}: The existence of EIP-4844 Blob support (Mode B) in the Submitter demonstrates that modern DA mechanisms can be integrated into a rollup submission pipeline. The handling of versioned hashes and blob sidecars (supported by archival infrastructure) confirms feasibility of this approach as a practical cost-reduction path compared to calldata-based submission.
+    
+    \item \textbf{Safety}: The censorship-resistance mechanism built into \texttt{ZKRollupBridge.sol} (via \texttt{forceTransaction} and \texttt{forcedInclusionDelay}) demonstrates that the on-chain layer can enforce key rollup safety requirements even when the sequencer is centralized. The Active-to-Frozen lifecycle transition provides an explicit enforcement boundary against prolonged forced-transaction neglect, preserving a trust-minimized exit path.
+\end{itemize}
+
+\subsubsection{Resource Utilization}
+\vspace{12pt}
+
+The prototype was designed and implemented within practical resource constraints and executed using standard developer-grade infrastructure, demonstrating that the approach is feasible without specialized hardware:
+
+\begin{itemize}
+    \item \textbf{Computational Resources}: Development and testing were conducted on standard workstations (16GB RAM, 4--8 CPU cores). Within these constraints, Groth16 proof generation remained feasible for the prototype’s batch sizes, supporting iterative development and repeated benchmarking cycles.
+    
+    \item \textbf{Software Tools}: The project relies primarily on mature open-source ecosystems (Rust/\texttt{tokio}, Solidity/Hardhat, Arkworks). This reduces licensing overhead while providing stable tooling for rapid iteration, testing, and deployment.
+\end{itemize}
+
+\subsubsection{Timeline Adherence}
+\vspace{12pt}
+
+The project progressed according to the planned schedule, with the critical path components—Sequencer, Executor/Prover integration, Submitter, and contracts—implemented and integrated into a coherent end-to-end pipeline. The modular structure also enabled parallel progress across subsystems; for example, DA strategy work (including Blob support) could proceed while proving integration and benchmarking logic were being developed and refined. This parallelization was enabled specifically by the architectural boundaries between sequencing, proving, and submission responsibilities.
+
+\subsubsection{Risk Mitigation}
+\vspace{12pt}
+
+Key risks identified at the outset were managed through implementation choices aligned with prototype feasibility:
+
+\begin{itemize}
+    \item \textbf{Complexity of ZK Proof Integration}: The proving pipeline was kept tractable by starting from a simplified circuit scope (token transfers) and leveraging existing building blocks such as the \texttt{sparse-merkle-tree} crate. This reduced implementation risk while still enabling a real proof generation workflow (Groth16 via Arkworks).
+    
+    \item \textbf{Testnet Instability}: The Submitter includes resilience mechanisms such as confirmation monitoring and retry logic, which are essential to maintain reliable batch finalization under Sepolia congestion or RPC instability. These mechanisms reduce operational fragility and support sustained experimentation rather than one-off demonstrations.
+\end{itemize}
+
+\subsubsection{Societal and Economic Relevance}
+\vspace{12pt}
+
+The successful deployment of a cost-aware Layer 2 prototype reinforces the broader relevance of blockchain scalability research. By supporting lower-cost DA modes (Blob submission) and integrating data-size optimization (bit-packing compression), the work aligns with the practical requirements of reducing transaction costs and improving accessibility. This has direct implications for scaling DeFi and other high-volume blockchain applications, where cost barriers can otherwise limit adoption and user participation.
+
+\subsection{Limitations}
+The dynamic batching model currently depends on estimated or parameterized values for proof delay, blob fee, and user latency preference. Therefore, its selected batch size should be interpreted as a heuristic operating point rather than a globally optimal policy. More accurate calibration requires real prover benchmarks, serialized DA payload measurements, and sensitivity analysis over different \(\gamma\) values.
+
+\vspace{12pt}
+
+While the current prototype is functional and suitable for research and benchmarking, it has clear limitations that restrict production readiness:
+
+\begin{itemize}
+    \item \textbf{Functionality}: The system currently supports basic token transfers and does not yet provide general-purpose smart contract execution (zkEVM/EVM compatibility).
+    \item \textbf{Deposit Mechanism}: \texttt{ZKRollupBridge} lacks a trustless deposit function; current L2 funds are provisioned via genesis allocation or developer tooling.
+    \item \textbf{Centralization}: The sequencer is currently a single centralized entity. Although forced inclusion provides a censorship-mitigation mechanism, decentralized sequencing is still required to improve liveness guarantees.
+    \item \textbf{Storage}: The Off-Chain DA mode uses a local filesystem backend, which is sufficient for prototyping but not suitable for a production distributed deployment.
+\end{itemize}
+
+\subsection{Conclusion}
+\vspace{12pt}
+
+This project has successfully designed, implemented, and evaluated a modular ZK-rollup framework deployed on the Ethereum Sepolia testnet. By explicitly decoupling Sequencing, Execution, Proving, and Data Availability responsibilities, the system provides a flexible prototype environment for exploring security--cost--performance trade-offs under controlled configuration changes.
+
+The implemented \textbf{Submitter} service—with runtime-selectable DA strategies, EIP-4844 Blob support, and an application-layer compression strategy—demonstrates that modern cost-reduction techniques can be integrated into a robust batch finalization pipeline. In parallel, the \textbf{Smart Contract} layer enforces proof validity and censorship-resistance constraints, showing that modularity can be achieved without compromising core rollup safety properties.
+
+Overall, the results provide empirical evidence that a modular architecture is not only feasible, but advantageous for future-proofing Layer 2 systems as proof systems, DA standards, and cost models continue to evolve. The implemented prototype therefore serves as a solid foundation for continued research into decentralized sequencing, proof aggregation, and alternative DA layers.
+
+\subsection{Future Work}
+Future work will integrate the dynamic batch-size controller directly into the sequencer policy layer and evaluate it against fixed-size, fixed-interval, and soft-cap batching. The evaluation will include sensitivity analysis over the impatience factor \(\gamma\), empirical calibration of \(P(N)\) using real prover measurements, and DA payload measurements for calldata and EIP-4844 blob submission.
+
+\vspace{12pt}
+
+To evolve the current prototype toward production-grade capabilities, the following extensions have been identified:
+
+\begin{enumerate}
+    \item \textbf{L1--L2 Bridge Completeness}: Implement the \texttt{deposit} function in \texttt{ZKRollupBridge.sol} and the corresponding Sequencer-side event handling to enable trustless onboarding and asset bridging from L1 to L2.
+    \item \textbf{Decentralized Storage Integration}: Upgrade the \texttt{OffChainStrategy} from a local filesystem backend to a distributed storage network. Integrating \textbf{IPFS} (storage) and \textbf{Celestia} (DA) would provide stronger availability guarantees for a Validium-style mode.
+    \item \textbf{Real Compression}: Replace the simulated bit-packing with a production-ready compression library (e.g., \texttt{zstd} or dictionary-based transaction compression) inside the Submitter to maximize blob efficiency.
+    \item \textbf{Proof Aggregation}: Implement proof aggregation (e.g., via a recursive SNARK wrapper) to amortize verification costs by verifying multiple batches with a single L1 transaction.
+    \item \textbf{Decentralized Sequencer}: Move beyond the single-sequencer design by implementing a consensus mechanism (e.g., HotStuff-based or leader-election-based sequencing) to improve liveness and reduce centralized trust.
+    \item \textbf{zkEVM Integration}: Extend the modular execution layer to support general-purpose smart contracts by integrating a zkEVM execution engine (Type 1 / Type 2 zkEVM classes).
+\end{enumerate}
+

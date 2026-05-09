@@ -1,0 +1,175 @@
+% --- compact table (half-height, full width) ---
+\begin{table}[htbp]
+\centering
+\caption{Assessment of blockchain write-performance scalability solutions.~\cite{sanka2021systematic}}
+\label{tab:scalability_solutions}
+
+% ↓ local, table-only tweaks
+\begingroup
+\setlength{\tabcolsep}{4pt}              % tighter column padding
+\renewcommand{\arraystretch}{0.85}       % tighter row height
+\setlist[itemize]{leftmargin=*,topsep=0pt,itemsep=0pt,parsep=0pt}
+
+% font ~50% of a 12pt doc; adjust if too small:
+\fontsize{5}{6}\selectfont               % (≈ half of 12pt; line height 8pt)
+
+% keep full width; columns are slightly narrower to save height
+\resizebox{\textwidth}{!}{%
+\begin{tabularx}{\textwidth}{@{}p{2.4cm} p{2.7cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X@{}}
+\toprule
+\textbf{Solutions} & \textbf{Class} & \textbf{Advantages} & \textbf{Disadvantages} \\
+\midrule
+
+\multirow{4}{*}{\textbf{On-Chain}}
+& Reducing block data &
+\begin{itemize}
+  \item More transactions per block
+  \item Bitcoin malleability solved
+  \item High privacy in MAST
+\end{itemize} &
+\begin{itemize}
+  \item Limited throughput increase
+\end{itemize} \\ \cmidrule(l){2-4}
+
+& Increasing block-size &
+\begin{itemize}
+  \item More transactions per block
+  \item More transactions per second
+\end{itemize} &
+\begin{itemize}
+  \item Security risks due to long propagation delay
+  \item Prone to centralization
+  \item Limited throughput increase
+\end{itemize} \\ \cmidrule(l){2-4}
+
+& Sharding &
+\begin{itemize}
+  \item Parallel block processing and massive scaling
+  \item Storage scalability
+  \item Less communication overhead
+\end{itemize} &
+\begin{itemize}
+  \item 1\% attack is possible
+  \item Design complexity
+\end{itemize} \\ \cmidrule(l){2-4}
+
+& Graph (DAG) &
+\begin{itemize}
+  \item Higher throughput, lower confirmation time
+  \item Parallel block creation
+  \item No mining, hence low energy waste
+  \item Low or no transaction fees
+\end{itemize} &
+\begin{itemize}
+  \item Security issues are common
+  \item Fear of centralization
+  \item Weak consistency
+  \item Large storage data
+\end{itemize} \\
+\midrule
+
+\multirow{4}{*}{\textbf{Off-Chain}}
+& Payment channels &
+\begin{itemize}
+  \item Higher throughput and privacy
+  \item Instant payments
+  \item Low transaction fees
+\end{itemize} &
+\begin{itemize}
+  \item Limited to cryptocurrencies and less secure
+  \item Less support for large-value transactions
+  \item May require coins to be deposited and locked
+\end{itemize} \\ \cmidrule(l){2-4}
+
+& Off-chain computation &
+\begin{itemize}
+  \item Better scalability
+  \item No redundant computation by all nodes
+  \item Tasks can be computed in parallel
+\end{itemize} &
+\begin{itemize}
+  \item May have privacy issues
+  \item May introduce security issues
+  \item Fear of centralization
+\end{itemize} \\ \cmidrule(l){2-4}
+
+& Sidechains &
+\begin{itemize}
+  \item Better scalability
+  \item Allow for interoperability
+  \item Security issues of the child-chain do not affect the parent-chain
+\end{itemize} &
+\begin{itemize}
+  \item May need frequent checking by the main chain
+  \item May have storage burden on the main chain
+  \item Less user-friendly
+\end{itemize} \\ \cmidrule(l){2-4}
+
+& Cross-chain &
+\begin{itemize}
+  \item Better scalability
+  \item Allows interoperability
+\end{itemize} &
+\begin{itemize}
+  \item May have privacy issues
+  \item Fear of centralization
+  \item Design complexity
+\end{itemize} \\ \cmidrule(l){2-4}
+% \midrule
+
+% \multirow{1}{*}{\textbf{Consensus layer solutions}}
+& Parallel executions &
+\begin{itemize}
+  \item Higher throughput
+  \item Lower latency
+\end{itemize} &
+\begin{itemize}
+  \item Limited throughput increase
+  \item May require expensive hardware
+\end{itemize} \\ 
+
+\midrule
+
+\multirow{1}{*}{\textbf{Consensus layer solutions}}
+\multicolumn{1}{c}{} &  &
+\begin{itemize}
+  \item Allow for massive scalability
+  \item Can be pluggable to give different options
+\end{itemize} &
+\begin{itemize}
+  \item May introduce new security issues
+  \item Communication overhead in BFT-based consensuses
+  \item High energy consumption in PoW-based consensuses
+\end{itemize} \\
+\midrule
+
+\multirow{1}{*}{\textbf{Network layer solutions}}
+&  &
+\begin{itemize}
+  \item Faster propagation delay
+  \item Higher throughput and lower latency
+  \item Does not tamper with chain structure or consensus
+\end{itemize} &
+\begin{itemize}
+  \item Fear of centralization and bias in relay networks
+  \item Throughput increase may be limited
+\end{itemize} \\
+\midrule
+
+\multirow{1}{*}{\textbf{Platform layer solutions}}
+&  &
+\begin{itemize}
+  \item Better scalability
+  \item Native to the platform
+  \item Provide variety of options to users
+\end{itemize} &
+\begin{itemize}
+  \item May make interoperability difficult
+  \item May be complex
+\end{itemize} \\
+\bottomrule
+\end{tabularx}%
+}
+\endgroup
+\end{table}
+

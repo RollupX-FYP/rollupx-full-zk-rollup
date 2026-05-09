@@ -1,0 +1,102 @@
+\chapter{Implementation Details}
+\label{ch:implementation}
+
+This chapter details the architecture and implementation of the modular ZK-Rollup benchmarking prototype developed for this research project. The system separates sequencing, execution, proving, and submission stages to allow controlled configuration sweeps over specific bottlenecks. The system follows Domain-Driven Design (DDD) principles for its core Rust components and relies on containerized microservices for orchestrated benchmarking.
+
+\section{Workload Generator}
+\label{sec:workload_generator}
+The Workload Generator simulates a realistic arrival stream of Layer-2 transactions. It drives the synthetic load for all experiments in the benchmark suite.
+
+\begin{itemize}
+    \item \textbf{Language:} Python.
+    \item \textbf{Generation Method:} Employs an Arrival Process Engine configured to generate steady-state traffic following a Poisson distribution. It does not implement bursty transfer patterns.
+    \item \textbf{Transaction Format:} The generator synthesizes transaction requests. To ensure validity during benchmarks without requiring expensive cryptographic signing operations from the load generator, the system uses a dummy signature approach where the sequencer's \texttt{UserTransaction::hash()} deliberately excludes \texttt{calldata} and \texttt{tx\_type}.
+    \item \textbf{Workload Profiles:} A Transaction Mix Selector generates heterogeneous traffic (e.g., Light, Medium, Heavy transactions).
+    \item \textbf{Input/Output Files:} Interacts with the sequencer via an HTTP/RPC client. It generates \texttt{workload\_<exp\_id>.json} and \texttt{tx\_log\_<run\_id>.csv} to record submission latency and status. Run IDs and Experiment IDs are passed via environment variables during the orchestration phase.
+\end{itemize}
+
+\section{Sequencer}
+\label{sec:sequencer}
+The Sequencer is responsible for ingesting, validating, and grouping transactions into batches before forwarding them to the execution stage.
+
+\begin{itemize}
+    \item \textbf{Language:} Rust.
+    \item \textbf{API Interface:} Exposes a JSON-RPC Server to receive transactions from users and the Workload Generator.
+    \item \textbf{Transaction Flow:} Transactions pass through a Validity Checker that interfaces with a pessimistic state cache. Valid transactions are pushed to a Normal Tx Pool. Simultaneously, an L1 Event Listener monitors the L1 bridge contract and inserts forced transactions into a high-priority Forced Tx Queue.
+    \item \textbf{Batch Formation:} A Batch Orchestrator pulls from the pools to form batches based on specific triggers: reaching a maximum batch size parameter or exceeding a defined time interval (Timeout trigger). The system supports First-Come-First-Served scheduling policies.
+    \item \textbf{Output:} Completed batches are dispatched to the Executor via gRPC.
+\end{itemize}
+
+\section{Executor}
+\label{sec:executor}
+The Executor serves as the host-side state transition and proving coordinator.
+
+\begin{itemize}
+    \item \textbf{Language:} Rust.
+    \item \textbf{Execution Role:} Adapted from zkSync components, it processes a \texttt{publish\_batch} request via gRPC by parsing and normalizing transactions, and executing the state transition function (STF) using a \texttt{SimpleTransactionEngine} backed by a \texttt{RocksDbStateManager}.
+    \item \textbf{Prover Integration:} After execution, it builds an \texttt{ExecutionTraceV1} and invokes the prover backend to generate proof artifacts. It operates in a \texttt{grpc} pass-through relay mode for general benchmarking but integrates directly with \texttt{risc0\_prover} when fully verifying.
+    \item \textbf{Output:} Emits an enriched batch payload (DA commitment plus proof) to the Submitter and logs execution metrics to \texttt{executor\_<exp\_id>.json}.
+    \item \textbf{Limitations:} It acts as a simplified state-transition engine tailored for transfer-style workloads and Merkle state updates, not a complete Ethereum Virtual Machine (zkEVM). It also has known upstream issues with `Elf parse errors` during guest execution in specific configurations.
+\end{itemize}
+
+\section{Prover / Mock Prover}
+\label{sec:prover}
+To allow for scalability experiments without being heavily constrained by actual cryptographic proof generation (which would skew high-throughput latency observations), the prototype supports a mock proving path alongside a real ZK prover implementation.
+
+\begin{itemize}
+    \item \textbf{Implementation:} The system relies on a mock prover using a parameterized time delay to simulate cryptographic overhead. A basic \texttt{risc0\_prover} path exists (consisting of a \texttt{rollup\_host} binary and a guest zkVM program) but does not feature recursive aggregation, full PLONK, or hardware acceleration.
+    \item \textbf{Benchmarking Purpose:} The parameterized delay allows the study to isolate sequencer queue growth and finalization bottlenecks analytically. Using a mock prover isolates the systems-level bottlenecks (like database IO and network latency) from compute-bound cryptographic constraints. A production-grade prover would require heavy hardware acceleration (GPUs/FPGAs) and sophisticated recursive proof aggregation circuits.
+\end{itemize}
+
+\section{Submitter}
+\label{sec:submitter}
+The Submitter acts as the bridge relayer, reliably pushing executed batch data from Layer-2 back to the Layer-1 Ethereum network.
+
+\begin{itemize}
+    \item \textbf{Language:} Rust.
+    \item \textbf{Workflow:} Subscribes to the Executor stream via a gRPC Client. It uses a Saga Workflow Engine backed by a SQLite/Postgres database to handle reliable retries and idempotency.
+    \item \textbf{Data Availability (DA):} The DA Formatter formats batch payloads based on the configured DA mode. It supports standard \texttt{Calldata} (compressed via Zlib) and \texttt{EIP-4844 Blob} data representations. Off-chain DA is supported only as a simulated stub.
+    \item \textbf{Output:} Broadcasts transactions to L1 via \texttt{eth\_sendRawTransaction} and records latency and gas savings metrics to \texttt{submitter\_metrics.json}.
+\end{itemize}
+
+\section{Smart Contracts}
+\label{sec:smart_contracts}
+The L1 verification tier is composed of Solidity smart contracts running on a local Hardhat node.
+
+\begin{itemize}
+    \item \textbf{Language:} Solidity.
+    \item \textbf{Contract Role:} The \texttt{ZKRollupBridge.sol} acts as the aggregate root for Layer-1. It delegates DA validation to specific providers (\texttt{CalldataDA}, \texttt{BlobDA}) and proof verification to a registry of verifiers.
+    \item \textbf{State Storage:} It maintains state root commitments and orchestrates deposit and withdrawal flows.
+    \item \textbf{Mock Verification:} During benchmarking, a \texttt{MockVerifier.sol} is used instead of expensive cryptographic libraries (like \texttt{Groth16Verifier} or \texttt{RealVerifier}) to prevent L1 execution time from dominating the analysis.
+    \item \textbf{Testing:} Contracts are heavily tested with \texttt{npx hardhat test} and maintain high branch coverage. Deployment is automated against a custom Dockerized Hardhat node with pre-funded accounts.
+\end{itemize}
+
+\section{Benchmarking and Data Collection Tools}
+\label{sec:benchmarking}
+The benchmarking suite provides an automated environment for configuration-matrix testing.
+
+\begin{itemize}
+    \item \textbf{Orchestration:} A suite of bash scripts (e.g., \texttt{run\_matrix.sh}, \texttt{run\_experiment.sh}) manages the lifecycle of the Docker containers, sets configuration variables via \texttt{envsubst}, and ensures component synchronization.
+    \item \textbf{Telemetry:} Raw JSON/CSV telemetry from the components is saved to \texttt{benchmark-suite/metrics/}. 
+    \item \textbf{Data Tools:} Python scripts in \texttt{data-tools/} aggregate the raw outputs into statistical reports, allowing for robust plotting of throughput, latency, and cost per transaction.
+\end{itemize}
+
+\section{Summary Tables}
+
+\begin{table}[H]
+\centering
+\caption{Implementation Status Overview}
+\label{tab:implementation_status}
+\small
+\begin{tabularx}{\textwidth}{l l X}
+\toprule
+\textbf{Feature} & \textbf{Status} & \textbf{Notes} \\
+\midrule
+Sequencing & Implemented & Fully supports size/timeout triggers and DDD architecture. \\
+State Execution & Partial & Supports Merkle state updates and transfers, but not a full zkEVM. \\
+Proving & Simulated/Partial & Uses mock delay for benchmarking; RISC0 backend exists but is basic. \\
+Data Availability & Implemented & Supports both Calldata and EIP-4844 blobs. Off-chain DA is a stub. \\
+L1 Submission & Implemented & Uses Saga pattern for robust local Hardhat node interactions. \\
+\bottomrule
+\end{tabularx}
+\end{table}

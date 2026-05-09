@@ -1,0 +1,221 @@
+The core of this project is the design, implementation, and rigorous benchmarking of a modular ZK-Rollup framework. This framework will be deployed on an Ethereum testnet to ensure that our findings are grounded in a realistic network environment. The initial implementation will support a focused set of operations—namely, simple token transfers, deposits, and withdrawals—which serve as the foundation for our performance analysis. A key feature of the framework is its configurability, which will allow us to systematically vary experimental parameters such as batch size, sequencer scheduling policies, and data availability modes. Furthermore, the architecture will be intentionally designed to be extendable, thereby allowing for future evolution and the integration of more complex functionalities.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsection{Prototype Design and Implementation}
+\subsubsection{System Architecture}
+To ensure a clear separation of concerns and to facilitate modular experimentation, the prototype will be structured into a five-layer architecture. Each layer will have a distinct responsibility, from transaction submission at the top to data availability at the bottom. This design choice is critical for isolating variables during benchmarking and for allowing future extensions to the framework.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{figures/highlevel_system_architecture2.png}
+    \caption{High level System Architecture}
+    \label{fig:High level System Architecture}
+\end{figure}
+
+\input{tables/Configurability}
+
+The components of the prototype are as follows:
+\begin{itemize}
+    \item \textbf {User Layer:}
+    The user layer is the entry point for end-users to interact with the system.
+    \begin{itemize}
+        \item {Wallets / Clients:} End-users initiate deposits, transfers, and withdrawals by signing transactions.
+        \item {Synthetic Workload Generator:} Provides benchmark workloads for performance evaluation.
+    \end{itemize}
+    
+    \item \textbf{Off-Chain Components:}
+    These components handle the core logic of the rollup, including transaction processing, state management, and proof generation.
+    
+    \begin{itemize}
+        \item \textbf{Sequencer:}
+        The sequencer is responsible for collecting and ordering transactions.
+        \begin{itemize}
+            \item {Transaction Pool:} Collects and stores pending user transactions.
+            \item {Batching Engine:} Groups transactions into batches based on configurable policies (e.g., batch size, timeout, or priority).
+            \item {Scheduler (optional):} Supports custom policies for sequencing order (FIFO, priority-based).
+        \end{itemize}
+        
+        \item \textbf{Executor:}
+        The executor processes the transactions and updates the off-chain state.
+        \begin{itemize}
+            \item {State Manager:} Maintains the off-chain state (i.e., account balances and nonces) using a Sparse Merkle Tree (SMT). We plan to adapt an existing JavaScript library such as \texttt{js-merkle} or the implementation used by Polygon's zkEVM for this purpose.
+            \item {State Transition Engine:} Applies transactions to update the state and compute new state roots.
+            \item {Block Constructor:} Forms transaction blocks with corresponding state updates.
+        \end{itemize}
+        
+        \item \textbf{Prover:}
+        The prover generates cryptographic proofs to ensure the correctness of state transitions.
+        \begin{itemize}
+            \item {Circuit Backend:} zkSNARK/STARK circuits verify state transitions ($\text{OldRoot} \rightarrow \text{NewRoot}$) \cite{sheybani2025zero}.
+            \item {Default Backend:} Circom + Groth16/Plonk for rapid prototyping \cite{iden3_circom, sui_groth16, polygon_plonky2}.
+            \item {Optional Backends:} Plonky2 or Halo2 for performance comparisons \cite{polygon_plonky2, zcash_halo2}.
+            \item {Proof Generator:} Produces validity proofs ensuring correctness of state transitions.
+        \end{itemize}
+        
+        \item \textbf{Submitter:}
+        The submitter packages and sends the rollup data to the Ethereum mainnet.
+        \begin{itemize}
+            \item {Batch Packager:} Packages transactions, state roots, and validity proofs.
+            \item {On-chain Broadcaster:} Submits canonical state roots, ZK proofs, and DA commitments to Ethereum.
+            \item {Data Availability Connector:} Chooses DA mode (calldata, compression, or external DA).
+        \end{itemize}
+    \end{itemize}
+    
+    \item \textbf{On-Chain Components}
+    These are the smart contracts deployed on the Ethereum mainnet that serve as the anchor for the rollup.
+    \begin{itemize}
+        \item \textbf{RollupBridge.sol}
+            \begin{itemize}
+                \item Stores canonical state roots.
+                \item Manages deposits and withdrawals.
+                \item Emits batch events for client synchronization.
+            \end{itemize}
+        
+        \item \textbf{Verifier.sol}
+            \begin{itemize}
+                \item Verifies zkSNARK/STARK proofs submitted by the off-chain prover.
+                \item Enforces correctness of all rollup state transitions.
+            \end{itemize}
+    \end{itemize}
+    
+    \item \textbf{Data Availability Layer}
+    This layer specifies how the transaction data is made available for anyone to reconstruct the rollup's state.
+    \begin{itemize}
+        \item {Mode A:} Store full transaction data in Ethereum calldata.
+        \item {Mode B:} Store compressed transaction data (delta encoding, bit-packing).
+        \item {Mode C:} Store data off-chain (IPFS \cite{protocol_ipfs} or Celestia \cite{celestia_how } like DA layers) with on-chain pointers.
+    \end{itemize}
+\end{itemize}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\subsubsection{Prototype Implementation Steps}
+
+The development of the prototype will follow a layered approach, starting from the user-facing layer, moving through the off-chain execution pipeline, and finally integrating with on-chain contracts and the data availability layer. This phased structure ensures iterative validation and controlled experimentation.
+
+The key implementation steps are as follows:
+
+\begin{itemize}
+
+\item \textbf{User Layer Development:} The first step will be to integrate with existing browser-based wallets (e.g., MetaMask) to allow users to initiate deposits, transfers, and withdrawals. In parallel, a synthetic workload generator will be built to simulate benchmark workloads for stress testing and performance evaluation.
+
+\item \textbf{Off-chain Sequencer and Executor:} A minimal sequencer will be implemented in Node.js/TypeScript to handle the transaction pool, batching engine, and (optionally) custom scheduling policies (FIFO, priority-based). The executor will be developed alongside, featuring a Sparse Merkle Tree (SMT)-based state manager, a state transition engine for applying transactions, and a block constructor to produce ordered blocks with updated state roots.
+
+\item \textbf{Prover Integration:} Circuits will be designed to verify token balance updates and state transitions ($\text{OldRoot} \rightarrow \text{NewRoot}$) \cite{sheybani2025zero}. The initial backend will use Circom with Groth16/Plonk for rapid prototyping \cite{iden3_circom, sui_groth16, polygon_plonky2}, while optional backends such as Plonky2 and Halo2 \cite{polygon_plonky2, zcash_halo2} will be explored for performance comparisons. Proof generation will then be integrated with the sequencer and executor pipeline.
+
+\item \textbf{Submitter and On-chain Contracts:} A submitter component will be developed to package transactions, state roots, and proofs, and broadcast them to Ethereum. On-chain contracts, namely \texttt{RollupBridge.sol} and \texttt{Verifier.sol}, will serve as the canonical anchors by storing state roots, managing deposits/withdrawals, emitting synchronization events, and verifying zkSNARK/STARK proofs.
+
+\item \textbf{Data Availability Layer:} Different DA strategies will be integrated and tested: storing full transaction data in Ethereum calldata (Mode A), compressed calldata (Mode B), and off-chain storage solutions such as IPFS \cite{protocol_ipfs} or Celestia \cite{celestia_how} with on-chain commitments (Mode C).
+
+\item \textbf{Benchmarking and Experimental Harness:} Once the pipeline is functional, benchmarking scripts will be developed to drive synthetic workloads (modeled using a Poisson process) and collect metrics such as throughput (tx/sec), latency, gas cost, storage footprint, and DA efficiency. This harness will allow systematic experimentation across batch sizes, timeouts, scheduling policies, proof backends, and DA modes.
+
+\item \textbf{Modular and Extensible Framework:} Throughout implementation, the system will be designed as a modular framework, drawing inspiration from zkSync and Polygon zkEVM, while avoiding direct code reuse. This ensures transparency and control in experimentation, while enabling future extensions to richer transaction types (ERC20, ERC721 \cite{vogelsteller2015erc20, vogelsteller2018erc721}), multi-sequencer architectures, and zkEVM circuits for general-purpose contract execution.
+
+\end{itemize}
+
+
+
+\subsection{Experimental Design for Optimization Strategies}
+\subsubsection{Objectives}
+
+Our goal is to quantify how design choices across the \emph{sequencer, executor, prover, submitter, and data-availability (DA)} layers shape end-to-end performance of a modular ZK–Rollup. We isolate parameters and run controlled sweeps to expose trade-offs in throughput, latency, and cost (with reproducible instrumentation).
+
+\begin{itemize}
+  \item \textbf{Sequencer layer (batching \& scheduling).}
+  Evaluate the effect of \emph{batch size} and \emph{batch frequency} (time-/size-triggered) and \emph{scheduling policies} (e.g., FIFO vs.\ fee-priority) on
+  TPS, confirmation-latency percentiles (P50/P95), tail behavior under contention, and fairness across flows.
+
+  \item \textbf{Executor / state-update layer.}
+  Assess state-update efficiency under different \emph{state-tree / commitment} options and \emph{block construction} strategies (e.g., miniblocks vs.\ macro-batches), measuring execution time per block, commit cadence, and bytes committed.
+
+  \item \textbf{Data availability strategies.}
+  Compare Mode~A: \emph{raw calldata}, Mode~B: \emph{compressed/state-diff calldata}, and Mode~C: \emph{off-chain DA with on-chain commitments} (e.g., DAC/DAL) in terms of DA bytes, gas/tx, and end-to-end latency; include external-DA options (e.g., content-addressed storage, modular DA layers) \cite{protocol_ipfs,celestia_how}.
+
+  \item \textbf{Proof-system backends.}
+  Contrast \texttt{Groth16}, \texttt{Plonky2}, and \texttt{Halo2}—including recursion when applicable—for \emph{prover wall-clock time}, \emph{parallelism scaling}, \emph{peak memory}, and \emph{L1 verification cost (gas)} \cite{iden3_circom,sui_groth16,polygon_plonky2,zcash_halo2}.
+
+  \item \textbf{Multi-objective trade-off mapping.}
+  For each configuration, record \textbf{TPS}, \textbf{end-to-end and confirmation latency}, \textbf{gas/tx} (broken down by execution, proof verify, DA), \textbf{proof generation time}, and \textbf{DA bytes}. Fit response surfaces over \emph{batch size $\times$ scheduler $\times$ DA mode} and report Pareto frontiers to guide scalable rollup deployments.
+\end{itemize}
+
+
+\subsubsection{Independent Variables (Experimental Factors)}
+\begin{center}
+\begin{tabular}{|p{4.5cm}|p{8cm}|}
+    \hline
+    \textbf{Factor} & \textbf{Description} \\
+    \hline
+    Batch size & Number of transactions per batch \\
+    \hline
+    Batch frequency / timeout & Time interval to flush transactions into a batch \\
+    \hline
+    Sequencer scheduling policy & Determines transaction ordering in the batch \\
+    \hline
+    Data Availability mode & How transaction data is made available for verification \\
+    \hline
+    Proof system & Type of zk-proof used for batch verification \\
+    \hline
+\end{tabular}
+\end{center}
+
+\vspace{1cm}
+
+\subsubsection{Dependent Variables (Metrics to Measure)}
+\begin{center}
+\begin{tabular}{|p{4.5cm}|p{8cm}|}
+    \hline
+    \textbf{Metric} & \textbf{Description} \\
+    \hline
+    Throughput & Number of transactions processed per second (tx/sec) \\
+    \hline
+    Latency & Time from transaction submission $\rightarrow$ final verification on-chain \\
+    \hline
+    Gas cost & Gas used per batch and per transaction \\
+    \hline
+    Proof generation time & Time taken to compute zk-proof for a batch \\
+    \hline
+    Verification time & Time for on-chain verifier to validate the proof \\
+    \hline
+    Data availability effect & Comparison of gas and storage under different DA modes \\
+    \hline
+\end{tabular}
+\end{center}
+
+% \subsection{Experimental Procedure}
+% Our experimental procedure is designed to be systematic and reproducible, ensuring that our findings are both reliable and verifiable. The procedure is divided into four main phases: setup, controlled experiments, data collection, and analysis.
+
+% \subsubsection{Setup}
+% The setup phase involves preparing the environment for our experiments:
+% \begin{itemize}
+% \item \textbf{Deployment:} We will deploy the prototype ZK-Rollup on two environments: a public Ethereum testnet (e.g., Sepolia) for realistic, public-facing benchmarks, and a local testnet (e.g., Hardhat) for controlled, reproducible experiments that mitigate the "observer effect" of public network congestion.
+% \item \textbf{Baseline Establishment:} To provide a clear point of comparison, we will establish a baseline by deploying a simple L1 smart contract that performs the same operations as the ZK-Rollup. This will allow for a direct comparison of gas costs and throughput between our L2 solution and the L1.
+% \item \textbf{Module Initialization:} We will initialize all the core modules of our prototype, including the Sequencer, Prover, RollupBridge, and Verifier.
+% \item \textbf{Instrumentation:} We will configure our benchmarking scripts to log all relevant data, including timestamps, gas consumption, and storage usage, for each experiment.
+% \end{itemize}
+
+% \subsubsection{Controlled Experiments}
+% In this phase, we will conduct a series of controlled experiments, manipulating one independent variable at a time while keeping others constant:
+% \begin{itemize}
+% \item We will vary the batch size (e.g., testing values from 10 to 1,000 transactions) and measure its impact on throughput, latency, and gas costs.
+% \item We will vary the batch frequency and timeout to observe the trade-off between latency and throughput.
+% \item We will apply different sequencer scheduling policies and measure their effect on fairness (e.g., average and 95th percentile latency) and overall throughput.
+% \item We will switch between different data availability modes to compare their on-chain gas costs, storage requirements, and verification latencies.
+% \item Where possible, we will swap out the underlying proof systems to measure differences in proof generation and verification times.
+% \end{itemize}
+
+% \subsubsection{Data Collection}
+% To ensure the reliability of our results, we will follow a rigorous data collection process:
+% \begin{itemize}
+% \item We will capture all defined metrics for each transaction batch.
+% \item Each experiment will be repeated multiple times to ensure statistical significance and to account for any variability in the test environment.
+% \item All results will be stored in a structured format (e.g., CSV or JSON) to facilitate subsequent analysis.
+% \end{itemize}
+
+% \subsubsection{Analysis and Validation}
+% The final phase of our experimental procedure involves analyzing the collected data and validating our findings:
+% \begin{itemize}
+% \item \textbf{Analysis:} We will plot a series of trade-off curves, such as throughput vs. latency, gas cost vs. batch size, and proof generation time vs. batch size. These visualizations will help us to identify the optimal configurations for different goals (e.g., minimum latency vs. maximum throughput) and to evaluate the impact of DA and proof systems on the overall efficiency of the rollup.
+% \item \textbf{Validation:} We will compare our observed performance with theoretical predictions from the ZK-Rollup literature. This will allow us to highlight any discrepancies between theory and practice and to identify potential bottlenecks in our prototype's design.
+% \end{itemize}
+
