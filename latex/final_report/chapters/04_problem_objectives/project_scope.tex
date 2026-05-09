@@ -1,0 +1,25 @@
+\section{Project Scope and Assumptions}
+\label{sec:project_scope}
+\textbf{Scope:} The project is strictly scoped to building a research prototype. Complex cryptographic proof generation is primarily modeled via a mock delay, and execution is limited to simplified transfer state transitions. 
+
+\textbf{Assumptions:} We assume that the local dev-chain (Hardhat) environment accurately reflects the relative (though not absolute) L1 execution costs of mainnet. We also assume that the synthetic Poisson workload provides a sufficient baseline to measure relative queueing dynamics, acknowledging that real-world DeFi traffic is significantly more bursty.
+
+\subsection{Research Question Mapping}
+Table \ref{tab:rq_mapping} maps the research questions to the objectives, components, and report sections.
+
+\begin{table}[H]
+\centering
+\caption{Research Question Mapping}
+\label{tab:rq_mapping}
+\small
+\begin{tabularx}{\textwidth}{>{\hsize=0.4\hsize}X >{\hsize=1.2\hsize}X >{\hsize=1.0\hsize}X >{\hsize=1.0\hsize}X >{\hsize=0.4\hsize}X}
+\toprule
+\textbf{RQ} & \textbf{Related Objective} & \textbf{Related Component} & \textbf{Related Metric} & \textbf{Report Section} \\
+\midrule
+RQ1 & Design modular architecture & All components & Architecture validation & Ch. \ref{ch:system_architecture}, \ref{ch:implementation} \\
+RQ2 & Evaluate batch/DA modes & Sequencer, Submitter & TPS, Latency, Cost, DA Footprint & Ch. \ref{ch:results}, \ref{ch:discussion} \\
+RQ3 & Isolate prover effects & Executor, Mock Prover & Proof Delay, Finalization Time & Ch. \ref{ch:results}, \ref{ch:discussion} \\
+RQ4 & Identify bottlenecks & Integration Pipeline & Development lessons & Ch. \ref{ch:implementation}, \ref{ch:discussion} \\
+\bottomrule
+\end{tabularx}
+\end{table}

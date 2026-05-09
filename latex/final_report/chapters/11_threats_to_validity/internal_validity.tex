@@ -1,0 +1,8 @@
+\section{Internal Validity}
+\label{sec:internal_validity}
+Internal validity concerns whether the experimental setup accurately measures what it intends to measure without interference from confounding variables.
+\begin{itemize}
+    \item \textbf{Implementation Bugs:} As a research prototype, there is a risk of undiscovered implementation bugs within the Rust microservices or Python workload generator that could skew telemetry data. 
+    \item \textbf{Configuration Errors:} The complexity of orchestrating multiple Docker containers means that subtle misconfigurations in environment variables or TOML templates could lead to inconsistent runs. We mitigate this by using automated CI verification scripts (\texttt{run\_verification\_tests.sh}).
+    \item \textbf{Benchmark Harness Interference:} The telemetry collection itself, particularly file I/O operations, introduces a small degree of overhead that may marginally impact the measured latency at extreme throughputs.
+\end{itemize}

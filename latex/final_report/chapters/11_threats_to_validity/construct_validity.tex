@@ -1,0 +1,7 @@
+\section{Construct and Measurement Validity}
+\label{sec:construct_validity}
+Construct validity assesses whether the theoretical concepts are correctly measured by the metrics.
+\begin{itemize}
+    \item \textbf{Mock Prover Delay:} The use of a parameterized mock prover (e.g., a static 5s delay) is a necessary abstraction for systems-level benchmarking. However, it is an oversimplification. In reality, proving time scales non-linearly with the specific computational complexity (circuit constraints) of the exact transactions inside the batch.
+    \item \textbf{Timestamp Accuracy:} Measuring latency relies on the system clocks of the Docker containers. While they share the host clock, any slight synchronization drift or RPC communication delay between the Python generator and the Rust sequencer could introduce marginal measurement errors in millisecond-level latency tracking.
+\end{itemize}

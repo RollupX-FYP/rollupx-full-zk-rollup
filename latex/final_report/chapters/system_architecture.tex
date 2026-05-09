@@ -1,20 +1,9 @@
 \chapter{System Architecture}
 \label{ch:system_architecture}
 
-\section{Overview}
-The proposed RollupX prototype separates the standard ZK-Rollup pipeline into distinctly modular microservices. This architecture is explicitly designed to support observability and controlled benchmarking rather than production deployment. 
-
-The project's end-to-end execution flow is: 
-\begin{center}
-\texttt{Workload Generator $\rightarrow$ Sequencer $\rightarrow$ Executor gRPC $\rightarrow$ Submitter $\rightarrow$ L1 Contracts}
-\end{center}
-
-\section{Component Roles}
-\begin{itemize}
-    \item \textbf{Workload Generator:} Synthesizes transaction requests based on parameterized arrival rates (e.g., Poisson arrivals) and transaction mixes.
-    \item \textbf{Sequencer:} Receives transactions via a JSON-RPC API, orders them using configurable scheduling policies, and groups them into batches based on size or timeout triggers.
-    \item \textbf{Executor:} A simplified state-transition engine responsible for Merkle state updates. It communicates with the sequencer via gRPC and handles prover integration.
-    \item \textbf{Prover / Mock Prover:} The system supports a parameterized proof delay for benchmarking and a basic \texttt{risc0\_prover} backend for actual cryptographic path testing.
-    \item \textbf{Submitter:} Ingests finalized executor batches and submits them to the Layer-1 smart contracts using robust Saga patterns to ensure delivery.
-    \item \textbf{Smart Contracts:} Solidity contracts deployed on a local Hardhat node that handle state commitment, DA validation, and proof verification logic.
-\end{itemize}
+\input{chapters/05_system_architecture/architecture_overview}
+\input{chapters/05_system_architecture/transaction_lifecycle}
+\input{chapters/05_system_architecture/component_interactions}
+\input{chapters/05_system_architecture/data_flow}
+\input{chapters/05_system_architecture/design_rationale}
+\input{chapters/05_system_architecture/prototype_vs_production}

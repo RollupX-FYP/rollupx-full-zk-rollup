@@ -1,32 +1,14 @@
 \chapter{Methodology}
 \label{ch:methodology}
 
-\section{Experimental Design}
-The benchmarking methodology relies heavily on controlled synthetic workloads to isolate configuration effects. A Python-based workload generator synthesizes transaction requests using a seeded Poisson arrival process. The system then executes the workload through the sequencer, executor, and submitter pipeline, recording telemetry at each defined boundary.
-
-\section{Data Collection and Metrics}
-Telemetry data is collected as raw JSON/CSV metrics in the \texttt{benchmark-suite/metrics/} directory. The Data Tools analytics pipeline subsequently processes this data using Python aggregation scripts to compute the final metrics.
-
-\begin{table}[H]
-\centering
-\caption{Key Benchmarking Metrics}
-\label{tab:metrics}
-\small
-\begin{tabularx}{\textwidth}{l X c X}
-\toprule
-\textbf{Metric} & \textbf{Definition} & \textbf{Unit} & \textbf{Why it matters} \\
-\midrule
-Throughput & Rate of successful transaction inclusion & TPS & Indicates capacity limits of the system \\
-Latency & End-to-end time from transaction submission to L1 finalization & ms & Affects user experience and finality \\
-Gas Cost & L1 execution cost per transaction or per batch & Wei & Determines the economic viability of the rollup \\
-\bottomrule
-\end{tabularx}
-\end{table}
-
-\section{Configuration Sweeps}
-Experiments are conducted by methodically varying:
-\begin{itemize}
-    \item \textbf{Batch Size:} Evaluating small vs. large batches to observe the cost-amortization vs. queueing-delay effect.
-    \item \textbf{Data Availability Mode:} Comparing standard \texttt{calldata} versus EIP-4844 blobs.
-    \item \textbf{Mock Proof Delay:} Utilizing parameterized proof delays to isolate the impact of proof generation time from standard sequencing and submission overhead.
-\end{itemize}
+\input{chapters/06_methodology/methodology}
+\input{chapters/06_methodology/research_design}
+\input{chapters/06_methodology/workload_model}
+\input{chapters/06_methodology/batching_policy_space}
+\input{chapters/06_methodology/sequencing_policy_space}
+\input{chapters/06_methodology/data_availability_modes}
+\input{chapters/06_methodology/cost_model}
+\input{chapters/06_methodology/dynamic_batching_model}
+\input{chapters/06_methodology/evaluation_metrics}
+\input{chapters/06_methodology/experimental_procedure}
+\input{chapters/06_methodology/hypotheses}

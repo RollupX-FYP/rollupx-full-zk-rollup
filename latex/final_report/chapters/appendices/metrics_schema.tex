@@ -1,0 +1,20 @@
+\chapter{Metrics Output Schema}
+\label{app:metrics_schema}
+The Workload Generator outputs a JSON file (\texttt{workload\_<exp\_id>.json}) capturing the global experiment parameters and a CSV file (\texttt{tx\_log\_<run\_id>.csv}) tracking individual transactions.
+
+\textbf{tx\_log schema:}
+\begin{itemize}
+    \item \texttt{tx\_hash}: Unique transaction identifier.
+    \item \texttt{submit\_time}: Timestamp (ms) when the workload generator sent the request.
+    \item \texttt{status}: Success or Failure.
+    \item \texttt{latency\_ms}: The Round-Trip Time observed by the client (approximating soft finality).
+\end{itemize}
+
+The Submitter outputs \texttt{submitter\_metrics.json}, containing:
+\begin{itemize}
+    \item \texttt{batch\_id}: Internal ID.
+    \item \texttt{l1\_tx\_hash}: The Ethereum transaction hash.
+    \item \texttt{gas\_used}: The exact L1 gas consumed by the verification transaction.
+    \item \texttt{da\_mode}: The DA formatting used (Calldata/Blob).
+    \item \texttt{total\_cost\_eth}: The calculated economic cost of the submission.
+\end{itemize}

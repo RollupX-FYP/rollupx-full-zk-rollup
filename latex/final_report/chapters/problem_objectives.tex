@@ -1,25 +1,11 @@
 \chapter{Problem Statement and Objectives}
 \label{ch:problem_objectives}
 
-\section{Problem Statement}
-Practical ZK-Rollup performance is dictated by several interacting and often competing factors, including batch formation limits, sequencer scheduling algorithms, data availability footprint, Layer-1 submission costs, and proof-generation overhead \cite{habib2025bottlenecks,chaliasos2024benchmarking}. These factors do not affect performance independently; for instance, increasing the batch size reduces the amortized Layer-1 cost per transaction but simultaneously increases the queueing delay for early transactions in the batch.
-
-The core research problem addressed in this report is the lack of a compact, modular, and reproducible experimental framework designed specifically to isolate how these batching, sequencing, proof-delay, and data availability choices affect ZK-Rollup throughput, latency, finalization time, and cost behavior under strictly comparable workloads.
-
-\section{Research Questions}
-This work is guided by the following primary research questions:
-\begin{enumerate}
-    \item How can a modular ZK-Rollup prototype be designed to support the controlled benchmarking of batching, sequencing, state execution, proof handling, and data availability choices?
-    \item How do variations in batching strategy, sequencing policy, and data availability mode (calldata vs. blobs) shift the end-to-end performance across throughput, latency, data footprint, and cost dimensions?
-    \item How can parameterized proof-delay measurements help isolate proving-stage effects from sequencing, execution, and Layer-1 submission overhead?
-\end{enumerate}
-
-\section{Objectives}
-The primary objective of this project is to design, implement, and systematically evaluate a modular ZK-Rollup research prototype using controlled synthetic workloads. 
-
-The expected outcomes include:
-\begin{itemize}
-    \item A reproducible, containerized experimental framework.
-    \item Empirical insights into the inherent throughput--latency--cost trade-offs present in the Layer-2 pipeline.
-    \item An open-source benchmarking harness that provides a foundation for future scalability research.
-\end{itemize}
+\input{chapters/04_problem_objectives/problem_objectives}
+\input{chapters/04_problem_objectives/problem_statement}
+\input{chapters/04_problem_objectives/research_questions}
+\input{chapters/04_problem_objectives/proposed_solution}
+\input{chapters/04_problem_objectives/research_objectives}
+\input{chapters/04_problem_objectives/research_outcomes}
+\input{chapters/04_problem_objectives/project_scope}
+\input{chapters/04_problem_objectives/assumptions}

@@ -1,0 +1,3 @@
+\section{Reproducibility Setup}
+\label{sec:reproducibility_setup}
+The entire benchmark matrix can be executed consistently using the \texttt{run\_matrix.sh} wrapper. This script automatically tears down the stack between runs, drops the internal SQLite databases to prevent state conflicts, and sequentially steps through the variables defined in \texttt{experiments.toml}.

@@ -1,0 +1,26 @@
+\chapter{Important Algorithms}
+\label{app:algorithms}
+This appendix provides simplified pseudocode for the Sequencer's core batch orchestration logic, demonstrating the interaction between the size trigger and the timeout trigger.
+
+\begin{verbatim}
+Algorithm: Batch Orchestrator Loop
+Input: max_batch_size, timeout_interval
+State: current_batch_txs = [], last_seal_time = now()
+
+loop indefinitely:
+    // Pull transactions from the pool ordered by the active policy
+    tx = tx_pool.pop()
+    
+    if tx is not null:
+        current_batch_txs.append(tx)
+    
+    time_elapsed = now() - last_seal_time
+    
+    if current_batch_txs.length >= max_batch_size OR time_elapsed >= timeout_interval:
+        if current_batch_txs.length > 0:
+            seal_and_dispatch(current_batch_txs)
+            current_batch_txs = []
+            last_seal_time = now()
+    
+    sleep(tick_duration)
+\end{verbatim}

@@ -1,0 +1,3 @@
+\section{Development Challenges}
+\label{sec:development_challenges}
+One notable development challenge was ensuring the test suite could run cleanly despite upstream dependencies. Specifically, the \texttt{risc0\_prover} guest execution threw `Elf parse errors` under certain host architectures, which required targeted test bypasses and careful Docker image construction to stabilize the CI pipeline.

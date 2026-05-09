@@ -1,0 +1,2 @@
+\subsection{RQ3: Mock Prover Delay vs. Real Prover}
+The use of a benchmark-mode parameterized proof delay proved to be a valuable analytical tool. In scenarios where real cryptographic proof generation would dominate the execution time (masking all other systems-level bottlenecks), the mock delay allowed us to isolate and study sequencer queue growth and L1 submission retry logic. It confirmed that if proof generation is slow, the system becomes strictly compute-bound, creating severe backpressure on the L2 state regardless of L1 gas costs.

@@ -1,0 +1,8 @@
+\section{Lessons Learned for Production Systems}
+\label{sec:prototype_vs_production_discussion}
+While this prototype is a controlled research tool, the findings have implications for production rollups:
+\begin{enumerate}
+    \item \textbf{Dynamic Policies are Necessary:} Static batch size limits are insufficient for volatile real-world traffic. Production sequencers must implement dynamic scheduling policies that balance timeout triggers and size triggers to maintain acceptable user latency during low-traffic periods.
+    \item \textbf{Prover Parallelization:} The backpressure observed during high mock-delay scenarios underscores why production systems invest heavily in massively parallelized, hardware-accelerated prover networks and recursive proof aggregation.
+    \item \textbf{DA is Still Critical:} Even with EIP-4844, the DA footprint remains a core bottleneck. Further compression strategies or reliance on off-chain DA layers (like Celestia) will be necessary for extreme scale.
+\end{enumerate}

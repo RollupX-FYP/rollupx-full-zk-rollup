@@ -1,0 +1,11 @@
+\section{Executor}
+\label{sec:executor}
+The Executor serves as the host-side state transition and proving coordinator.
+
+\begin{itemize}
+    \item \textbf{Language:} Rust (requires \texttt{nightly-2024-08-01} toolchain).
+    \item \textbf{Execution Role:} Adapted from open-source zkSync components, it processes a \texttt{publish\_batch} request via gRPC. It parses and normalizes transactions, and executes the state transition function (STF) using a \texttt{SimpleTransactionEngine} backed by a \texttt{RocksDbStateManager}.
+    \item \textbf{Prover Integration:} After execution, it builds an \texttt{ExecutionTraceV1} and invokes the prover backend to generate proof artifacts. 
+    \item \textbf{Output:} It emits an enriched batch payload (containing the DA commitment and proof) back to the Submitter and logs execution metrics.
+    \item \textbf{Limitations:} The executor is a simplified state-transition engine tailored for transfer-style workloads and Merkle state updates. It is not a full EVM or zkEVM. Furthermore, there is a known upstream issue where \texttt{risc0\_prover} throws an `Elf parse error` during guest execution in certain configurations, requiring specific test bypasses during CI.
+\end{itemize}

@@ -1,0 +1,8 @@
+\section{Environment and Orchestration}
+\label{sec:environment}
+The experimental environment is strictly local and fully containerized, orchestrated via \texttt{docker compose} to ensure consistency and reproducibility across different host machines. The stack is segmented into profiles:
+\begin{itemize}
+    \item \texttt{--profile core}: Starts the foundational components, including the Hardhat L1 node, the deployer script, Executor, Submitter, and Sequencer.
+    \item \texttt{--profile bench}: Triggers the Workload Generator and benchmark harness (\texttt{run\_experiment.sh}).
+    \item \texttt{--profile report}: Triggers the Data Tools analytics pipeline to process raw telemetry into aggregated reports.
+\end{itemize}

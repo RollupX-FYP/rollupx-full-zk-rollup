@@ -1,0 +1,21 @@
+\section{Evaluation Metrics}
+\label{sec:evaluation_metrics}
+Telemetry data is collected as raw JSON/CSV metrics in the \texttt{benchmark-suite/metrics/} directory. The Data Tools analytics pipeline subsequently processes this data using Python aggregation scripts to compute the final metrics.
+
+\begin{table}[H]
+\centering
+\caption{Key Benchmarking Metrics}
+\label{tab:metrics}
+\small
+\begin{tabularx}{\textwidth}{l X c X}
+\toprule
+\textbf{Metric} & \textbf{Definition} & \textbf{Unit} & \textbf{Why it matters} \\
+\midrule
+Throughput & Rate of successful transaction inclusion & TPS & Indicates capacity limits of the system \\
+Latency & Time from transaction submission to soft finality & ms & Affects user experience \\
+Finalization & Time from batch sealing to hard finality on L1 & ms & Affects system security and dispute windows \\
+Gas Cost & L1 execution cost per transaction or per batch & Wei & Determines the economic viability of the rollup \\
+DA Footprint & Size of the compressed data posted to L1 & Bytes & Directly correlates with calldata costs \\
+\bottomrule
+\end{tabularx}
+\end{table}

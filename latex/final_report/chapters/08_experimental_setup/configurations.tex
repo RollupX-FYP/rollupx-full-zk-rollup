@@ -1,0 +1,23 @@
+\section{Configurations and Experimental Variables}
+\label{sec:configurations}
+Component configurations are managed via YAML and TOML templates (e.g., \texttt{sequencer.docker.yaml}, \texttt{sequencer.template.toml}). These templates are processed using \texttt{envsubst} to inject environment variables (like \texttt{SEQUENCER\_BIN}, \texttt{L1\_RPC\_URL}, and \texttt{BRIDGE\_ADDRESS}). It is crucial that default values are explicitly exported in the bash environment prior to substitution, as the \texttt{envsubst} implementation does not support bash fallback syntax.
+
+\begin{table}[H]
+\centering
+\caption{Experimental Factors and Controlled Variables}
+\label{tab:experimental_factors}
+\small
+\begin{tabularx}{\textwidth}{>{\hsize=0.8\hsize}X >{\hsize=1.0\hsize}X >{\hsize=1.2\hsize}X}
+\toprule
+\textbf{Factor (Independent Variable)} & \textbf{Values Tested} & \textbf{Expected Effect} \\
+\midrule
+Maximum Batch Size & 10, 50, 100, 500 txs & Larger sizes reduce amortized L1 cost but increase queueing latency. \\
+\addlinespace
+Data Availability Mode & \texttt{Calldata}, \texttt{EIP-4844 Blob} & Blob mode should significantly reduce L1 gas costs compared to calldata. \\
+\addlinespace
+Proof Delay (Mock) & 0s, 5s, 15s, 30s & Higher delays simulate complex proofs, increasing finalization time and potentially causing sequencer queue backpressure. \\
+\addlinespace
+Sequencing Policy & FCFS, Priority-Fee & Affects individual transaction latency based on fee bids during congestion. \\
+\bottomrule
+\end{tabularx}
+\end{table}

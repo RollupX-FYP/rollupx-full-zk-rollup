@@ -1,0 +1,8 @@
+\section{Research Gap and Context}
+\label{sec:research_gap}
+
+Despite their promise, production ZK-rollups (such as zkSync Era, Starknet, and Polygon zkEVM) are highly complex systems. Their performance is dictated by an intricate interplay of several bottlenecks: sequencer scheduling policies, batch formation triggers, data availability (DA) modes, L1 submission costs, and highly compute-bound proof generation overhead. The complexity of production systems often makes it difficult to conduct controlled, isolated experiments to understand how changing one configuration variable impacts the overall system behavior.
+
+This report details the development and evaluation of a modular ZK-Rollup benchmarking prototype, developed as a final year research project. The prototype is explicitly a research prototype and is not intended to be a production-ready mainnet rollup or a complete zkEVM implementation. Instead, it serves as a controlled benchmarking framework designed specifically to isolate and evaluate the impact of different configuration choices on system performance.
+
+By cleanly separating sequencing, execution, proof handling, submission, and data availability concerns, the architecture enables reproducible experiments. We investigate how varying batch sizes, scheduling policies, and data availability mechanisms (such as standard calldata versus EIP-4844 blobs) influence the critical throughput--latency--cost trade-off. Furthermore, the system incorporates a benchmark-mode mock prover that introduces parameterized proof delays, allowing us to analytically model proof overhead without conflating systems-level queueing dynamics with the massive hardware requirements of actual cryptographic proof generation.

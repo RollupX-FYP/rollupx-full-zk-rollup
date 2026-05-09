@@ -1,0 +1,8 @@
+\section{Experimental Procedure and Hypotheses}
+\label{sec:experimental_procedure}
+Experiments are conducted by methodically sweeping the configuration variables via bash orchestration scripts.
+\begin{itemize}
+    \item \textbf{Batch Size Sweep:} We hypothesize that larger batches will decrease cost per transaction but increase average latency.
+    \item \textbf{DA Mode Comparison:} We hypothesize that blob mode will show a drastically reduced L1 gas footprint compared to calldata.
+    \item \textbf{Mock Proof Delay Sweep:} Utilizing parameterized proof delays, we hypothesize that simulating complex proof generation will shift the system bottleneck from the L1 submission rate to the Executor/Prover queue.
+\end{itemize}

@@ -1,0 +1,8 @@
+\section{Data Availability (DA)}
+\label{sec:data_availability}
+
+For a rollup to be secure and trustless, anyone must be able to independently reconstruct the L2 state. Therefore, the sequencer must publish the transaction data (or state diffs) to a Data Availability (DA) layer. If data is withheld, users could lose access to their funds because they cannot prove their ownership on L1.
+
+Historically, ZK-Rollups posted this data to Ethereum L1 using standard transaction \texttt{calldata}. However, \texttt{calldata} is permanently stored on all Ethereum full nodes, making it prohibitively expensive and a major component of L2 transaction costs.
+
+To mitigate this, Ethereum introduced EIP-4844 ("Proto-Danksharding"), which created a new transaction type that carries "blobs" of data \cite{eip4844}. Blobs are temporarily available on L1 (typically for a few weeks) and are priced in a separate, cheaper fee market. The EVM cannot read the blob data directly, but it can verify cryptographic commitments to the blob. This fundamental shift significantly alters the cost structure of DA for rollups \cite{saif2024dataavailability, lavaur2023modular}. Off-chain DA solutions (like Celestia or Data Availability Committees) offer even cheaper alternatives but introduce different trust assumptions, pushing the architecture toward a Validium model rather than a pure rollup.

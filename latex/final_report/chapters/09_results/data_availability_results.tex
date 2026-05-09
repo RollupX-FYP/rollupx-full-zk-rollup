@@ -1,0 +1,5 @@
+\subsection{Calldata vs Blob Efficiency}
+\begin{itemize}
+    \item \textbf{Calldata Footprint:} When using calldata, the Submitter compresses the transaction payload (via Zlib) and passes it directly in the L1 transaction. The L1 gas cost scaled linearly with the volume of transactions, rapidly becoming the dominant cost factor for the rollup.
+    \item \textbf{Blob Efficiency:} Switching the DA mode to EIP-4844 blobs resulted in a drastic reduction in L1 execution gas costs. Because the EVM only verifies a cryptographic commitment to the blob (rather than storing the data permanently), the on-chain footprint was minimized. While the transactions incurred a separate "blob gas" fee, the overall economic cost per transaction dropped significantly compared to the calldata baseline.
+\end{itemize}

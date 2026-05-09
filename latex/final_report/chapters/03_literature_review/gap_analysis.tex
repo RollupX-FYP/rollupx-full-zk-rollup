@@ -1,0 +1,26 @@
+\section{Synthesis and Positioning of This Work}
+\label{sec:gap_analysis}
+
+Table \ref{tab:literature_synthesis} summarizes the identified research areas, existing limitations, and how this project addresses them.
+
+\begin{table}[H]
+\centering
+\caption{Synthesis of Literature and Project Positioning}
+\label{tab:literature_synthesis}
+\small
+\begin{tabularx}{\textwidth}{>{\hsize=0.8\hsize}X >{\hsize=1.2\hsize}X >{\hsize=1.0\hsize}X >{\hsize=1.0\hsize}X}
+\toprule
+\textbf{Research Area} & \textbf{Existing Work / Focus} & \textbf{Limitation in Literature} & \textbf{How This Project Responds} \\
+\midrule
+Write Scalability & Broad surveys on L1/L2 scaling \cite{zhou2020solutions, tran2023implementation} & Often theoretical; lacks empirical implementation data. & Implements a functioning L2 prototype. \\
+\addlinespace
+Prover Bottlenecks & Analysis of ZKP generation costs \cite{habib2025bottlenecks} & Requires massive hardware to test real prover limits. & Uses benchmark-mode mock proving to isolate systems-level queueing. \\
+\addlinespace
+DA Costs & Analysis of EIP-4844 blobs vs calldata \cite{saif2024dataavailability} & Usually observed passively on mainnet. & Allows active configuration toggling between calldata and blobs. \\
+\addlinespace
+Rollup Benchmarking & Tracing deployed systems like zkSync Era \cite{silva2025zksyncdataset} & Cannot alter internal configurations under identical workloads. & Provides a controlled, synthetic benchmarking framework for direct comparisons. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+While prior work provides insight into deployed rollups, this project focuses on controlled, configuration-level experimentation. Production systems prioritize reliability, EVM compatibility, and user-facing deployment. In contrast, our prototype prioritizes controlled experimentation, modularity, and observability, enabling repeatable, isolated studies to observe exactly how individual design choices shift the fundamental throughput--latency--cost behavior.

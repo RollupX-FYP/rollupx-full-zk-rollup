@@ -1,0 +1,9 @@
+\section{Future Work}
+\label{sec:future_work}
+While this project establishes a robust baseline for evaluating ZK-Rollup configurations, several avenues for future research remain:
+\begin{itemize}
+    \item \textbf{Real Prover Integration:} Transitioning from the benchmark-mode mock prover to a fully integrated, hardware-accelerated cryptographic prover cluster (e.g., utilizing advanced recursive PLONK or STARK circuits) to measure absolute proof generation costs under heavy, parallelized load.
+    \item \textbf{Trace-Driven Workloads:} Replacing the synthetic Poisson-based workload generator with trace-driven inputs based on historical mainnet dataset replays (such as actual zkSync Era or Arbitrum traces) to provide greater external validity.
+    \item \textbf{Dynamic Batching Policies:} Implementing and formally evaluating dynamic, adaptive batching algorithms that automatically adjust size and timeout triggers in real-time based on fluctuating Layer-1 base fees and mempool congestion.
+    \item \textbf{Off-Chain DA Layers:} Expanding the Data Availability scope beyond L1 calldata/blobs by fully integrating with external DA networks (such as Celestia or EigenDA) to benchmark the trade-offs of Validium or Volition architectures.
+\end{itemize}

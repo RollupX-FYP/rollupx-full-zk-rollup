@@ -1,0 +1,12 @@
+\section{Proposed Solution}
+\label{sec:proposed_solution}
+To answer the research questions, this project proposes the design and implementation of a modular ZK-rollup benchmarking prototype. The solution focuses on:
+\begin{itemize}
+    \item \textbf{Modular Architecture:} Separating the pipeline into discrete components: workload generator, sequencer, executor, prover/mock prover, submitter, smart contracts, and benchmark tools.
+    \item \textbf{Configurable Policies:} Exposing configuration toggles for batching triggers (size and timeout) and sequencing algorithms.
+    \item \textbf{DA Mode Comparison:} Implementing dual paths for L1 data submission to directly compare standard \texttt{calldata} against EIP-4844 blobs.
+    \item \textbf{Synthetic Workloads:} Using a Python-based generator to synthesize steady-state transaction traffic.
+    \item \textbf{Telemetry and Metrics:} Instrumenting the microservices to log precise timestamps and gas usage metrics for later analysis.
+    \item \textbf{Controlled Sweeps:} Using container orchestration (Docker Compose) and bash scripts to run automated sweeps across the configuration matrix.
+\end{itemize}
+It is explicitly stated that this proposed solution implements a research prototype designed for benchmarking, not a secure, production-ready mainnet rollup or complete zkEVM.

@@ -1,0 +1,9 @@
+\section{Design Rationale}
+\label{sec:design_rationale}
+The prototype utilizes several established software design patterns to maintain modularity:
+\begin{itemize}
+    \item \textbf{Strategy Pattern:} Used in the Sequencer to allow hot-swapping of different transaction scheduling policies without altering the core batching logic.
+    \item \textbf{Pipeline Pattern:} Employed in the Executor and Submitter to process batches through discrete validation, execution, and formatting stages.
+    \item \textbf{Saga Workflow Engine:} The Submitter implements a robust Saga pattern backed by a local database (SQLite/Postgres) to handle reliable retries, nonce management, and idempotency when interacting with the volatile L1 RPC.
+    \item \textbf{Observer Pattern:} Used by the Sequencer's L1 Event Listener to monitor the bridge contract for forced transactions (e.g., L1 to L2 deposits).
+\end{itemize}

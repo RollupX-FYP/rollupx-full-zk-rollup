@@ -1,57 +1,8 @@
-\chapter{Build and Run Guide}
-\label{app:build_run_guide}
-This appendix outlines the steps required to build and run the RollupX prototype.
-
-\textbf{Prerequisites:}
-\begin{itemize}
-    \item Docker and Docker Compose
-    \item Node.js (v18+) and npm
-    \item Rust (nightly-2024-08-01 toolchain)
-    \item Python 3.10+
-\end{itemize}
-
-\textbf{Build Commands:}
-\begin{verbatim}
-# Install contract dependencies
-cd contracts && npm install
-npx hardhat compile
-
-# Build core Rust components
-cargo build --release
-\end{verbatim}
-
-\textbf{Run Commands:}
-\begin{verbatim}
-# Start the local environment
-docker compose --profile core up -d
-\end{verbatim}
-
-\chapter{Benchmark Execution Guide}
-\label{app:benchmark_guide}
-\textbf{Running a Benchmark:}
-\begin{verbatim}
-# Execute the feasibility matrix
-bash benchmark-suite/scripts/run_matrix.sh --phase feasibility
-\end{verbatim}
-
-\textbf{Collecting and Plotting Metrics:}
-\begin{verbatim}
-# Run the data tools aggregation script
-bash run_pipeline.sh
-\end{verbatim}
-
-\chapter{Repository Structure}
-\label{app:repo_structure}
-An overview of the essential directories within the RollupX repository:
-\begin{verbatim}
-.
-|-- benchmark-suite/   # Workload generator and orchestration scripts
-|-- contracts/         # L1 Smart Contracts (Solidity/Hardhat)
-|-- data-tools/        # Python scripts for telemetry aggregation and plotting
-|-- docs/              # System architecture and component documentation
-|-- executor/          # Rust executor (state transitions and proving integration)
-|-- risc0_prover/      # Experimental RISC0 zkVM prover backend
-|-- sequencer/         # Rust sequencer (transaction ingestion and batching)
-|-- submitter/         # Rust submitter (DA formatting and L1 interaction)
-`-- report/            # LaTeX source for the final year report
-\end{verbatim}
+\input{chapters/appendices/repository_structure}
+\input{chapters/appendices/build_run_guide}
+\input{chapters/appendices/benchmark_guide}
+\input{chapters/appendices/configuration_reference}
+\input{chapters/appendices/metrics_schema}
+\input{chapters/appendices/algorithms}
+\input{chapters/appendices/additional_tables}
+\input{chapters/appendices/additional_figures}

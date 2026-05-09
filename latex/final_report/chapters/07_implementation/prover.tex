@@ -1,0 +1,8 @@
+\section{Prover / Mock Prover}
+\label{sec:prover}
+To allow for scalability experiments without being heavily constrained by the massive hardware requirements of actual cryptographic proof generation, the prototype relies heavily on a mock proving path for analytical benchmarking.
+
+\begin{itemize}
+    \item \textbf{Mock Prover Mode:} During benchmark execution, the system uses a parameterized time delay to simulate cryptographic overhead. This allows the study to isolate systems-level bottlenecks (sequencer queue growth, database I/O, network latency) from compute-bound cryptographic constraints.
+    \item \textbf{Real Prover Backend:} A basic \texttt{risc0\_prover} path exists in the repository root and is used as the real proof path backend for the executor (\texttt{PROVER\_BACKEND=risc0}). However, it does not implement full parallel PLONK, Groth16, Halo2, Plonky2, or recursive aggregation. Therefore, using the mock prover is the preferred and valid approach for controlled throughput–latency bottleneck isolation.
+\end{itemize}

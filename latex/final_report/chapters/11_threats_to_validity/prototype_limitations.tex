@@ -1,0 +1,7 @@
+\section{Prototype Limitations}
+\label{sec:prototype_limitations}
+Finally, the architectural scope of the RollupX prototype presents inherent limitations:
+\begin{itemize}
+    \item \textbf{Not a Full zkEVM:} The Executor implements a simplified state-transition function focused on balance transfers and nonce updates. It lacks the complex opcode implementation and state trie bloat management required for a production zkEVM capable of executing arbitrary Solidity smart contracts.
+    \item \textbf{Simplified Security Assumptions:} The system relies on dummy signatures during benchmarking to bypass expensive ECDSA recovery on the sequencer, prioritizing throughput measurement over full cryptographic verification. Furthermore, off-chain DA is implemented only as a simulated stub, not a robust integration with a real Data Availability layer.
+\end{itemize}

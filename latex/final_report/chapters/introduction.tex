@@ -1,15 +1,7 @@
 \chapter{Introduction}
 \label{ch:introduction}
 
-\section{Motivation}
-Ethereum Layer-1 provides strong security and decentralization but remains constrained by limited throughput, congestion, and fee volatility \cite{buterin2014ethereum,wood2014ethereum}. This limitation reflects the blockchain trilemma, where decentralized systems must balance scalability, security, and decentralization rather than maximizing all three simultaneously \cite{fu2024trilemma}. Ethereum's current scaling direction therefore relies heavily on Layer-2 rollups, which move transaction execution off-chain while using Layer-1 for settlement, verification, and data availability.
-
-Within this rollup-centric design space, Zero-Knowledge (ZK) Rollups are particularly attractive. They bundle hundreds of off-chain transfers into a single transaction and submit cryptographic validity proofs that allow Layer-1 contracts to verify off-chain state transitions without re-executing every transaction. This preserves the base layer's security model while significantly reducing the amount of computation performed directly on Layer-1.
-
-\section{Context and Scope}
-This report details the development and evaluation of a modular ZK-Rollup benchmarking prototype, developed as a final year research project. The prototype is not intended to be a production mainnet rollup or a full Ethereum Virtual Machine (EVM) implementation. Instead, it serves as a controlled benchmarking framework explicitly designed to isolate and evaluate the impact of different configuration choices on system performance. 
-
-By cleanly separating sequencing, execution, proof handling, submission, and data availability concerns, the architecture enables reproducible experiments. We investigate how varying batch sizes, scheduling policies, and data availability mechanisms (such as standard calldata versus EIP-4844 blobs) influence the critical throughput--latency--cost trade-off.
-
-\section{Document Structure}
-The remainder of this report is structured as follows. Chapter \ref{ch:background} provides background on Ethereum scalability and ZK-Rollups. Chapter \ref{ch:literature_review} reviews relevant literature. Chapter \ref{ch:problem_objectives} outlines the problem statement and research objectives. Chapter \ref{ch:system_architecture} presents the high-level system architecture, and Chapter \ref{ch:methodology} discusses the experimental methodology. Chapter \ref{ch:implementation} delves into the detailed implementation of the prototype's core components. Chapter \ref{ch:experimental_setup} outlines the testing environment, followed by Chapter \ref{ch:results} which presents the findings. Chapter \ref{ch:discussion} provides an in-depth discussion of the throughput--latency--cost trade-offs. Chapter \ref{ch:threats_to_validity} addresses threats to validity, and Chapter \ref{ch:individual_contributions} documents the team's individual contributions. Finally, Chapter \ref{ch:conclusion} concludes the report and suggests directions for future work.
+\input{chapters/01_introduction/motivation}
+\input{chapters/01_introduction/research_gap}
+\input{chapters/01_introduction/contributions}
+\input{chapters/01_introduction/report_organization}

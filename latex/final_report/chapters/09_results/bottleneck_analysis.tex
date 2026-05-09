@@ -1,0 +1,2 @@
+\subsection{Queue Backpressure}
+High proof delays caused backpressure. While the sequencer could continue accepting transactions and forming batches (soft finality), the pipeline downstream (Executor and Submitter) became compute-bound. This highlights the necessity for highly parallelized prover networks in production rollups to prevent the proof-generation stage from completely throttling L1 settlement throughput.

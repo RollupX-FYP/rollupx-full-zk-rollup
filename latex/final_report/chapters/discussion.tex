@@ -1,15 +1,12 @@
 \chapter{Discussion}
 \label{ch:discussion}
 
-\section{Throughput--Latency--Cost Trade-off}
-The empirical data provided by the prototype confirms that ZK-Rollup configuration is fundamentally a balancing act. Optimizing for the absolute lowest Layer-1 cost per transaction dictates the use of exceptionally large batches. However, this inherently penalizes latency. Conversely, fast finalization requires smaller, rapidly submitted batches (or exceptionally fast, and potentially prohibitively expensive, proof generation clusters).
-
-\section{Bottleneck Identification}
-The modularity of the prototype allowed clear observation of shifting bottlenecks:
-\begin{itemize}
-    \item \textbf{Low Proof Delay:} In configurations where proof generation is nearly instant (simulated), the Layer-1 submission transaction rate (and block time) becomes the primary limiting factor.
-    \item \textbf{High Proof Delay:} In configurations with high proof delay, the system becomes strictly compute-bound at the Prover stage, backing up the Sequencer.
-\end{itemize}
-
-\section{Prototype Limitations vs. Production}
-It is crucial to emphasize that this prototype is a modular benchmarking tool, not a production mainnet rollup. The executor is a simplified state engine, not a full zkEVM. The mock prover primarily simulates delay rather than generating actual cryptographic proofs under varying, complex smart contract execution workloads. Real-world implementations face additional constraints regarding EVM opcode compatibility, state trie bloat, and decentralized sequencer consensus mechanisms.
+\input{chapters/10_discussion/discussion}
+\input{chapters/10_discussion/rq_answers}
+\input{chapters/10_discussion/throughput_latency_cost_tradeoff}
+\input{chapters/10_discussion/batching_discussion}
+\input{chapters/10_discussion/sequencing_discussion}
+\input{chapters/10_discussion/data_availability_discussion}
+\input{chapters/10_discussion/prover_discussion}
+\input{chapters/10_discussion/design_implications}
+\input{chapters/10_discussion/prototype_vs_production_discussion}

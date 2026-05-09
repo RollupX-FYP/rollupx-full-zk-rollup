@@ -1,0 +1,7 @@
+\section{External Validity}
+\label{sec:external_validity}
+External validity refers to the generalizability of the findings to real-world production environments.
+\begin{itemize}
+    \item \textbf{Synthetic Workloads:} The Workload Generator uses a steady-state Poisson arrival distribution representing simple transfer transactions. This does not accurately capture the highly bursty, complex execution patterns of real-world decentralized finance (DeFi) interactions on a production network.
+    \item \textbf{Local Execution Environment:} The experiments were conducted against a local Hardhat node on a single physical host machine. This setup ignores global network latency between distributed nodes, realistic L1 block propagation times, and real-world Ethereum mainnet congestion and EIP-1559 fee volatility. Therefore, absolute TPS or latency numbers cannot be directly extrapolated to mainnet performance; they are only valid for relative comparisons between configurations.
+\end{itemize}
