@@ -8,3 +8,11 @@ The Workload Generator is responsible for synthesizing a realistic arrival strea
     \item \textbf{Transaction Format:} The generator synthesizes JSON-RPC transaction requests. To ensure validity during high-throughput benchmarks without requiring expensive, compute-bound cryptographic signing operations from the load generator itself, the system uses a dummy signature approach. Specifically, the sequencer's \texttt{UserTransaction::hash()} function deliberately excludes \texttt{calldata} and \texttt{tx\_type} to allow these dummy signatures to pass verification.
     \item \textbf{Input/Output Files:} The generator interacts with the sequencer via an HTTP/RPC client. It tags transactions with Experiment IDs and Run IDs and outputs detailed telemetry, specifically \texttt{workload\_<exp\_id>.json} and \texttt{tx\_log\_<run\_id>.csv}, which record submission timestamps and latency.
 \end{itemize}
+\textbf{Role:} Generates synthetic transaction traffic (Poisson distribution) to test system limits. \\
+\textbf{Language:} Python \\
+\textbf{Key Files:} \texttt{poisson\_generator.py}, \texttt{tx\_types.py} \\
+\textbf{Inputs:} Target TPS, experiment duration, Sequencer RPC URL. \\
+\textbf{Outputs:} Signed dummy transactions sent via JSON-RPC. \\
+\textbf{State Maintained:} Stateless (memory only tracks sent transactions). \\
+\textbf{Metrics:} Submitted TPS, generation latency. \\
+\textbf{Limitations:} Cannot simulate bursty real-world DeFi traffic.

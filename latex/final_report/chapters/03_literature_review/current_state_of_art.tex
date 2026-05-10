@@ -7,3 +7,17 @@ With the industry shift towards rollups, research has increasingly focused on th
 \input{chapters/03_literature_review/prover_related_work}
 \input{chapters/03_literature_review/data_availability_related_work}
 Production ZK systems (e.g., Polygon zkEVM, Scroll, zkSync) use very different hardware setups and prover designs. For instance, Polygon zkEVM demands high-capacity setups (e.g., 96-core CPU, 768 GB RAM) \cite{chaliasos2024analyzing}. This diversity makes identical-hardware comparisons difficult, justifying the use of a research-grade prototype with parameterized proof delays.
+
+Production systems like zkSync Era, Polygon zkEVM, and Scroll illustrate the zkEVM complexity spectrum (Types 1 through 4).
+
+\begin{table}[ht]
+\centering
+\caption{Current State-of-the-Art ZK Systems}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{System} & \textbf{Approach} & \textbf{Primary Bottleneck} \\ \hline
+zkSync Era & Type 4 zkEVM & Prover cluster scaling \\ \hline
+Polygon zkEVM & Type 2/3 zkEVM & Hardware wall (96-core CPUs) \\ \hline
+Starknet & Cairo VM & Custom language overhead \\ \hline
+\end{tabular}
+\end{table}

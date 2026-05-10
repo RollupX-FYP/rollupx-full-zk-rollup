@@ -7,3 +7,22 @@ To address these limitations, scaling solutions are generally categorized into t
 
 \textbf{Layer-2 (Off-Chain) Scaling} involves moving computation and state storage off the main chain while relying on the L1 for security and dispute resolution. Prominent L2 approaches include state channels, sidechains, plasma, optimistic rollups, and ZK-rollups. The Ethereum community has largely adopted a "rollup-centric" scaling roadmap.
 Layer 2 (L2) systems extend Ethereum while relying on it for security \cite{ethdocs_layer2}. According to Ethereum scaling documentation, L2 rollups have become the primary scaling technique \cite{ethdocs_scaling}. Rollups execute off-chain and post data/state back to L1, retaining data on-chain while offloading computation \cite{chaliasos2024analyzing}.
+
+\begin{table}[ht]
+\centering
+\caption{Rollup and L2 Comparison}
+\begin{tabular}{|p{3cm}|p{4cm}|p{4cm}|p{3cm}|}
+\hline
+\textbf{Approach} & \textbf{Trust/Security Assumption} & \textbf{Main Limitation} & \textbf{Relevance} \\ \hline
+State Channels & Requires participants online & Capital lockup & Payment specific \\ \hline
+Sidechains & Own consensus security & Weaker than L1 & Interoperability \\ \hline
+Plasma & Operator data availability & Data withholding & Exit complexity \\ \hline
+Validiums & Off-chain DA trust & DA committee failure & Lower cost \\ \hline
+Optimistic Rollups & 1-of-N honest watcher & Challenge window delay & Mature EVM support \\ \hline
+ZK Rollups & Cryptographic soundness & High proving cost & Fast finality \\ \hline
+\end{tabular}
+\end{table}
+
+Layer 2 addresses the blockchain trilemma by moving execution off-chain while relying on L1 for security and data availability.
+
+

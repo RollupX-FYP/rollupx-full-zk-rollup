@@ -6,3 +6,14 @@ The system's end-to-end execution flow is strictly defined as:
 \begin{center}
 \texttt{Workload Generator $\rightarrow$ Sequencer $\rightarrow$ Executor (gRPC) $\rightarrow$ Prover $\rightarrow$ Submitter $\rightarrow$ L1 Contracts}
 \end{center}
+\begin{table}[ht]
+\centering
+\caption{Research-Grade Architecture Components}
+\begin{tabular}{|l|p{4cm}|p{4cm}|}
+\hline
+\textbf{Component} & \textbf{Research Purpose} & \textbf{What it Isolates} \\ \hline
+Sequencer & Configurable batching/timeouts & Latency vs Cost \\ \hline
+Executor & Simplified state transition & Proving overhead \\ \hline
+Submitter & L1 data anchoring & DA modes (Calldata vs Blobs) \\ \hline
+\end{tabular}
+\end{table}
