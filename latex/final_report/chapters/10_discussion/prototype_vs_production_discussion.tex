@@ -6,3 +6,29 @@ While this prototype is a controlled research tool, the findings have implicatio
     \item \textbf{Prover Parallelization:} The backpressure observed during high mock-delay scenarios underscores why production systems invest heavily in massively parallelized, hardware-accelerated prover networks and recursive proof aggregation.
     \item \textbf{DA is Still Critical:} Even with EIP-4844, the DA footprint remains a core bottleneck. Further compression strategies or reliance on off-chain DA layers (like Celestia) will be necessary for extreme scale.
 \end{enumerate}
+\begin{table}[h]
+\centering
+\caption{Prototype Scope Boundary}
+\begin{tabular}{|l|p{4cm}|p{4cm}|}
+\hline
+\textbf{Area} & \textbf{Included} & \textbf{Not Included} \\ \hline
+Execution & Transfer-centric logic & Full EVM/zkEVM \\ \hline
+Prover & Benchmark delay & Production proving \\ \hline
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Why Research-Grade Instead of Production-Grade}
+\begin{tabular}{|l|p{4cm}|p{4cm}|}
+\hline
+\textbf{Dimension} & \textbf{Production ZK-Rollup} & \textbf{Research-Grade Prototype} \\ \hline
+Goal & Real user deployment & Controlled benchmarking \\ \hline
+Execution & Full EVM or custom zkVM & Transfer-centric logic \\ \hline
+Prover & Real production pipeline & Mock/parameterized proof-delay \\ \hline
+Hardware & GPU/high-RAM/cluster & Student/research hardware \\ \hline
+Modifiability & Hard to change safely & Modular, configurable \\ \hline
+Metrics & Operational monitoring & TPS, latency, DA bytes, cost \\ \hline
+Claim & Production security & Research prototype \\ \hline
+\end{tabular}
+\end{table}

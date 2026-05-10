@@ -24,3 +24,18 @@ Rollup Benchmarking & Tracing deployed systems like zkSync Era \cite{silva2025zk
 \end{table}
 
 While prior work provides insight into deployed rollups, this project focuses on controlled, configuration-level experimentation. Production systems prioritize reliability, EVM compatibility, and user-facing deployment. In contrast, our prototype prioritizes controlled experimentation, modularity, and observability, enabling repeatable, isolated studies to observe exactly how individual design choices shift the fundamental throughput--latency--cost behavior.
+\begin{table}[h]
+\centering
+\caption{Prior Work Summary}
+\begin{tabular}{|p{3cm}|p{4cm}|p{6cm}|}
+\hline
+\textbf{Source} & \textbf{What it studied} & \textbf{Gap for this project} \\ \hline
+Chaliasos et al. 2024 \cite{chaliasos2024analyzing} & ZK-rollup benchmarking & Need a smaller modular prototype for controlled experiments \\ \hline
+Saif et al. 2024 \cite{saif2024dataavailability} & DA in L2 rollups & Prototype compares DA modes \\ \hline
+Gogol et al. 2025 \cite{gogol2025defi} & DeFi swap workload & Baseline for future DeFi workloads \\ \hline
+Tran et al. 2023 \cite{tran2023implementation} & zk-rollup implementation & Broader batching/sequencing trade-offs \\ \hline
+Silva et al. 2025 \cite{silva2025zksyncdataset} & ZKsync dataset & Future trace-driven generation \\ \hline
+\end{tabular}
+\end{table}
+
+The complexity of production systems often makes it difficult to conduct controlled, isolated experiments to understand how varying batch sizes, scheduling policies, and DA modes impact the throughput-latency-cost trade-off. This creates a research gap for a simpler, modular benchmarking prototype.

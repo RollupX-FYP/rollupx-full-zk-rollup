@@ -1,3 +1,19 @@
 \section{Cost and Dynamic Batching Models}
 \label{sec:cost_models}
 The theoretical dynamic batching cost model described in early literature (aimed at algorithmically predicting optimal batch sizes based on fluctuating L1 base fees) is analytical and is not fully implemented in the active runtime codebase. For the empirical benchmarking, static configurations are swept explicitly to gather data on cost behavior.
+\begin{table}[h]
+\centering
+\caption{ZK-Rollup Cost Model \cite{chaliasos2024analyzing, saif2024dataavailability}}
+\begin{tabular}{|l|l|l|l|}
+\hline
+\textbf{Cost Category} & \textbf{Examples} & \textbf{Fixed/Marginal} & \textbf{Source} \\ \hline
+L1 Settlement & Commit batch, verify proof & Fixed per batch & Chaliasos \cite{chaliasos2024analyzing} \\ \hline
+Proof Compression & STARK-to-SNARK / aggregation & Fixed or batch-level & Chaliasos \cite{chaliasos2024analyzing} \\ \hline
+Data Availability (DA) & calldata/state diff/blob bytes & Marginal / payload-dependent & Chaliasos, Saif \cite{chaliasos2024analyzing, saif2024dataavailability} \\ \hline
+Proving & witness + proof generation & Marginal and batch-dependent & Chaliasos \cite{chaliasos2024analyzing} \\ \hline
+L2 Execution & sequencing, execution, storage & Marginal / system cost & Chaliasos \cite{chaliasos2024analyzing} \\ \hline
+\end{tabular}
+\end{table}
+
+The cost model splits into fixed batch costs (L1 settlement, proof verification) and marginal transaction costs (DA bytes, witness generation, execution). Larger batches reduce the amortized fixed cost per transaction but increase latency \cite{chaliasos2024analyzing}.
+$$ \text{Cost per transaction} = \left(\frac{\text{fixed batch settlement/proof cost}}{\text{batch size}}\right) + \text{marginal DA/proving/execution cost per transaction} $$

@@ -1,2 +1,15 @@
 \subsection{Ethereum Scalability Limitations}
 Ethereum L1 strictly prioritizes decentralization and security, resulting in inherently low throughput (approximately 15 TPS) and high latency. During periods of high demand, users bid up transaction fees, leading to severe economic friction \cite{buterin2014ethereum}. Because every full node must sequentially process every transaction and store the resulting state, increasing the L1 block size or reducing block times to boost throughput would rapidly centralize the network by making node operation prohibitively expensive for average users.
+\begin{table}[h]
+\centering
+\caption{Ethereum vs High-throughput L1s}
+\begin{tabular}{|l|l|p{4cm}|p{4cm}|}
+\hline
+\textbf{System} & \textbf{Design Target} & \textbf{Current Evidence} & \textbf{Why Relevant} \\ \hline
+Ethereum & Secure/decentralized settlement & ~24 TPS (Etherscan snapshot) \cite{etherscan_tps} & Baseline L1 bottleneck \\ \hline
+Solana & High-throughput execution & ~1,045 TPS (Chainspect snapshot) \cite{chainspect_tps} & Shows Ethereum is not fastest raw execution layer \\ \hline
+Ethereum + Rollups & L1 settlement + L2 execution & Primary scaling technique \cite{ethdocs_scaling} & Justifies rollup focus \\ \hline
+\end{tabular}
+\end{table}
+
+Ethereum L1 throughput is limited in practice because all nodes must independently verify the chain. Although a simple ETH transfer consumes only 21,000 gas \cite{ethdocs_gas}, real Ethereum workloads (e.g., DeFi swaps, contract calls) are much heavier. Therefore, the observed TPS (~24 TPS) is the right practical baseline, while theoretical simple-transfer TPS is only an upper-bound estimate \cite{etherscan_tps, ethdocs_gas}.

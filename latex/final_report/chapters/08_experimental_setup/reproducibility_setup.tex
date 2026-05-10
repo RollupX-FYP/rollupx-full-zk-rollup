@@ -1,3 +1,14 @@
 \section{Reproducibility Setup}
 \label{sec:reproducibility_setup}
 The entire benchmark matrix can be executed consistently using the \texttt{run\_matrix.sh} wrapper. This script automatically tears down the stack between runs, drops the internal SQLite databases to prevent state conflicts, and sequentially steps through the variables defined in \texttt{experiments.toml}.
+\begin{table}[h]
+\centering
+\caption{Reproducibility Commands Table}
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Command/Script} & \textbf{Purpose} \\ \hline
+\texttt{run\_matrix.sh} & Execute benchmarks \\ \hline
+\texttt{--profile core} & Start core stack \\ \hline
+\texttt{--profile bench} & Start benchmark stack \\ \hline
+\end{tabular}
+\end{table}
