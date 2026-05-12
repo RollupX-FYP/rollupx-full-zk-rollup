@@ -17,15 +17,3 @@ L2 Execution & sequencing, execution, storage & Marginal / system cost & Chalias
 
 The cost model splits into fixed batch costs (L1 settlement, proof verification) and marginal transaction costs (DA bytes, witness generation, execution). Larger batches reduce the amortized fixed cost per transaction but increase latency \cite{chaliasos2024analyzing}.
 $$ \text{Cost per transaction} = \left(\frac{\text{fixed batch settlement/proof cost}}{\text{batch size}}\right) + \text{marginal DA/proving/execution cost per transaction} $$
-
-\begin{table}[ht]
-\centering
-\caption{ZK-Rollup Cost Model Breakdown}
-\begin{tabular}{|l|l|l|}
-\hline
-\textbf{Cost Element} & \textbf{Type} & \textbf{Driver} \\ \hline
-L1 Settlement & Fixed per batch & Verification gas \\ \hline
-Data Availability & Marginal per TX & Calldata/Blob byte limits \\ \hline
-Proving Compute & Marginal per TX & Hardware overhead \\ \hline
-\end{tabular}
-\end{table}

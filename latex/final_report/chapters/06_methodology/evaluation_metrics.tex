@@ -20,18 +20,3 @@ DA Footprint & Size of the compressed data posted to L1 & Bytes & Directly corre
 \end{tabularx}
 \end{table}
 Key metrics include Committed TPS (transactions committed to L1 per second), average and P95 latency, proof delay (seconds per proof), DA bytes posted, cost per transaction, and batch finalization time \cite{chaliasos2024analyzing}.
-
-We rigorously define several metric stages: Submitted TPS, Accepted TPS, Batched TPS, Committed TPS, and Verified TPS. Average queueing latency, P95/P99 latency, and DA bytes per transaction are also heavily tracked.
-
-\begin{table}[ht]
-\centering
-\caption{Benchmark Metrics and Measurement Plan}
-\begin{tabular}{|l|p{5cm}|p{4cm}|}
-\hline
-\textbf{Metric} & \textbf{Definition} & \textbf{Measurement Tool} \\ \hline
-Committed TPS & TXs committed to L1 per second & Submitter logs \\ \hline
-Queueing Latency & Time in sequencer mempool & Sequencer telemetry \\ \hline
-DA Bytes per TX & Compressed size on L1 & Submitter/Hardhat \\ \hline
-Cost per TX & Amortized gas cost & Analytical cost model \\ \hline
-\end{tabular}
-\end{table}

@@ -10,11 +10,3 @@ The Sequencer is the entry point for L2 transactions. It is responsible for inge
     \item \textbf{Scheduling Policies:} The sequencer uses the Strategy pattern to support different ordering policies, specifically First-Come-First-Served (FCFS), Fee-Priority, Time-Boost, and Fair BFT/timestamp ordering.
     \item \textbf{Output:} Completed batches are dispatched to the Executor via a gRPC stream. Configuration is managed via TOML files (e.g., \texttt{sequencer.template.toml}), which are processed via \texttt{envsubst} during container startup.
 \end{itemize}
-\textbf{Role:} Ingests L2 transactions, orders them, and bundles them into batches. \\
-\textbf{Language:} Rust \\
-\textbf{Key Files:} \texttt{src/batch/engine.rs}, \texttt{src/rpc/server.rs} \\
-\textbf{Inputs:} JSON-RPC transactions from the workload generator. \\
-\textbf{Outputs:} Sealed batch payloads sent to the Executor. \\
-\textbf{State Maintained:} In-memory mempool and SQLite Batch Registry. \\
-\textbf{Metrics:} Mempool size, accepted TPS, batched TPS. \\
-\textbf{Limitations:} \texttt{prev\_state\_root} tracking is currently a TODO.

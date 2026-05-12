@@ -7,29 +7,3 @@ The prototype utilizes several established software design patterns to maintain 
     \item \textbf{Saga Workflow Engine:} The Submitter implements a robust Saga pattern backed by a local database (SQLite/Postgres) to handle reliable retries, nonce management, and idempotency when interacting with the volatile L1 RPC.
     \item \textbf{Observer Pattern:} Used by the Sequencer's L1 Event Listener to monitor the bridge contract for forced transactions (e.g., L1 to L2 deposits).
 \end{itemize}
-\begin{table}[ht]
-\centering
-\caption{Research-Grade Architecture Components}
-\begin{tabular}{|p{3cm}|p{4cm}|p{4cm}|p{3cm}|}
-\hline
-\textbf{Component} & \textbf{Research Purpose} & \textbf{What it isolates} & \textbf{Implementation} \\ \hline
-Ingestion Layer & Controlled load generation & Network latency & Workload Gen \\ \hline
-Configurable Batcher & Vary sizes and timeouts & Latency vs Cost tradeoff & Sequencer \\ \hline
-Simplified STF & Focus on IO/DA costs & Removes EVM bloat & Executor \\ \hline
-Pluggable Prover & Compare mock vs real & Compute bottlenecks & \texttt{risc0\_prover} \\ \hline
-L1 Data Anchor & Benchmark submission costs & L1 Gas limits & Submitter \\ \hline
-\end{tabular}
-\end{table}
-
-\begin{table}[ht]
-\centering
-\caption{Research Design Goals}
-\begin{tabular}{|l|l|p{6cm}|}
-\hline
-\textbf{Goal} & \textbf{Mechanism} & \textbf{Impact on Research} \\ \hline
-Reproducibility & Docker orchestration & Ensures comparable runs \\ \hline
-Efficiency & Rust microservices & Minimizes runtime overhead \\ \hline
-Observability & Rich metrics/traces & Enables detailed bottleneck analysis \\ \hline
-Extensibility & Modular boundaries & Facilitates swapping DA or proving layers \\ \hline
-\end{tabular}
-\end{table}

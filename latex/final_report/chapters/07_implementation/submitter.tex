@@ -8,11 +8,3 @@ The Submitter acts as the bridge relayer, reliably pushing executed batch data f
     \item \textbf{Data Availability (DA):} The DA Formatter formats batch payloads based on the configured DA mode. Crucially, it supports both standard \texttt{Calldata} and \texttt{EIP-4844 Blob} data representations. (Note: Off-chain DA is implemented only as a local simulated stub, not a real integration with IPFS or Celestia).
     \item \textbf{Output:} Broadcasts transactions to L1 via \texttt{eth\_sendRawTransaction} and records latency and gas savings metrics to \texttt{submitter\_metrics.json}.
 \end{itemize}
-\textbf{Role:} Consumes executed batches and submits them to the L1 smart contracts. \\
-\textbf{Language:} Rust \\
-\textbf{Key Files:} \texttt{src/main.rs}, \texttt{proto/} definitions \\
-\textbf{Inputs:} gRPC stream from the Executor. \\
-\textbf{Outputs:} L1 transaction hashes. \\
-\textbf{State Maintained:} Nonce tracking for the L1 relayer account. \\
-\textbf{Metrics:} L1 gas used, finalization latency. \\
-\textbf{Limitations:} Relies on a local simulated Hardhat node.

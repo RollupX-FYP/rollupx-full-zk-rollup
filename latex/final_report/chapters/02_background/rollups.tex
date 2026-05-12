@@ -4,18 +4,3 @@
 Rollups work by executing transactions off-chain in a separate environment. A specialized node, called a sequencer, groups many of these off-chain transactions into a single "batch." The sequencer then submits a summary of this batch (including the updated state root and necessary transaction data) to the L1 blockchain.
 
 By grouping transactions, rollups amortize the fixed L1 submission and verification costs across the entire batch, dramatically increasing effective throughput and lowering the cost per transaction.
-\begin{table}[ht]
-\centering
-\caption{Optimistic vs ZK Rollups}
-\begin{tabular}{|l|p{5cm}|p{5cm}|}
-\hline
-\textbf{Dimension} & \textbf{Optimistic Rollups} & \textbf{ZK Rollups} \\ \hline
-Validation Model & Fraud Proofs & Validity Proofs \\ \hline
-Finality & Delayed (challenge window) & Fast (post verification) \\ \hline
-Withdrawal Delay & Days & Minutes/Hours \\ \hline
-EVM Compatibility & High (Native/equivalent) & Complex (Type 1-4 zkEVMs) \\ \hline
-Bottleneck & Dispute period & Proving generation \\ \hline
-\end{tabular}
-\end{table}
-
-

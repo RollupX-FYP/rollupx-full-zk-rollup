@@ -9,28 +9,3 @@ The Executor serves as the host-side state transition and proving coordinator.
     \item \textbf{Output:} It emits an enriched batch payload (containing the DA commitment and proof) back to the Submitter and logs execution metrics.
     \item \textbf{Limitations:} The executor is a simplified state-transition engine tailored for transfer-style workloads and Merkle state updates. It is not a full EVM or zkEVM. Furthermore, there is a known upstream issue where \texttt{risc0\_prover} throws an `Elf parse error` during guest execution in certain configurations, requiring specific test bypasses during CI.
 \end{itemize}
-\begin{table}[ht]
-\centering
-\caption{Core Transfer-Centric STF Checks}
-\begin{tabular}{|p{3cm}|p{4cm}|l|p{4cm}|}
-\hline
-\textbf{Check} & \textbf{Purpose} & \textbf{Data Type} & \textbf{Prototype Interpretation} \\ \hline
-Signature Validity & Prevent spoofing & Public & Mocked in benchmark runs \\ \hline
-Balance Sufficiency & Prevent double spend & Private (State) & Merkle tree verified \\ \hline
-Nonce Correctness & Prevent replay attacks & Private (State) & Strict increment \\ \hline
-Merkle Transition & Ensure state integrity & Public (Roots) & Forms validity proof core \\ \hline
-\end{tabular}
-\end{table}
-
-The transfer-centric research logic simplifies execution, making full EVM equivalence out of scope.
-
-
-
-\textbf{Role:} Applies the state transition function (STF) to batches and generates proofs. \\
-\textbf{Language:} Rust \\
-\textbf{Key Files:} \texttt{lib/basic\_types/src/}, \texttt{lib/config/src/} \\
-\textbf{Inputs:} Sealed batches from the Sequencer. \\
-\textbf{Outputs:} State roots, state diffs, and execution traces via gRPC. \\
-\textbf{State Maintained:} Local Merkle tree representing account balances. \\
-\textbf{Metrics:} Execution time, proof delay. \\
-\textbf{Limitations:} Transfer-centric research logic; not a production zkEVM.
