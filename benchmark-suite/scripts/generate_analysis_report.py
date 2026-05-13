@@ -33,6 +33,25 @@ def load_jsonl(path):
         return []
 
 
+def load_submitter_metrics(path):
+    """
+    Load submitter metrics with backward compatibility.
+
+    Current runs write JSONL rows into submitter_metrics.json.
+    Older runs may contain a single JSON object/array.
+    """
+    rows = load_jsonl(path)
+    if rows:
+        return rows
+
+    legacy = load_json(path)
+    if isinstance(legacy, list):
+        return legacy
+    if isinstance(legacy, dict):
+        return [legacy]
+    return []
+
+
 def generate_report(metrics_root):
     """Generate analysis report from metrics files."""
     metrics_path = Path(metrics_root)
@@ -51,7 +70,7 @@ def generate_report(metrics_root):
     
     sequencer_metrics = load_jsonl(metrics_path / "sequencer_batch_metrics.jsonl")
     executor_metrics = load_jsonl(metrics_path / "executor_batch_metrics.jsonl")
-    submitter_metrics = load_json(metrics_path / "submitter_metrics.json")
+    submitter_metrics = load_submitter_metrics(metrics_path / "submitter_metrics.json")
     l1_validation = load_json(metrics_path / "l1_state_validation.json")
     l1_deployment = load_json(metrics_path / "l1_deployment.json")
     resource_metrics = load_json(metrics_path / "resource_metrics.json")
