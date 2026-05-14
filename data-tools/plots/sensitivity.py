@@ -28,7 +28,7 @@ FACTOR_PREFIXES: dict[str, list[str]] = {
     "Timeout":      ["to_"],
     "Policy":       ["pol_"],
     "DA Mode":      ["da_"],
-    "Prover":       ["pv_"],
+    "Prover":       ["pv_", "proof_"],
     "Input Rate":   ["tps_"],
     "Tx Mix":       ["mix_"],
 }

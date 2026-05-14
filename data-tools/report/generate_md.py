@@ -273,27 +273,29 @@ Hardhat EVM gas measurements are deterministic for contract execution. USD value
 """
 
 
-def section_figures(output_dir: str) -> str:
+def section_figures(output_dir: str, report_dir: str) -> str:
     figure_map = [
-        ("figures/pareto_cost_latency.png",    "Pareto Frontier: Cost vs Latency"),
-        ("figures/pareto_throughput_latency.png","Pareto Frontier: Throughput vs Latency"),
-        ("figures/pareto_da_comparison.png",   "DA Mode Comparison"),
-        ("figures/throughput_by_policy.png",   "Throughput by Scheduling Policy"),
-        ("figures/latency_cdf_all.png",        "Latency CDF (all experiments)"),
-        ("figures/latency_boxplot_policy.png", "Latency Variance by Policy"),
-        ("figures/fairness_jains.png",         "Jain's Fairness Index"),
-        ("figures/fairness_per_class.png",     "Per-Class P95 Latency"),
-        ("figures/cost_heatmap_gas_per_tx.png","Cost Heatmap: Gas/tx"),
-        ("figures/sensitivity_heatmap.png",    "Factor Sensitivity Heatmap"),
+        ("pareto_cost_latency.png", "Pareto Frontier: Cost vs Latency"),
+        ("pareto_throughput_latency.png", "Pareto Frontier: Throughput vs Latency"),
+        ("pareto_da_comparison.png", "DA Mode Comparison"),
+        ("throughput_by_policy.png", "Throughput by Scheduling Policy"),
+        ("latency_cdf_all.png", "Latency CDF (all experiments)"),
+        ("latency_boxplot_policy.png", "Latency Variance by Policy"),
+        ("fairness_jains.png", "Jain's Fairness Index"),
+        ("fairness_per_class.png", "Per-Class P95 Latency"),
+        ("cost_heatmap_gas_per_tx.png", "Cost Heatmap: Gas/tx"),
+        ("sensitivity_heatmap.png", "Factor Sensitivity Heatmap"),
     ]
 
     lines = ["## 8. Figures\n"]
-    for path, caption in figure_map:
+    for filename, caption in figure_map:
+        path = os.path.join(output_dir, filename)
+        rel_path = os.path.relpath(path, report_dir)
         if os.path.exists(path):
             lines.append(f"### {caption}\n")
-            lines.append(f"![{caption}]({path})\n")
+            lines.append(f"![{caption}]({rel_path})\n")
         else:
-            lines.append(f"- *{caption}* — `{path}` *(not yet generated)*\n")
+            lines.append(f"- *{caption}* — `{rel_path}` *(not yet generated)*\n")
 
     return "\n".join(lines) + "\n"
 
@@ -327,7 +329,7 @@ def generate(
         section_hypotheses(df),
         section_cost_methodology(),
         section_threats(df),
-        section_figures(figures_dir),
+        section_figures(figures_dir, os.path.dirname(output) or "."),
         "---\n\n*End of auto-generated summary.*\n",
     ]
 

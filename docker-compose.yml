@@ -81,9 +81,10 @@ services:
       STATE_DB_PATH: /var/lib/rollupx/executor/state_db
       RISC0_WORK_DIR: ${RISC0_HOST_WORK_DIR:-/tmp/rollupx-risc0}
       RISC0_HOST_BIN: /usr/local/bin/rollup_host
-      PROVER_BACKEND: risc0
+      PROVER_BACKEND: ${PROVER_BACKEND:-risc0}
       ALLOW_PROOF_FALLBACK: ${ALLOW_PROOF_FALLBACK:-1}
       REQUIRE_REAL_PROOFS: ${REQUIRE_REAL_PROOFS:-true}
+      ALLOW_UNSIGNED_USER_TXS: ${ALLOW_UNSIGNED_USER_TXS:-0}
       METRICS_ROOT: /var/lib/rollupx/metrics
       EXPERIMENT_ID: ${EXPERIMENT_ID:-compose_core}
       EXPERIMENT_NAME: ${EXPERIMENT_NAME:-compose core}
@@ -119,7 +120,7 @@ services:
     command: ["--config", "/runtime/submitter.yaml"]
     environment:
       SUBMITTER_PRIVATE_KEY: ${SUBMITTER_PRIVATE_KEY:-0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80}
-      COMM_MODE: grpc
+      COMM_MODE: ${COMM_MODE:-grpc}
       EXECUTOR_URL: http://executor:50051
       OUTBOX_DB_PATH: /var/lib/rollupx/submitter/outbox.db
       METRICS_ROOT: /var/lib/rollupx/metrics

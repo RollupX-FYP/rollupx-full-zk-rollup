@@ -25,7 +25,7 @@ FACTOR_GROUPS = {
     "policy":     "policy",
     "batch_size": "batch_size",
     "da_mode":    "da_mode",
-    "rate":       "tps_offered",
+    "rate":       "rate_tps",
 }
 
 
@@ -92,16 +92,17 @@ def main():
     )
 
     for factor_name, col in factors_to_plot.items():
-        if col in df.columns or col in df.select_dtypes(include="number").columns:
-            # filter to relevant experiments
-            factor_df = df[
-                df["experiment_id"].str.startswith(factor_name[:3]) |
-                (df["experiment_id"] == "baseline")
-            ]
-            if not factor_df.empty:
-                plot_throughput(factor_df, col, args.output_dir, factor_name)
-        else:
+        if col not in df.columns:
             print(f"[SKIP] Column '{col}' not found for factor '{factor_name}'")
+            continue
+
+        factor_df = df.copy()
+        if factor_name != "rate":
+            factor_df = factor_df[factor_df[col].notna()]
+        if factor_df.empty:
+            print(f"[SKIP] No rows available for factor '{factor_name}'")
+            continue
+        plot_throughput(factor_df, col, args.output_dir, factor_name)
 
 
 if __name__ == "__main__":
