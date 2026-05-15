@@ -106,19 +106,43 @@ bash scripts/generate_plan_artifacts.sh metrics/plan_pilot_20260515_120000 local
 
 ## Full Plan Stage-By-Stage Commands
 
-Use these commands when you want to cover the full benchmark plan one stage at a time and keep each stage in a named output directory.
+This is the exact runbook for running the entire benchmark plan and generating raw outputs, aggregated CSVs, plots, and Markdown reports.
 
-### Quick validation first
+Important:
+
+- Run everything from the `benchmark-suite` directory.
+- Use `--analytics` on every benchmark command if you want the command to also generate `analysis/` outputs, `figures/`, and `thesis_summary.md`.
+- Without `--analytics`, the benchmark runs still produce raw per-run outputs, but they do not generate the final plots and session report.
+
+### 1. Change into the benchmark directory
 
 ```bash
 cd benchmark-suite
+```
+
+### 2. Run the entire plan stage by stage and generate all outputs
+
+Use the commands below when you want one separate output folder per stage.
+
+#### Fast verification run
+
+Use this first if you want to confirm that the harness, analytics, plots, and report generation are working end to end.
+
+```bash
 bash scripts/run_plan_benchmark.sh --profile smoke --stage stage0 --analytics --session-name stage0_validation
 ```
 
-### Pilot run for checking plots and report wiring
+#### Full plan, stage by stage, short exploratory version
+
+These commands run every stage separately and each command generates:
+
+- raw per-run metrics
+- per-run `analysis_report.md`
+- session aggregates in `analysis/`
+- plots in `figures/`
+- session summary in `analysis/thesis_summary.md`
 
 ```bash
-cd benchmark-suite
 bash scripts/run_plan_benchmark.sh --profile pilot --stage stage0 --analytics --session-name pilot_stage0_validation
 bash scripts/run_plan_benchmark.sh --profile pilot --stage stage1 --analytics --session-name pilot_stage1_fixed_batching
 bash scripts/run_plan_benchmark.sh --profile pilot --stage stage2 --analytics --session-name pilot_stage2_adaptive_batching
@@ -130,12 +154,11 @@ bash scripts/run_plan_benchmark.sh --profile pilot --stage stage7 --analytics --
 bash scripts/run_plan_benchmark.sh --profile pilot --stage stage8 --analytics --session-name pilot_stage8_final_comparison
 ```
 
-### Final report-quality run
+#### Full plan, stage by stage, report-quality version
 
-Use `--repeats 3` or higher for report-quality comparisons. `--profile final` uses longer runs, so this can take a long time.
+Use this when you want the full benchmark stage by stage with longer runs and repeated measurements. `--repeats 3` means each case inside the selected stage is run three times.
 
 ```bash
-cd benchmark-suite
 bash scripts/run_plan_benchmark.sh --profile final --stage stage0 --repeats 3 --analytics --session-name final_stage0_validation
 bash scripts/run_plan_benchmark.sh --profile final --stage stage1 --repeats 3 --analytics --session-name final_stage1_fixed_batching
 bash scripts/run_plan_benchmark.sh --profile final --stage stage2 --repeats 3 --analytics --session-name final_stage2_adaptive_batching
@@ -147,54 +170,84 @@ bash scripts/run_plan_benchmark.sh --profile final --stage stage7 --repeats 3 --
 bash scripts/run_plan_benchmark.sh --profile final --stage stage8 --repeats 3 --analytics --session-name final_stage8_final_comparison
 ```
 
-### One-command full plan
+### 3. Run the entire plan at once and generate all outputs
 
-This runs `stage0`, `baseline`, and `stage1` through `stage8` in one session.
+Use this when you want one single session folder containing `stage0`, `baseline`, and `stage1` through `stage8` together.
+
+#### Short exploratory full-plan run
 
 ```bash
-cd benchmark-suite
+bash scripts/run_plan_benchmark.sh --profile pilot --stage all --analytics --session-name pilot_full_plan
+```
+
+#### Report-quality full-plan run
+
+```bash
 bash scripts/run_plan_benchmark.sh --profile final --stage all --repeats 3 --analytics --session-name final_full_plan
 ```
 
-### Where outputs are saved
+### 4. Where every command saves outputs
 
-Each command above writes a session under:
+Each benchmark command above creates one session directory:
 
 ```text
 benchmark-suite/metrics/<session-name>/
 ```
 
-For example:
+Examples:
 
 ```text
-benchmark-suite/metrics/final_stage4_da/
+benchmark-suite/metrics/pilot_stage4_da/
+benchmark-suite/metrics/final_full_plan/
 ```
 
-Inside each session:
+Inside each session directory:
 
-- `plan_manifest.csv` records every case, stage, repeat count, and env override.
-- `<experiment_id>/<run_id>/` contains raw per-run JSON, CSV, logs, diagnostics, and `analysis_report.md`.
-- `analysis/all_results.csv` is the main run-level aggregate.
-- `analysis/all_batch_results.csv` is the batch-level aggregate used for batch/proof/DA feasibility plots.
-- `analysis/stats_summary.csv` contains grouped summary statistics.
-- `analysis/sensitivity_matrix.csv` contains percentage deltas versus baseline.
-- `analysis/thesis_summary.md` is the session-level generated Markdown report.
-- `figures/` contains generated `.png` plots.
-- `latest/` is the shared metrics handoff directory used during the most recent run.
+- `plan_manifest.csv` lists the stage cases, repeat count, and env overrides used.
+- `<experiment_id>/<run_id>/` contains the raw per-run outputs.
+- `analysis/all_results.csv` contains aggregated run-level results.
+- `analysis/all_batch_results.csv` contains aggregated batch-level results.
+- `analysis/stats_summary.csv` contains summary statistics.
+- `analysis/sensitivity_matrix.csv` contains baseline-relative deltas.
+- `analysis/thesis_summary.md` contains the session-level report.
+- `figures/` contains all generated `.png` plots.
+- `latest/` is the shared metrics handoff directory used by the current session.
 
-### Regenerate graphs and reports
+Inside each per-run directory:
 
-If raw runs already exist and you only need to rebuild analytics:
+- `run.log`
+- `run_metadata.json`
+- `run_status.json`
+- `workload_<experiment_id>.json`
+- `tx_log_<run_id>.csv`
+- `sequencer_batch_metrics.jsonl`
+- `executor_batch_metrics.jsonl`
+- `submitter_metrics.json`
+- `resource_metrics.json`
+- `l1_deployment.json`
+- `l1_state_validation.json`
+- `analysis_report.md`
+- `diagnostics/`
+
+### 5. Rebuild plots and reports from an existing session
+
+Use this when the raw benchmark runs already exist and you only want to regenerate the session aggregates, plots, and Markdown summary.
+
+#### Local Python analytics
 
 ```bash
-cd benchmark-suite
 bash scripts/generate_plan_artifacts.sh metrics/<session-name> local
 ```
 
-Use Docker-based analytics instead of local Python with:
+Example:
 
 ```bash
-cd benchmark-suite
+bash scripts/generate_plan_artifacts.sh metrics/final_stage4_da local
+```
+
+#### Docker-based analytics
+
+```bash
 bash scripts/generate_plan_artifacts.sh metrics/<session-name> docker
 ```
 
