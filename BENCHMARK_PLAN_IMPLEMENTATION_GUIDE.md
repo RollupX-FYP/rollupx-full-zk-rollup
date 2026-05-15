@@ -48,6 +48,44 @@ Run all commands from:
 cd ~/rollupx-full-zk-rollup/benchmark-suite
 ```
 
+### Install Python workload dependencies first
+
+`run_plan_benchmark.sh` calls `scripts/run_experiment.sh`, which runs `workload/poisson_generator.py`.
+That workload generator needs Python packages such as `eth-account`.
+
+If you see an error like:
+
+```text
+Error: run `pip install eth-account`
+subprocess.CalledProcessError: Command '['bash', 'scripts/run_experiment.sh', 'baseline', '1']' returned non-zero exit status 1.
+```
+
+run these commands first:
+
+```bash
+python3 -m pip install -U pip
+python3 -m pip install eth-account requests
+```
+
+If `python3 -m pip` is not available in your environment, use:
+
+```bash
+pip install -U pip
+pip install eth-account requests
+```
+
+After installing those packages, rerun the benchmark command.
+
+### Optional: quick dependency check
+
+This is a small check you can run before a long benchmark session:
+
+```bash
+python3 workload/poisson_generator.py --help
+```
+
+If that command prints the help text successfully, the Python workload dependencies are installed correctly.
+
 ### Minimal smoke-style plan run
 
 ```bash
