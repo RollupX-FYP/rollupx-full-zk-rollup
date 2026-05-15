@@ -2,11 +2,12 @@
 poisson_generator.py — Poisson workload generator for RollupX benchmark suite.
 
 Extended from original to support:
-  --tx_mix      preset (balanced / light / heavy) or custom fractions
+  --tx_mix      preset (balanced / light / heavy / transfer / da_heavy) or custom fractions
   --mix_a/b/c   custom type fractions (used when --tx_mix custom)
   --seed        RNG seed for reproducibility
   --warmup      warm-up duration in seconds (traffic sent but not recorded)
   --run_id      unique run identifier for output file naming
+  --burst_*     periodic burst traffic for adaptive batching and recovery tests
 
 Metrics file written to $METRICS_ROOT/workload_<experiment_id>.json
 Run metadata appended to $METRICS_ROOT/run_status.json
@@ -60,6 +61,10 @@ class PoissonWorkloadGenerator:
         port: int = 3000,
         concurrency: int = 1,
         target_txs: int = 0,
+        burst_enabled: bool = False,
+        burst_rate: float = 0.0,
+        burst_period: int = 30,
+        burst_duty_cycle: float = 0.25,
     ):
         self.rate          = rate
         self.duration      = duration
@@ -72,6 +77,10 @@ class PoissonWorkloadGenerator:
         self.base_url      = f"http://{host}:{port}"
         self.concurrency   = max(1, concurrency)
         self.target_txs    = max(0, target_txs)
+        self.burst_enabled = burst_enabled
+        self.burst_rate = max(rate, burst_rate)
+        self.burst_period = max(1, burst_period)
+        self.burst_duty_cycle = min(max(burst_duty_cycle, 0.01), 0.99)
 
         # seeded RNG — separate instance for type sampling vs inter-arrival
         self.rng_arrival = random.Random(seed)
@@ -94,6 +103,11 @@ class PoissonWorkloadGenerator:
         print(f"  seed={self.seed}  mix=A{self.tx_mix[0]:.0%}/B{self.tx_mix[1]:.0%}/C{self.tx_mix[2]:.0%}")
         print(f"  target={self.base_url}")
         print(f"  sender_concurrency={self.concurrency}")
+        if self.burst_enabled:
+            print(
+                f"  burst=enabled base={self.rate} tx/s peak={self.burst_rate} tx/s "
+                f"period={self.burst_period}s duty={self.burst_duty_cycle:.0%}"
+            )
         if self.target_txs > 0:
             print(f"  fixed_target_txs={self.target_txs}")
 
@@ -137,6 +151,12 @@ class PoissonWorkloadGenerator:
 
     # ── internal send loop ────────────────────────────────────────────────────
 
+    def _rate_at(self, elapsed: float) -> float:
+        if not self.burst_enabled:
+            return self.rate
+        active_window = self.burst_period * self.burst_duty_cycle
+        return self.burst_rate if elapsed % self.burst_period < active_window else self.rate
+
     def _send_phase(
         self,
         phase_duration: int,
@@ -153,16 +173,19 @@ class PoissonWorkloadGenerator:
             )
 
         end_time = time.time() + phase_duration
+        phase_start = time.time()
         nonce = start_nonce
         tx_count = 0
 
         try:
             while time.time() < end_time:
-                wait = self.rng_arrival.expovariate(self.rate)
+                offered_rate = self._rate_at(time.time() - phase_start)
+                wait = self.rng_arrival.expovariate(offered_rate)
                 time.sleep(wait)
 
                 if time.time() >= end_time:
                     break
+                offered_rate = self._rate_at(time.time() - phase_start)
 
                 tx_type = self.rng_factory.choices(
                     ["A", "B", "C"], weights=self.tx_mix, k=1
@@ -178,6 +201,7 @@ class PoissonWorkloadGenerator:
                     "tx_type":  tx_type,
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                     "latency":  latency,
+                    "offered_rate": offered_rate,
                     "status":   status,
                     "error":    err,
                 })
@@ -201,6 +225,7 @@ class PoissonWorkloadGenerator:
         label: str,
     ) -> int:
         end_time = time.time() + phase_duration
+        phase_start = time.time()
         nonce = start_nonce
         tx_count = 0
         futures = []
@@ -209,7 +234,8 @@ class PoissonWorkloadGenerator:
             try:
                 next_send = time.time()
                 while time.time() < end_time:
-                    wait = self.rng_arrival.expovariate(self.rate)
+                    offered_rate = self._rate_at(time.time() - phase_start)
+                    wait = self.rng_arrival.expovariate(offered_rate)
                     next_send += wait
                     sleep_for = next_send - time.time()
                     if sleep_for > 0:
@@ -217,12 +243,13 @@ class PoissonWorkloadGenerator:
 
                     if time.time() >= end_time:
                         break
+                    offered_rate = self._rate_at(time.time() - phase_start)
 
                     tx_type = self.rng_factory.choices(
                         ["A", "B", "C"], weights=self.tx_mix, k=1
                     )[0]
                     tx = self.factory.make(tx_type, nonce)
-                    futures.append(executor.submit(self._post_tx_record, tx, nonce, tx_type))
+                    futures.append(executor.submit(self._post_tx_record, tx, nonce, tx_type, offered_rate))
 
                     if tx_count % 100 == 0:
                         print(f"  [{label}] scheduled {tx_count} txs ...")
@@ -239,7 +266,7 @@ class PoissonWorkloadGenerator:
         record_to.sort(key=lambda item: item["tx_id"])
         return nonce
 
-    def _post_tx_record(self, tx: dict, nonce: int, tx_type: str) -> dict:
+    def _post_tx_record(self, tx: dict, nonce: int, tx_type: str, offered_rate: float | None = None) -> dict:
         ts_start = time.time()
         status, err = self._post_tx(tx)
         latency = time.time() - ts_start
@@ -248,6 +275,7 @@ class PoissonWorkloadGenerator:
             "tx_type":  tx_type,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "latency":  latency,
+            "offered_rate": offered_rate if offered_rate is not None else self.rate,
             "status":   status,
             "error":    err,
         }
@@ -273,7 +301,7 @@ class PoissonWorkloadGenerator:
 
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
             futures = [
-                executor.submit(self._post_tx_record, tx, tx_nonce, tx_type)
+                executor.submit(self._post_tx_record, tx, tx_nonce, tx_type, self.burst_rate if self.burst_enabled else self.rate)
                 for tx, tx_nonce, tx_type in prepared
             ]
             for index, future in enumerate(as_completed(futures), start=1):
@@ -348,6 +376,10 @@ class PoissonWorkloadGenerator:
                 "failed_txs":     len(self.stats) - len(successes),
                 "duration":       self.duration,
                 "rate":           self.rate,
+                "burst_enabled":  self.burst_enabled,
+                "burst_rate":     self.burst_rate if self.burst_enabled else 0,
+                "burst_period":   self.burst_period if self.burst_enabled else 0,
+                "burst_duty_cycle": self.burst_duty_cycle if self.burst_enabled else 0,
                 "type_counts":    type_counts,
             },
         }
@@ -365,7 +397,7 @@ class PoissonWorkloadGenerator:
         csv_path = os.path.join(metrics_root, f"tx_log_{self.run_id}.csv")
         with open(csv_path, "w", newline="") as f:
             writer = csv.DictWriter(
-                f, fieldnames=["tx_id","tx_type","timestamp","latency","status","error"]
+                f, fieldnames=["tx_id","tx_type","timestamp","latency","offered_rate","status","error"]
             )
             writer.writeheader()
             writer.writerows(self.stats)
@@ -418,6 +450,15 @@ def parse_args():
                    help="Number of concurrent HTTP sender workers")
     p.add_argument("--target_txs", type=int, default=0,
                    help="If >0, send this many txs as a fixed-count concurrent burst")
+    p.add_argument("--burst_enabled", type=str, default="false",
+                   choices=["0", "1", "false", "true", "False", "True"],
+                   help="Enable periodic burst traffic during timed runs")
+    p.add_argument("--burst_rate", type=float, default=0.0,
+                   help="Peak tx/sec during burst windows")
+    p.add_argument("--burst_period", type=int, default=30,
+                   help="Burst cycle length in seconds")
+    p.add_argument("--burst_duty_cycle", type=float, default=0.25,
+                   help="Fraction of each burst period spent at burst_rate")
 
     # tx mix
     mix_group = p.add_argument_group("Transaction mix")
@@ -457,6 +498,10 @@ def main():
         port          = args.port,
         concurrency   = args.concurrency,
         target_txs    = args.target_txs,
+        burst_enabled = args.burst_enabled.lower() in ("1", "true"),
+        burst_rate    = args.burst_rate,
+        burst_period  = args.burst_period,
+        burst_duty_cycle = args.burst_duty_cycle,
     )
     gen.run()
 

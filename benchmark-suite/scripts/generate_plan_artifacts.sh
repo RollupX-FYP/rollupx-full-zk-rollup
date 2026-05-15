@@ -72,6 +72,12 @@ fi
         --input "${ANALYSIS_DIR}/all_results.csv" \
         --output_dir "$FIGURES_DIR"
 
+    if [[ -f "${ANALYSIS_DIR}/all_batch_results.csv" ]]; then
+        python3 data-tools/plots/batch_feasibility.py \
+            --input "${ANALYSIS_DIR}/all_batch_results.csv" \
+            --output_dir "$FIGURES_DIR"
+    fi
+
     python3 data-tools/report/generate_md.py \
         --input "${ANALYSIS_DIR}/all_results.csv" \
         --stats "${ANALYSIS_DIR}/stats_summary.csv" \

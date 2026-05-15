@@ -26,6 +26,8 @@ FACTOR_GROUPS = {
     "batch_size": "batch_size",
     "da_mode":    "da_mode",
     "rate":       "rate_tps",
+    "batch_policy": "batch_policy",
+    "tx_mix":     "tx_mix",
 }
 
 

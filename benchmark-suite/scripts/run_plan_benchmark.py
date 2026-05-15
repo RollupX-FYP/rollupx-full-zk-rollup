@@ -88,56 +88,261 @@ BASE_ENV = {
     "USE_DOCKER_STACK": "1",
 }
 
-STAGE_CASES = {
-    "baseline": [
-        Case("baseline", "baseline", "Baseline configuration", {}),
-    ],
-    "stage1": [
-        Case("bs_025", "stage1", "Batch size 25", {"MAX_BATCH_SIZE": "25"}),
-        Case("bs_050", "stage1", "Batch size 50", {"MAX_BATCH_SIZE": "50"}),
-        Case("bs_100", "stage1", "Batch size 100", {"MAX_BATCH_SIZE": "100"}),
-        Case("bs_200", "stage1", "Batch size 200", {"MAX_BATCH_SIZE": "200"}),
-        Case("bs_500", "stage1", "Batch size 500", {"MAX_BATCH_SIZE": "500"}),
-        Case("to_0500", "stage1", "Timeout 500ms", {"TIMEOUT_MS": "500"}),
-        Case("to_1000", "stage1", "Timeout 1000ms", {"TIMEOUT_MS": "1000"}),
-        Case("to_2000", "stage1", "Timeout 2000ms", {"TIMEOUT_MS": "2000"}),
-        Case("to_5000", "stage1", "Timeout 5000ms", {"TIMEOUT_MS": "5000"}),
-    ],
-    "stage2": [
-        Case("ab_fixed_low", "stage2", "Fixed batching at low load", {"RATE_TPS": "10", "BATCH_POLICY": "fixed"}),
-        Case("ab_adaptive_low", "stage2", "Adaptive batching at low load", {"RATE_TPS": "10", "BATCH_POLICY": "adaptive"}),
-        Case("ab_fixed_high", "stage2", "Fixed batching at high load", {"RATE_TPS": "75", "BATCH_POLICY": "fixed"}),
-        Case("ab_adaptive_high", "stage2", "Adaptive batching at high load", {"RATE_TPS": "75", "BATCH_POLICY": "adaptive"}),
-    ],
-    "stage3": [
-        Case("pol_fcfs", "stage3", "FCFS scheduling", {"POLICY": "FCFS"}),
-        Case("pol_feepriority", "stage3", "Fee-priority scheduling", {"POLICY": "FeePriority"}),
-        Case("pol_blobpacking", "stage3", "Blob-aware packing policy", {"POLICY": "BlobPacking", "DA_MODE": "blob"}),
-    ],
-    "stage4": [
-        Case("da_calldata", "stage4", "Calldata DA mode", {"DA_MODE": "calldata"}),
-        Case("da_blob", "stage4", "Blob DA mode", {"DA_MODE": "blob"}),
-        Case("da_offchain", "stage4", "Offchain DA mode", {"DA_MODE": "offchain"}),
-        Case("da_blobpacking", "stage4", "Blob mode with BlobPacking", {"DA_MODE": "blob", "POLICY": "BlobPacking"}),
-    ],
-    "stage5": [
-        Case("proof_real", "stage5", "Real proofs required", {"REQUIRE_REAL_PROOFS": "true", "ALLOW_PROOF_FALLBACK": "1"}),
-        Case("proof_mock", "stage5", "Mock/fallback proof mode", {"REQUIRE_REAL_PROOFS": "false", "ALLOW_PROOF_FALLBACK": "1"}),
-        Case("proof_strict", "stage5", "Strict real proofs without fallback", {"REQUIRE_REAL_PROOFS": "true", "ALLOW_PROOF_FALLBACK": "0"}),
-    ],
-    "stage6": [
-        Case("l1_fast", "stage6", "Fast L1 mining", {"HARDHAT_MINING_INTERVAL": "1000"}),
-        Case("l1_normal", "stage6", "Normal L1 mining", {"HARDHAT_MINING_INTERVAL": "12000"}),
-        Case("l1_slow", "stage6", "Slow L1 mining", {"HARDHAT_MINING_INTERVAL": "30000"}),
-    ],
-    "stage7": [
-        Case("rel_retry0", "stage7", "No publish retries", {"SEQUENCER_EXECUTOR_PUBLISH_RETRIES": "0"}),
-        Case("rel_retry1", "stage7", "Single publish retry", {"SEQUENCER_EXECUTOR_PUBLISH_RETRIES": "1"}),
-        Case("rel_retry3", "stage7", "Three publish retries", {"SEQUENCER_EXECUTOR_PUBLISH_RETRIES": "3"}),
-        Case("rel_to1000", "stage7", "Publish timeout 1000ms", {"SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS": "1000"}),
-        Case("rel_to5000", "stage7", "Publish timeout 5000ms", {"SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS": "5000"}),
-    ],
-}
+def _case(exp_id: str, stage: str, description: str, **overrides: str) -> Case:
+    return Case(exp_id, stage, description, overrides)
+
+
+def _workload_overrides(name: str) -> dict[str, str]:
+    workloads = {
+        "normal": {"TX_MIX": "balanced", "RATE_TPS": "50"},
+        "low": {"TX_MIX": "balanced", "RATE_TPS": "10"},
+        "medium": {"TX_MIX": "balanced", "RATE_TPS": "50"},
+        "high": {"TX_MIX": "balanced", "RATE_TPS": "150", "WORKLOAD_CONCURRENCY": "4"},
+        "burst": {
+            "TX_MIX": "balanced",
+            "RATE_TPS": "10",
+            "WORKLOAD_BURST_ENABLED": "1",
+            "WORKLOAD_BURST_RATE_TPS": "200",
+            "WORKLOAD_BURST_PERIOD_S": "30",
+            "WORKLOAD_BURST_DUTY_CYCLE": "0.25",
+            "WORKLOAD_CONCURRENCY": "4",
+        },
+        "transfer": {"TX_MIX": "transfer", "RATE_TPS": "100", "WORKLOAD_CONCURRENCY": "2"},
+        "heavy": {"TX_MIX": "heavy", "RATE_TPS": "50", "WORKLOAD_CONCURRENCY": "2"},
+        "da_heavy": {"TX_MIX": "da_heavy", "RATE_TPS": "50", "WORKLOAD_CONCURRENCY": "2"},
+    }
+    return workloads[name]
+
+
+def _stage_cases() -> dict[str, list[Case]]:
+    stage1: list[Case] = []
+    for size in (25, 50, 100, 200, 500, 1000):
+        stage1.append(
+            _case(f"s1_bs_{size:04d}", "stage1", f"Fixed batch size {size}", MAX_BATCH_SIZE=str(size))
+        )
+    for timeout in (500, 1000, 2000, 5000, 10000):
+        stage1.append(
+            _case(f"s1_to_{timeout:05d}", "stage1", f"Fixed timeout {timeout}ms", TIMEOUT_MS=str(timeout))
+        )
+    for workload in ("normal", "transfer", "heavy"):
+        stage1.append(
+            _case(
+                f"s1_wl_{workload}",
+                "stage1",
+                f"Fixed batching under {workload} workload",
+                **_workload_overrides(workload),
+            )
+        )
+
+    stage2: list[Case] = []
+    for load in ("low", "medium", "high", "burst"):
+        for policy in ("fixed", "adaptive"):
+            stage2.append(
+                _case(
+                    f"s2_{policy}_{load}",
+                    "stage2",
+                    f"{policy.title()} batching under {load} load",
+                    BATCH_POLICY=policy,
+                    **_workload_overrides(load),
+                )
+            )
+    for low, medium, small, mid, large in (
+        (10, 50, 25, 100, 500),
+        (25, 100, 50, 200, 500),
+        (50, 150, 50, 200, 1000),
+    ):
+        stage2.append(
+            _case(
+                f"s2_adapt_l{low}_m{medium}",
+                "stage2",
+                f"Adaptive thresholds low={low} medium={medium}",
+                BATCH_POLICY="adaptive",
+                ADAPTIVE_LOW_LOAD_THRESHOLD=str(low),
+                ADAPTIVE_MEDIUM_LOAD_THRESHOLD=str(medium),
+                ADAPTIVE_SMALL_BATCH_SIZE=str(small),
+                ADAPTIVE_MEDIUM_BATCH_SIZE=str(mid),
+                ADAPTIVE_LARGE_BATCH_SIZE=str(large),
+            )
+        )
+
+    stage3: list[Case] = []
+    for policy in ("FCFS", "FeePriority", "TimeBoost", "FairBFT", "BlobPacking"):
+        overrides = {"POLICY": policy, "TX_MIX": "balanced"}
+        if policy == "BlobPacking":
+            overrides.update({"DA_MODE": "blob", "TX_MIX": "da_heavy"})
+        stage3.append(
+            _case(f"s3_pol_{policy.lower()}", "stage3", f"{policy} scheduling policy", **overrides)
+        )
+    for policy in ("FeePriority", "TimeBoost", "FairBFT"):
+        stage3.append(
+            _case(
+                f"s3_burst_{policy.lower()}",
+                "stage3",
+                f"{policy} scheduling under burst load",
+                POLICY=policy,
+                **_workload_overrides("burst"),
+            )
+        )
+
+    stage4: list[Case] = [
+        _case("s4_da_calldata", "stage4", "Calldata DA mode", DA_MODE="calldata"),
+        _case("s4_da_blob", "stage4", "Blob DA mode", DA_MODE="blob"),
+        _case("s4_da_offchain", "stage4", "Offchain DA mode", DA_MODE="offchain"),
+        _case("s4_da_blobpacking", "stage4", "Blob mode with BlobPacking", DA_MODE="blob", POLICY="BlobPacking", TX_MIX="da_heavy"),
+    ]
+    for target in (32768, 65536, 98304, 120000):
+        stage4.append(
+            _case(
+                f"s4_blob_target_{target}",
+                "stage4",
+                f"Blob target bytes {target}",
+                DA_MODE="blob",
+                BLOB_TARGET_BYTES=str(target),
+                TX_MIX="da_heavy",
+            )
+        )
+    for fill in ("0.50", "0.70", "0.80", "0.90", "0.95"):
+        stage4.append(
+            _case(
+                f"s4_blob_fill_{fill.replace('.', '')}",
+                "stage4",
+                f"Blob fill target {fill}",
+                DA_MODE="blob",
+                BLOB_FILL_TARGET=fill,
+                TX_MIX="da_heavy",
+            )
+        )
+
+    stage5: list[Case] = []
+    for size in (50, 100, 200, 500):
+        stage5.append(
+            _case(
+                f"s5_real_bs_{size:04d}",
+                "stage5",
+                f"Real RISC0 proof batch size {size}",
+                MAX_BATCH_SIZE=str(size),
+                REQUIRE_REAL_PROOFS="true",
+                ALLOW_PROOF_FALLBACK="1",
+            )
+        )
+    stage5.extend(
+        [
+            _case("s5_proof_mock", "stage5", "Mock/fallback proof mode", REQUIRE_REAL_PROOFS="false", ALLOW_PROOF_FALLBACK="1"),
+            _case("s5_proof_real", "stage5", "Real proofs with fallback allowed", REQUIRE_REAL_PROOFS="true", ALLOW_PROOF_FALLBACK="1"),
+            _case("s5_proof_strict", "stage5", "Strict real proofs without fallback", REQUIRE_REAL_PROOFS="true", ALLOW_PROOF_FALLBACK="0"),
+            _case("s5_heavy_real", "stage5", "Real proofs under heavy-state workload", REQUIRE_REAL_PROOFS="true", ALLOW_PROOF_FALLBACK="1", **_workload_overrides("heavy")),
+        ]
+    )
+
+    stage6: list[Case] = []
+    for interval in (1000, 3000, 12000, 30000):
+        stage6.append(
+            _case(
+                f"s6_l1_interval_{interval}",
+                "stage6",
+                f"L1 mining interval {interval}ms",
+                HARDHAT_MINING_INTERVAL=str(interval),
+            )
+        )
+    for regular, blob in ((5, "0.1"), (10, "1"), (30, "5"), (100, "20")):
+        stage6.append(
+            _case(
+                f"s6_gas_regular_{regular}_blob_{blob.replace('.', '')}",
+                "stage6",
+                f"Gas price regular={regular}gwei blob={blob}gwei",
+                REGULAR_GAS_PRICE_GWEI=str(regular),
+                BLOB_GAS_PRICE_GWEI=blob,
+                DA_MODE="blob",
+            )
+        )
+
+    stage7: list[Case] = []
+    for retries in (0, 1, 3, 5):
+        stage7.append(
+            _case(
+                f"s7_retry_{retries}",
+                "stage7",
+                f"Publish retries {retries}",
+                SEQUENCER_EXECUTOR_PUBLISH_RETRIES=str(retries),
+                **_workload_overrides("burst"),
+            )
+        )
+    for timeout in (1000, 3000, 5000, 10000):
+        stage7.append(
+            _case(
+                f"s7_timeout_{timeout}",
+                "stage7",
+                f"Publish timeout {timeout}ms",
+                SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS=str(timeout),
+                **_workload_overrides("burst"),
+            )
+        )
+    for comm in ("grpc", "file"):
+        stage7.append(
+            _case(
+                f"s7_comm_{comm}",
+                "stage7",
+                f"{comm.upper()} communication mode",
+                COMM_MODE=comm,
+                **_workload_overrides("burst"),
+            )
+        )
+
+    stage8: list[Case] = []
+    final_configs = {
+        "baseline": {},
+        "best_fixed": {"MAX_BATCH_SIZE": "200", "TIMEOUT_MS": "2000", "BATCH_POLICY": "fixed", "POLICY": "FCFS", "DA_MODE": "calldata"},
+        "best_adaptive": {
+            "BATCH_POLICY": "adaptive",
+            "ADAPTIVE_LOW_LOAD_THRESHOLD": "25",
+            "ADAPTIVE_MEDIUM_LOAD_THRESHOLD": "100",
+            "ADAPTIVE_SMALL_BATCH_SIZE": "50",
+            "ADAPTIVE_MEDIUM_BATCH_SIZE": "200",
+            "ADAPTIVE_LARGE_BATCH_SIZE": "500",
+            "TIMEOUT_MS": "2000",
+        },
+        "best_fairness": {"POLICY": "FairBFT", "MAX_BATCH_SIZE": "100", "TIMEOUT_MS": "2000"},
+        "best_cost": {"POLICY": "BlobPacking", "DA_MODE": "blob", "BLOB_TARGET_BYTES": "120000", "BLOB_FILL_TARGET": "0.90"},
+        "best_realproof": {"REQUIRE_REAL_PROOFS": "true", "ALLOW_PROOF_FALLBACK": "0", "MAX_BATCH_SIZE": "100"},
+    }
+    for config_name, config_overrides in final_configs.items():
+        for workload in ("normal", "burst", "heavy", "da_heavy"):
+            stage8.append(
+                _case(
+                    f"s8_{config_name}_{workload}",
+                    "stage8",
+                    f"Final comparison {config_name} on {workload} workload",
+                    **{**_workload_overrides(workload), **config_overrides},
+                )
+            )
+
+    return {
+        "stage0": [
+            _case(
+                "s0_validation",
+                "stage0",
+                "Instrumentation validation at 5 TPS transfer-only workload",
+                RATE_TPS="5",
+                DURATION_S="60",
+                WARMUP_S="0",
+                TX_MIX="transfer",
+                REQUIRE_REAL_PROOFS="false",
+                ALLOW_PROOF_FALLBACK="1",
+            )
+        ],
+        "baseline": [_case("baseline", "baseline", "Baseline configuration")],
+        "stage1": stage1,
+        "stage2": stage2,
+        "stage3": stage3,
+        "stage4": stage4,
+        "stage5": stage5,
+        "stage6": stage6,
+        "stage7": stage7,
+        "stage8": stage8,
+    }
+
+
+STAGE_CASES = _stage_cases()
 
 
 def _session_dir(session_name: str | None, profile: str) -> Path:
@@ -148,9 +353,9 @@ def _session_dir(session_name: str | None, profile: str) -> Path:
 
 def _selected_cases(stage_names: list[str]) -> list[Case]:
     if "all" in stage_names:
-        ordered = ["baseline", "stage1", "stage2", "stage3", "stage4", "stage5", "stage6", "stage7"]
+        ordered = ["stage0", "baseline", "stage1", "stage2", "stage3", "stage4", "stage5", "stage6", "stage7", "stage8"]
     elif "minimum" in stage_names:
-        ordered = ["baseline", "stage1", "stage3", "stage4", "stage5"]
+        ordered = ["stage0", "baseline", "stage1", "stage3", "stage4", "stage5"]
     else:
         ordered = ["baseline"] + [name for name in stage_names if name != "baseline"]
 
@@ -181,7 +386,9 @@ def _run_case(case: Case, repeat: int, env: dict[str, str]) -> None:
     print(
         f"[plan] stage={case.stage} exp={case.exp_id} repeat={repeat} "
         f"batch={env.get('MAX_BATCH_SIZE')} timeout={env.get('TIMEOUT_MS')} "
-        f"policy={env.get('POLICY')} da={env.get('DA_MODE')} real_proofs={env.get('REQUIRE_REAL_PROOFS')}"
+        f"batch_policy={env.get('BATCH_POLICY')} policy={env.get('POLICY')} "
+        f"da={env.get('DA_MODE')} mix={env.get('TX_MIX')} rate={env.get('RATE_TPS')} "
+        f"burst={env.get('WORKLOAD_BURST_ENABLED')} real_proofs={env.get('REQUIRE_REAL_PROOFS')}"
     )
     subprocess.run(cmd, cwd=BENCH_DIR, env=env, check=True)
 
@@ -192,7 +399,20 @@ def main() -> None:
     parser.add_argument(
         "--stage",
         action="append",
-        choices=["minimum", "all", "baseline", "stage1", "stage2", "stage3", "stage4", "stage5", "stage6", "stage7"],
+        choices=[
+            "minimum",
+            "all",
+            "stage0",
+            "baseline",
+            "stage1",
+            "stage2",
+            "stage3",
+            "stage4",
+            "stage5",
+            "stage6",
+            "stage7",
+            "stage8",
+        ],
         help="Stage group to run. Repeat flag to combine multiple stages.",
     )
     parser.add_argument("--repeats", type=int, default=1)

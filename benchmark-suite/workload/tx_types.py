@@ -52,6 +52,8 @@ MIX_PRESETS: dict[str, tuple[float, float, float]] = {
     "balanced": (0.70, 0.20, 0.10),
     "light":    (0.95, 0.04, 0.01),
     "heavy":    (0.20, 0.30, 0.50),
+    "transfer": (1.00, 0.00, 0.00),
+    "da_heavy": (0.10, 0.20, 0.70),
 }
 
 # Hardhat default account — used in dev_mode

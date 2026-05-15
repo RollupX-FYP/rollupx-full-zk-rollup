@@ -50,6 +50,10 @@ export DURATION_S=${DURATION_S:-120}
 export WARMUP_S=${WARMUP_S:-15}
 export WORKLOAD_CONCURRENCY=${WORKLOAD_CONCURRENCY:-1}
 export WORKLOAD_TARGET_TXS=${WORKLOAD_TARGET_TXS:-0}
+export WORKLOAD_BURST_ENABLED=${WORKLOAD_BURST_ENABLED:-0}
+export WORKLOAD_BURST_RATE_TPS=${WORKLOAD_BURST_RATE_TPS:-0}
+export WORKLOAD_BURST_PERIOD_S=${WORKLOAD_BURST_PERIOD_S:-30}
+export WORKLOAD_BURST_DUTY_CYCLE=${WORKLOAD_BURST_DUTY_CYCLE:-0.25}
 export TX_MIX=${TX_MIX:-balanced}
 export SEED=${SEED:-42}
 export SEQ_HOST=${SEQ_HOST:-localhost}
@@ -631,7 +635,11 @@ python3 workload/poisson_generator.py \
     --host          "$SEQ_HOST" \
     --port          "$SEQ_PORT" \
     --concurrency   "$WORKLOAD_CONCURRENCY" \
-    --target_txs    "$WORKLOAD_TARGET_TXS"
+    --target_txs    "$WORKLOAD_TARGET_TXS" \
+    --burst_enabled "$WORKLOAD_BURST_ENABLED" \
+    --burst_rate    "$WORKLOAD_BURST_RATE_TPS" \
+    --burst_period  "$WORKLOAD_BURST_PERIOD_S" \
+    --burst_duty_cycle "$WORKLOAD_BURST_DUTY_CYCLE"
 
 # ── 6. Wait for submitter to flush final batch ────────────────────────────────
 # Poll component metrics until executor/submitter have caught up and files stop growing.
