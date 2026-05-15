@@ -67,6 +67,28 @@ python3 -m pip install -U pip
 python3 -m pip install eth-account requests
 ```
 
+If your system shows `externally-managed-environment`, do not force-install into the system Python.
+Create and use a virtual environment instead.
+
+Recommended setup:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
+python -m pip install eth-account requests
+```
+
+After activating the virtual environment, run the benchmark commands from the same shell session.
+
+Example:
+
+```bash
+cd ~/rollupx-full-zk-rollup/benchmark-suite
+source .venv/bin/activate
+bash scripts/run_plan_benchmark.sh --profile smoke --stage minimum --analytics
+```
+
 If `python3 -m pip` is not available in your environment, use:
 
 ```bash
@@ -81,7 +103,7 @@ After installing those packages, rerun the benchmark command.
 This is a small check you can run before a long benchmark session:
 
 ```bash
-python3 workload/poisson_generator.py --help
+python workload/poisson_generator.py --help
 ```
 
 If that command prints the help text successfully, the Python workload dependencies are installed correctly.
@@ -161,6 +183,12 @@ cd benchmark-suite
 ### 2. Run the entire plan stage by stage and generate all outputs
 
 Use the commands below when you want one separate output folder per stage.
+
+Important:
+
+- Every single-stage command below also includes the `baseline` case automatically.
+- That means `--stage stage1` runs `baseline + stage1`, `--stage stage2` runs `baseline + stage2`, and so on.
+- You do not need to run a separate baseline command before each stage command.
 
 #### Fast verification run
 
