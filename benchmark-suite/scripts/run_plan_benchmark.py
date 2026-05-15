@@ -48,9 +48,9 @@ PROFILE_DEFAULTS = {
         "DOCKER_UP_BUILD": "0",
     },
     "final": {
-        "RATE_TPS": "50",
-        "DURATION_S": "600",
-        "WARMUP_S": "60",
+        "RATE_TPS": "25",
+        "DURATION_S": "180",
+        "WARMUP_S": "15",
         "WORKLOAD_TARGET_TXS": "0",
         "WORKLOAD_CONCURRENCY": "1",
         "SEED": "42",
@@ -94,22 +94,22 @@ def _case(exp_id: str, stage: str, description: str, **overrides: str) -> Case:
 
 def _workload_overrides(name: str) -> dict[str, str]:
     workloads = {
-        "normal": {"TX_MIX": "balanced", "RATE_TPS": "50"},
+        "normal": {"TX_MIX": "balanced", "RATE_TPS": "25"},
         "low": {"TX_MIX": "balanced", "RATE_TPS": "10"},
-        "medium": {"TX_MIX": "balanced", "RATE_TPS": "50"},
-        "high": {"TX_MIX": "balanced", "RATE_TPS": "150", "WORKLOAD_CONCURRENCY": "4"},
+        "medium": {"TX_MIX": "balanced", "RATE_TPS": "25"},
+        "high": {"TX_MIX": "balanced", "RATE_TPS": "60", "WORKLOAD_CONCURRENCY": "2"},
         "burst": {
             "TX_MIX": "balanced",
-            "RATE_TPS": "10",
+            "RATE_TPS": "8",
             "WORKLOAD_BURST_ENABLED": "1",
-            "WORKLOAD_BURST_RATE_TPS": "200",
+            "WORKLOAD_BURST_RATE_TPS": "80",
             "WORKLOAD_BURST_PERIOD_S": "30",
             "WORKLOAD_BURST_DUTY_CYCLE": "0.25",
-            "WORKLOAD_CONCURRENCY": "4",
+            "WORKLOAD_CONCURRENCY": "2",
         },
-        "transfer": {"TX_MIX": "transfer", "RATE_TPS": "100", "WORKLOAD_CONCURRENCY": "2"},
-        "heavy": {"TX_MIX": "heavy", "RATE_TPS": "50", "WORKLOAD_CONCURRENCY": "2"},
-        "da_heavy": {"TX_MIX": "da_heavy", "RATE_TPS": "50", "WORKLOAD_CONCURRENCY": "2"},
+        "transfer": {"TX_MIX": "transfer", "RATE_TPS": "40", "WORKLOAD_CONCURRENCY": "2"},
+        "heavy": {"TX_MIX": "heavy", "RATE_TPS": "25", "WORKLOAD_CONCURRENCY": "2"},
+        "da_heavy": {"TX_MIX": "da_heavy", "RATE_TPS": "25", "WORKLOAD_CONCURRENCY": "2"},
     }
     return workloads[name]
 

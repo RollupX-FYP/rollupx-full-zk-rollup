@@ -341,11 +341,12 @@ The plan runner supports three execution profiles.
 
 ### `final`
 
-- `RATE_TPS=50`
-- `DURATION_S=600`
-- `WARMUP_S=60`
+- `RATE_TPS=25`
+- `DURATION_S=180`
+- `WARMUP_S=15`
 - `WORKLOAD_TARGET_TXS=0`
 - intended for long report-quality sessions
+- tuned to reduce batch explosion and prover backlog while preserving useful comparison quality
 
 ---
 
