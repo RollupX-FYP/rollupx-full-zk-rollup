@@ -45,6 +45,12 @@ struct SequencerBatchMetricsRow {
     // DA Estimates (Pre-Enrichment)
     estimated_da_bytes_pre_enrichment: usize,
     raw_tx_bytes: usize,
+    blob_selected_bytes: usize,
+    blob_eligible_bytes: usize,
+    blob_eligible_tx_count: usize,
+    blob_ineligible_nonce_gap_count: usize,
+    blob_nonce_chain_truncated_senders: usize,
+    blob_low_fill_reason: Option<String>,
 
     // Wait Time Distribution
     wait_time_p50_ms: u64,
@@ -92,6 +98,12 @@ struct ProducedBatch {
     raw_tx_bytes: usize,
     estimated_batch_bytes: usize,
     blob_utilization: f64,
+    blob_selected_bytes: usize,
+    blob_eligible_bytes: usize,
+    blob_eligible_tx_count: usize,
+    blob_ineligible_nonce_gap_count: usize,
+    blob_nonce_chain_truncated_senders: usize,
+    blob_low_fill_reason: Option<String>,
 }
 
 pub struct BatchOrchestrator {
@@ -229,6 +241,12 @@ impl BatchOrchestrator {
                         fee_proxy_wei: produced.fee_proxy_wei.to_string(),
                         estimated_da_bytes_pre_enrichment: produced.estimated_da_bytes_pre_enrichment,
                         raw_tx_bytes: produced.raw_tx_bytes,
+                        blob_selected_bytes: produced.blob_selected_bytes,
+                        blob_eligible_bytes: produced.blob_eligible_bytes,
+                        blob_eligible_tx_count: produced.blob_eligible_tx_count,
+                        blob_ineligible_nonce_gap_count: produced.blob_ineligible_nonce_gap_count,
+                        blob_nonce_chain_truncated_senders: produced.blob_nonce_chain_truncated_senders,
+                        blob_low_fill_reason: produced.blob_low_fill_reason.clone(),
                         wait_time_p50_ms: produced.wait_times.p50_wait_ms,
                         wait_time_p95_ms: produced.wait_times.p95_wait_ms,
                         wait_time_p99_ms: produced.wait_times.p99_wait_ms,
@@ -300,12 +318,31 @@ impl BatchOrchestrator {
             .blob_target_bytes
             .saturating_sub(accepted_forced_txs.iter().map(|tx| tx.estimated_encoded_bytes()).sum::<usize>());
 
-        let (normal_txs, _packed_blob_bytes) = if self.scheduler.policy_name() == "BlobPacking" {
-            self.tx_pool
-                .take_blob_packed(max_normal_txs, remaining_blob_bytes)
-                .await
+        let mut blob_selected_bytes = 0usize;
+        let mut blob_eligible_bytes = 0usize;
+        let mut blob_eligible_tx_count = 0usize;
+        let mut blob_ineligible_nonce_gap_count = 0usize;
+        let mut blob_nonce_chain_truncated_senders = 0usize;
+        let mut blob_low_fill_reason: Option<String> = None;
+
+        let normal_txs = if self.scheduler.policy_name() == "BlobPacking" {
+            let senders = self.tx_pool.pending_senders().await;
+            let mut expected_nonces = std::collections::HashMap::new();
+            for sender in senders {
+                expected_nonces.insert(sender, self.state_cache.get_nonce(&sender).await.unwrap_or(0));
+            }
+            let selection = self.tx_pool
+                .take_blob_packed_nonce_safe(max_normal_txs, remaining_blob_bytes, expected_nonces)
+                .await;
+            blob_selected_bytes = selection.selected_bytes;
+            blob_eligible_bytes = selection.eligible_bytes;
+            blob_eligible_tx_count = selection.eligible_tx_count;
+            blob_ineligible_nonce_gap_count = selection.ineligible_nonce_gap_count;
+            blob_nonce_chain_truncated_senders = selection.nonce_chain_truncated_senders;
+            blob_low_fill_reason = selection.low_fill_reason;
+            selection.selected
         } else {
-            (self.tx_pool.get_pending(max_normal_txs).await, 0usize)
+            self.tx_pool.get_pending(max_normal_txs).await
         };
         let mut accepted_normal_txs = Vec::new();
         let mut combined_for_gas_check = accepted_forced_txs.clone();
@@ -340,7 +377,14 @@ impl BatchOrchestrator {
             _ => None,
         }).collect();
 
-        let ordered_txs = self.scheduler.schedule(forced_inner, normal_inner);
+        let ordered_txs = if self.scheduler.policy_name() == "BlobPacking" {
+            let mut txs = Vec::new();
+            txs.extend(forced_inner.into_iter().map(Transaction::Forced));
+            txs.extend(normal_inner.into_iter().map(Transaction::Normal));
+            txs
+        } else {
+            self.scheduler.schedule(forced_inner, normal_inner)
+        };
         let total_gas_limit: u64 = ordered_txs.iter().map(|tx| tx.gas_limit()).sum();
         
         let mut total_gas_price_wei: u128 = 0;
@@ -435,6 +479,12 @@ impl BatchOrchestrator {
             raw_tx_bytes,
             estimated_batch_bytes,
             blob_utilization,
+            blob_selected_bytes,
+            blob_eligible_bytes,
+            blob_eligible_tx_count,
+            blob_ineligible_nonce_gap_count,
+            blob_nonce_chain_truncated_senders,
+            blob_low_fill_reason,
         }))
     }
 

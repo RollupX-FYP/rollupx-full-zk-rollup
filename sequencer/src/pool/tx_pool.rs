@@ -9,6 +9,8 @@
 //! (e.g., adding or draining transactions).
 
 use crate::PooledTransaction;
+use ethers::types::Address;
+use std::collections::HashMap;
 use std::collections::VecDeque;
 use tokio::sync::RwLock;
 
@@ -26,6 +28,17 @@ pub struct TransactionPool {
     transactions: RwLock<VecDeque<PooledTransaction>>,
     /// Total transactions received since startup
     total_received: AtomicU64,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct BlobPackSelection {
+    pub selected: Vec<PooledTransaction>,
+    pub selected_bytes: usize,
+    pub eligible_tx_count: usize,
+    pub eligible_bytes: usize,
+    pub ineligible_nonce_gap_count: usize,
+    pub nonce_chain_truncated_senders: usize,
+    pub low_fill_reason: Option<String>,
 }
 
 impl TransactionPool {
@@ -74,31 +87,68 @@ impl TransactionPool {
         txs.drain(..max.min(len)).collect()
     }
 
-    /// Retrieve a blob-packed subset of pending transactions.
+    /// Retrieve a nonce-safe blob-packed subset of pending transactions.
     ///
-    /// The selector greedily prefers larger encoded payloads first so the
-    /// selected set has a better chance of filling the target byte budget.
-    /// Transactions that are not selected are preserved in their original
-    /// arrival order.
-    pub async fn take_blob_packed(
+    /// Selection happens in two phases:
+    /// 1) per-sender contiguous nonce eligibility from expected nonce
+    /// 2) fill-first greedy packing over eligible transactions
+    pub async fn take_blob_packed_nonce_safe(
         &self,
         max_count: usize,
         max_bytes: usize,
-    ) -> (Vec<PooledTransaction>, usize) {
+        expected_nonces: HashMap<Address, u64>,
+    ) -> BlobPackSelection {
         let mut txs = self.transactions.write().await;
         let drained: Vec<_> = txs.drain(..).enumerate().collect();
-        let mut candidates: Vec<_> = drained
-            .into_iter()
-            .map(|(idx, tx)| {
-                let size = tx.estimated_encoded_bytes();
-                (idx, tx, size)
-            })
-            .collect();
+        let mut per_sender: HashMap<Address, Vec<(usize, PooledTransaction, usize)>> = HashMap::new();
+        for (idx, tx) in drained {
+            let size = tx.estimated_encoded_bytes();
+            per_sender.entry(tx.tx.from).or_default().push((idx, tx, size));
+        }
 
-        candidates.sort_by(|a, b| {
+        let mut eligible: Vec<(usize, PooledTransaction, usize)> = Vec::new();
+        let mut ineligible: Vec<(usize, PooledTransaction, usize)> = Vec::new();
+        let mut ineligible_nonce_gap_count = 0usize;
+        let mut nonce_chain_truncated_senders = 0usize;
+
+        for (sender, mut sender_txs) in per_sender {
+            sender_txs.sort_by(|a, b| match a.1.tx.nonce.cmp(&b.1.tx.nonce) {
+                std::cmp::Ordering::Equal => a.0.cmp(&b.0),
+                other => other,
+            });
+            let mut expected = expected_nonces.get(&sender).copied().unwrap_or(0);
+            let mut saw_gap = false;
+
+            for entry in sender_txs {
+                if saw_gap {
+                    ineligible.push(entry);
+                    continue;
+                }
+                match entry.1.tx.nonce.cmp(&expected) {
+                    std::cmp::Ordering::Equal => {
+                        expected = expected.saturating_add(1);
+                        eligible.push(entry);
+                    }
+                    _ => {
+                        saw_gap = true;
+                        nonce_chain_truncated_senders = nonce_chain_truncated_senders.saturating_add(1);
+                        ineligible_nonce_gap_count = ineligible_nonce_gap_count.saturating_add(1);
+                        ineligible.push(entry);
+                    }
+                }
+            }
+        }
+
+        let eligible_tx_count = eligible.len();
+        let eligible_bytes = eligible.iter().map(|(_, _, s)| *s).sum::<usize>();
+
+        eligible.sort_by(|a, b| {
             match b.2.cmp(&a.2) {
                 std::cmp::Ordering::Equal => match b.1.tx.gas_price.cmp(&a.1.tx.gas_price) {
-                    std::cmp::Ordering::Equal => a.0.cmp(&b.0),
+                    std::cmp::Ordering::Equal => match a.1.arrived_at.cmp(&b.1.arrived_at) {
+                        std::cmp::Ordering::Equal => a.0.cmp(&b.0),
+                        other => other,
+                    },
                     other => other,
                 },
                 other => other,
@@ -106,29 +156,58 @@ impl TransactionPool {
         });
 
         let mut selected = Vec::new();
-        let mut remainder = Vec::new();
-        let mut used_bytes = 0usize;
-
-        for (idx, tx, size) in candidates {
-            let fits_count = selected.len() < max_count;
-            let fits_bytes = used_bytes.saturating_add(size) <= max_bytes;
-            if fits_count && fits_bytes {
-                used_bytes = used_bytes.saturating_add(size);
-                selected.push((idx, tx));
+        let mut selected_bytes = 0usize;
+        let mut remainder = ineligible;
+        let mut count_blocked = false;
+        for entry in eligible {
+            if selected.len() >= max_count {
+                count_blocked = true;
+                remainder.push(entry);
+                continue;
+            }
+            if selected_bytes.saturating_add(entry.2) <= max_bytes {
+                selected_bytes = selected_bytes.saturating_add(entry.2);
+                selected.push(entry);
             } else {
-                remainder.push((idx, tx));
+                remainder.push(entry);
             }
         }
 
         selected.sort_by(|a, b| a.0.cmp(&b.0));
         remainder.sort_by(|a, b| a.0.cmp(&b.0));
-        for (_, tx) in remainder {
+        for (_, tx, _) in remainder {
             txs.push_back(tx);
         }
 
-        (selected.into_iter().map(|(_, tx)| tx).collect(), used_bytes)
+        let low_fill_reason = if ineligible_nonce_gap_count > 0 {
+            Some("nonce_gaps".to_string())
+        } else if count_blocked {
+            Some("count_cap".to_string())
+        } else if selected_bytes < max_bytes && eligible_bytes < max_bytes {
+            Some("insufficient_eligible_bytes".to_string())
+        } else {
+            None
+        };
+
+        BlobPackSelection {
+            selected: selected.into_iter().map(|(_, tx, _)| tx).collect(),
+            selected_bytes,
+            eligible_tx_count,
+            eligible_bytes,
+            ineligible_nonce_gap_count,
+            nonce_chain_truncated_senders,
+            low_fill_reason,
+        }
     }
 
+    pub async fn pending_senders(&self) -> Vec<Address> {
+        let txs = self.transactions.read().await;
+        let mut seen: HashMap<Address, ()> = HashMap::new();
+        for tx in txs.iter() {
+            seen.entry(tx.tx.from).or_insert(());
+        }
+        seen.into_keys().collect()
+    }
 
     /// Get the number of pending transactions in the pool
     ///
@@ -215,11 +294,11 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn take_blob_packed_prefers_larger_transactions_and_preserves_remainder() {
+    async fn take_blob_packed_nonce_safe_prefers_larger_transactions_and_preserves_remainder() {
         let pool = TransactionPool::new();
-        let small = make_tx(1, 1, 1, None);
-        let medium = make_tx(2, 10, 2, None);
-        let large = make_tx(
+        let mut small = make_tx(1, 1, 1, None);
+        let mut medium = make_tx(2, 10, 2, None);
+        let mut large = make_tx(
             3,
             10,
             3,
@@ -228,6 +307,9 @@ mod tests {
             )
             .unwrap()),
         );
+        small.tx.nonce = 0;
+        medium.tx.nonce = 0;
+        large.tx.nonce = 0;
 
         assert!(large.estimated_encoded_bytes() > medium.estimated_encoded_bytes());
 
@@ -235,10 +317,15 @@ mod tests {
         pool.add(medium.clone()).await;
         pool.add(large.clone()).await;
 
-        let (selected, used_bytes) = pool.take_blob_packed(2, usize::MAX).await;
+        let mut expected = HashMap::new();
+        expected.insert(small.tx.from, 0);
+        expected.insert(medium.tx.from, 0);
+        expected.insert(large.tx.from, 0);
+        let selection = pool.take_blob_packed_nonce_safe(2, usize::MAX, expected).await;
+        let selected = selection.selected;
 
         assert_eq!(selected.len(), 2);
-        assert!(used_bytes > 0);
+        assert!(selection.selected_bytes > 0);
         assert!(selected.iter().any(|tx| tx.tx.gas_price == large.tx.gas_price));
         assert!(selected.iter().any(|tx| tx.tx.gas_price == medium.tx.gas_price));
         assert!(selected.iter().all(|tx| tx.tx.gas_price != small.tx.gas_price));
@@ -246,5 +333,124 @@ mod tests {
         let remaining = pool.get_pending(10).await;
         assert_eq!(remaining.len(), 1);
         assert_eq!(remaining[0].tx.gas_price, small.tx.gas_price);
+    }
+
+    #[tokio::test]
+    async fn take_blob_packed_nonce_safe_handles_nonce_gaps() {
+        let pool = TransactionPool::new();
+        let sender = Address::random();
+        let mut tx0 = make_tx(1, 1, 1, None);
+        tx0.tx.from = sender;
+        tx0.tx.nonce = 0;
+        let mut tx2 = make_tx(2, 1, 2, None);
+        tx2.tx.from = sender;
+        tx2.tx.nonce = 2;
+        pool.add(tx0.clone()).await;
+        pool.add(tx2.clone()).await;
+
+        let mut expected = HashMap::new();
+        expected.insert(sender, 0);
+        let selection = pool.take_blob_packed_nonce_safe(10, usize::MAX, expected).await;
+        assert_eq!(selection.selected.len(), 1);
+        assert_eq!(selection.selected[0].tx.nonce, 0);
+        assert_eq!(selection.ineligible_nonce_gap_count, 1);
+        assert_eq!(selection.low_fill_reason.as_deref(), Some("nonce_gaps"));
+
+        let remaining = pool.get_pending(10).await;
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].tx.nonce, 2);
+    }
+
+    #[tokio::test]
+    async fn take_blob_packed_nonce_safe_allows_contiguous_chain() {
+        let pool = TransactionPool::new();
+        let sender = Address::random();
+        for i in 0..3u64 {
+            let mut tx = make_tx(10 + i, 1, i + 1, None);
+            tx.tx.from = sender;
+            tx.tx.nonce = i;
+            pool.add(tx).await;
+        }
+
+        let mut expected = HashMap::new();
+        expected.insert(sender, 0);
+        let selection = pool.take_blob_packed_nonce_safe(10, usize::MAX, expected).await;
+        assert_eq!(selection.selected.len(), 3);
+        assert_eq!(selection.selected[0].tx.nonce, 0);
+        assert_eq!(selection.selected[1].tx.nonce, 1);
+        assert_eq!(selection.selected[2].tx.nonce, 2);
+    }
+
+    #[tokio::test]
+    async fn take_blob_packed_nonce_safe_handles_multiple_senders() {
+        let pool = TransactionPool::new();
+        let sender_a = Address::random();
+        let sender_b = Address::random();
+
+        let mut a0 = make_tx(10, 1, 1, None);
+        a0.tx.from = sender_a;
+        a0.tx.nonce = 0;
+        let mut a1 = make_tx(11, 1, 2, None);
+        a1.tx.from = sender_a;
+        a1.tx.nonce = 1;
+        let mut b0 = make_tx(20, 1, 3, None);
+        b0.tx.from = sender_b;
+        b0.tx.nonce = 0;
+
+        pool.add(a0).await;
+        pool.add(a1).await;
+        pool.add(b0).await;
+
+        let mut expected = HashMap::new();
+        expected.insert(sender_a, 0);
+        expected.insert(sender_b, 0);
+        let selection = pool.take_blob_packed_nonce_safe(10, usize::MAX, expected).await;
+        assert_eq!(selection.selected.len(), 3);
+        assert_eq!(selection.ineligible_nonce_gap_count, 0);
+    }
+
+    #[tokio::test]
+    async fn take_blob_packed_nonce_safe_skips_oversized_but_keeps_others() {
+        let pool = TransactionPool::new();
+        let sender_a = Address::random();
+        let sender_b = Address::random();
+
+        let mut large = make_tx(
+            50,
+            10,
+            1,
+            Some(U256::from_dec_str(
+                "1000000000000000000000000000000000000000000000000000000000000000",
+            )
+            .unwrap()),
+        );
+        large.tx.from = sender_a;
+        large.tx.nonce = 0;
+
+        let mut small = make_tx(5, 1, 2, None);
+        small.tx.from = sender_b;
+        small.tx.nonce = 0;
+
+        let large_bytes = large.estimated_encoded_bytes();
+        let small_bytes = small.estimated_encoded_bytes();
+
+        pool.add(large.clone()).await;
+        pool.add(small.clone()).await;
+
+        let mut expected = HashMap::new();
+        expected.insert(sender_a, 0);
+        expected.insert(sender_b, 0);
+        let selection = pool
+            .take_blob_packed_nonce_safe(10, small_bytes, expected)
+            .await;
+
+        assert_eq!(selection.selected.len(), 1);
+        assert_eq!(selection.selected[0].tx.from, sender_b);
+        assert!(selection.selected_bytes <= small_bytes);
+        assert!(large_bytes > selection.selected_bytes);
+
+        let remaining = pool.get_pending(10).await;
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].tx.from, sender_a);
     }
 }
