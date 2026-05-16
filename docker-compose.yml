@@ -165,6 +165,7 @@ services:
       EXPERIMENT_NAME: ${EXPERIMENT_NAME:-compose core}
       SEQUENCER_EXECUTOR_PUBLISH_RETRIES: ${SEQUENCER_EXECUTOR_PUBLISH_RETRIES:-5}
       SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS: ${SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS:-10000}
+      SEQUENCER_DEV_SEED_ADDRS: ${SEQUENCER_DEV_SEED_ADDRS:-}
     volumes:
       - ${METRICS_DIR:-./benchmark-suite/metrics/latest}:/var/lib/rollupx/metrics
       - sequencer_db:/var/lib/rollupx/sequencer

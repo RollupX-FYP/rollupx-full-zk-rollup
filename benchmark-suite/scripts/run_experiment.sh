@@ -131,6 +131,7 @@ restart_docker_stack_for_run() {
         BLOB_GAS_PRICE_GWEI="$BLOB_GAS_PRICE_GWEI" \
         SEQUENCER_EXECUTOR_PUBLISH_RETRIES="$SEQUENCER_EXECUTOR_PUBLISH_RETRIES" \
         SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS="$SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS" \
+        SEQUENCER_DEV_SEED_ADDRS="$SEQUENCER_DEV_SEED_ADDRS" \
         RISC0_HOST_WORK_DIR="$RISC0_HOST_WORK_DIR" \
         docker compose --profile core down -v --remove-orphans
 
@@ -158,6 +159,7 @@ restart_docker_stack_for_run() {
             BLOB_GAS_PRICE_GWEI="$BLOB_GAS_PRICE_GWEI" \
             SEQUENCER_EXECUTOR_PUBLISH_RETRIES="$SEQUENCER_EXECUTOR_PUBLISH_RETRIES" \
             SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS="$SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS" \
+            SEQUENCER_DEV_SEED_ADDRS="$SEQUENCER_DEV_SEED_ADDRS" \
             RISC0_HOST_WORK_DIR="$RISC0_HOST_WORK_DIR" \
             docker compose --profile core up -d --force-recreate --build
         else
@@ -184,6 +186,7 @@ restart_docker_stack_for_run() {
             BLOB_GAS_PRICE_GWEI="$BLOB_GAS_PRICE_GWEI" \
             SEQUENCER_EXECUTOR_PUBLISH_RETRIES="$SEQUENCER_EXECUTOR_PUBLISH_RETRIES" \
             SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS="$SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS" \
+            SEQUENCER_DEV_SEED_ADDRS="$SEQUENCER_DEV_SEED_ADDRS" \
             RISC0_HOST_WORK_DIR="$RISC0_HOST_WORK_DIR" \
             docker compose --profile core up -d --force-recreate
         fi
