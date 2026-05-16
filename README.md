@@ -18,6 +18,10 @@ Known scope limits:
 ## Documentation Map
 
 - [docs/system-overview.md](docs/system-overview.md): High-level overview of the system architecture and components.
+- [docs/research-system-design.md](docs/research-system-design.md): Research-facing system design for each core component.
+- [docs/metrics-collection-design.md](docs/metrics-collection-design.md): How workload, sequencer, executor, submitter, and aggregation metrics are collected.
+- [docs/benchmark-design.md](docs/benchmark-design.md): Benchmark variables, experiment matrix, run phases, and analysis design.
+- [docs/scientific-validity-review.md](docs/scientific-validity-review.md): Critical evaluation of scientific validity and result interpretation limits.
 - [docs/e2e-flow.md](docs/e2e-flow.md): End-to-end transaction lifecycle from generation to L1 settlement.
 - [docs/ui.md](docs/ui.md): Overview of the partially implemented Next.js frontend dashboard.
 - [docs/workload-generator.md](docs/workload-generator.md): Details on the Python-based workload generator.
