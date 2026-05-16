@@ -136,7 +136,7 @@ for exp in cfg["experiments"]:
     factor = exp.get("factor")
     if filter_factor in (None, "", "all"):
         pass
-    elif filter_factor == "workload" and factor not in ("rate", "tx_mix"):
+    elif filter_factor == "workload" and factor not in ("rate", "tx_mix", "workload"):
         continue
     elif filter_factor != "workload" and factor != filter_factor:
         continue
@@ -146,7 +146,7 @@ if filter_factor and filter_factor not in ("all", "baseline") and not only_id:
     experiments_to_run = [
         exp for exp in experiments_to_run
         if exp.get("factor") == "baseline" or exp.get("factor") == filter_factor or (
-            filter_factor == "workload" and exp.get("factor") in ("rate", "tx_mix")
+            filter_factor == "workload" and exp.get("factor") in ("rate", "tx_mix", "workload")
         )
     ]
 
@@ -182,7 +182,10 @@ for index, exp in enumerate(experiments_to_run, start=1):
     )
     print(
         f"    da={exp['da_mode']} prover={exp['prover']} rate={exp['rate_tps']}tps "
-        f"mix={exp['tx_mix']} duration={duration_s}s warmup={warmup_s}s repeats={repeats}"
+        f"mix={exp['tx_mix']} duration={duration_s}s warmup={warmup_s}s "
+        f"accounts={exp.get('workload_account_count', baseline.get('workload_account_count', 1))} "
+        f"concurrency={exp.get('workload_concurrency', baseline.get('workload_concurrency', 1))} "
+        f"repeats={repeats}"
     )
 
     if list_only:
@@ -216,6 +219,8 @@ for index, exp in enumerate(experiments_to_run, start=1):
             "DURATION_S": str(duration_s),
             "WARMUP_S": str(warmup_s),
             "TX_MIX": exp["tx_mix"],
+            "WORKLOAD_CONCURRENCY": str(exp.get("workload_concurrency", baseline.get("workload_concurrency", 1))),
+            "WORKLOAD_ACCOUNT_COUNT": str(exp.get("workload_account_count", baseline.get("workload_account_count", 1))),
             "SEED": str(seed),
             "RUN_ID": run_id,
             "EXPERIMENT_ID": exp_id,
@@ -234,7 +239,7 @@ for index, exp in enumerate(experiments_to_run, start=1):
                     "POLICY", "DA_MODE", "ETH_PRICE_USD",
                     "REGULAR_GAS_PRICE_GWEI", "BLOB_GAS_PRICE_GWEI",
                     "RATE_TPS", "DURATION_S",
-                    "WARMUP_S", "SEED"
+                    "WARMUP_S", "WORKLOAD_CONCURRENCY", "WORKLOAD_ACCOUNT_COUNT", "SEED"
                 )
             )
             print(f"  [DRY-RUN] {selected_env} {' '.join(cmd)}")

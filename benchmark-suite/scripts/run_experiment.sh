@@ -47,6 +47,7 @@ export DURATION_S=${DURATION_S:-120}
 export WARMUP_S=${WARMUP_S:-15}
 export WORKLOAD_CONCURRENCY=${WORKLOAD_CONCURRENCY:-1}
 export WORKLOAD_TARGET_TXS=${WORKLOAD_TARGET_TXS:-0}
+export WORKLOAD_ACCOUNT_COUNT=${WORKLOAD_ACCOUNT_COUNT:-1}
 export TX_MIX=${TX_MIX:-balanced}
 export SEED=${SEED:-42}
 export SEQ_HOST=${SEQ_HOST:-localhost}
@@ -68,6 +69,19 @@ export USE_DOCKER_STACK=${USE_DOCKER_STACK:-1}
 export HARDHAT_MINING_INTERVAL=${HARDHAT_MINING_INTERVAL:-12000}
 export SEQUENCER_EXECUTOR_PUBLISH_RETRIES=${SEQUENCER_EXECUTOR_PUBLISH_RETRIES:-5}
 export SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS=${SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS:-10000}
+export HARDHAT_DEV_ADDRESSES=${HARDHAT_DEV_ADDRESSES:-"0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266,0x70997970C51812dc3A010C7d01b50e0d17dc79C8,0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC,0x90F79bf6EB2c4f870365E785982E1f101E93b906,0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65,0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc,0x976EA74026e726554db657fa54763AbBf14479A3,0x14dC79964da2C08b23698b3D3cc7Ca32193d9955,0x23618e81e3E31A58A0A5fF5C9D8f6F2368D4F2c6,0xa0Ee7A142d267C1f36714e4a8F75612F20a79720"}
+
+sender_addresses_for_count() {
+    local count="${1:-1}"
+    python3 - "$count" "$HARDHAT_DEV_ADDRESSES" <<'PY'
+import sys
+count = max(1, int(sys.argv[1]))
+addresses = [s.strip() for s in sys.argv[2].split(",") if s.strip()]
+if count > len(addresses):
+    raise SystemExit(f"WORKLOAD_ACCOUNT_COUNT={count} exceeds available seeded addresses={len(addresses)}")
+print(",".join(addresses[:count]))
+PY
+}
 
 METRICS_ROOT="${METRICS_ROOT:-metrics}/${EXP_ID}/${RUN_ID_WITH_TIMESTAMP}"
 export METRICS_ROOT
@@ -350,6 +364,38 @@ validate_workload_status() {
     fi
 }
 
+wait_for_component_metrics_flush() {
+    echo "[wait] waiting for component metrics to flush ..."
+    local prev_size=0
+    local stable_count=0
+    if [[ -z "${SUBMITTER_WAIT_MAX:-}" ]]; then
+        if [[ "$PROVER" == "groth16" || "${REQUIRE_REAL_PROOFS:-}" == "1" || "${REQUIRE_REAL_PROOFS:-}" == "true" ]]; then
+            SUBMITTER_WAIT_MAX=600
+        else
+            SUBMITTER_WAIT_MAX=120
+        fi
+    fi
+    COMPONENT_STABLE_POLLS=${COMPONENT_STABLE_POLLS:-$((TIMEOUT_MS / 3000 + 5))}
+    for poll in $(seq 1 "$SUBMITTER_WAIT_MAX"); do
+        sleep 3
+        local curr_size
+        curr_size=$(component_metrics_size)
+        read -r SEQ_ROWS EXE_ROWS SUB_ROWS < <(component_metric_counts)
+        echo "[wait] poll=${poll}/${SUBMITTER_WAIT_MAX} rows: sequencer=${SEQ_ROWS} executor=${EXE_ROWS} submitter=${SUB_ROWS} bytes=${curr_size}"
+
+        if [[ "$curr_size" -eq "$prev_size" ]]; then
+            stable_count=$((stable_count + 1))
+            if [[ "$stable_count" -ge "$COMPONENT_STABLE_POLLS" ]] && component_metrics_caught_up; then
+                echo "[wait] component metrics caught up and idle (stable for $((COMPONENT_STABLE_POLLS * 3))s)"
+                break
+            fi
+        else
+            stable_count=0
+            prev_size="$curr_size"
+        fi
+    done
+}
+
 validate_l1_state() {
     echo "[validation] verifying L1 state and submitter progress ..."
     local sub_metrics="${METRICS_ROOT}/submitter_metrics.json"
@@ -485,39 +531,103 @@ collect_docker_diagnostics() {
     )
 }
 
-collect_memory_metrics() {
-    """Collect current memory usage from docker containers"""
-    if ! command -v docker &>/dev/null; then
+RESOURCE_SAMPLER_PID=""
+
+start_resource_sampler() {
+    if ! command -v docker >/dev/null 2>&1; then
         return
     fi
-    
+    local out_csv="${METRICS_ROOT}/resource_metrics_timeseries.csv"
+    echo "timestamp_utc,container_name,container_id,cpu_pct,mem_usage_raw,mem_pct,net_io,block_io,pids" > "$out_csv"
     (
-        cd "$ROOT_DIR"
-        # Get memory stats from all running containers
-        docker compose --profile core stats --no-stream 2>/dev/null | grep -E "sequencer|executor|submitter|hardhat"
-    ) 2>/dev/null || true
+        while true; do
+            ts="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+            docker compose --profile core stats --no-stream --format '{{.Name}},{{.ID}},{{.CPUPerc}},{{.MemUsage}},{{.MemPerc}},{{.NetIO}},{{.BlockIO}},{{.PIDs}}' \
+                2>/dev/null | awk -v ts="$ts" 'BEGIN{FS=","; OFS=","} {print ts,$0}' >> "$out_csv" || true
+            sleep 5
+        done
+    ) &
+    RESOURCE_SAMPLER_PID=$!
+    echo "[metrics] started resource sampler pid=${RESOURCE_SAMPLER_PID}"
+}
+
+stop_resource_sampler() {
+    if [[ -n "${RESOURCE_SAMPLER_PID:-}" ]]; then
+        kill "$RESOURCE_SAMPLER_PID" 2>/dev/null || true
+        wait "$RESOURCE_SAMPLER_PID" 2>/dev/null || true
+        RESOURCE_SAMPLER_PID=""
+    fi
 }
 
 save_resource_metrics() {
-    local metrics_file="$METRICS_ROOT/resource_metrics.json"
-    local max_memory_mb=0
-    local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-    
-    # Try to get max memory from docker if available
-    if command -v docker &>/dev/null; then
-        # Get max memory usage during the run from docker events/stats
-        max_memory_mb=$(docker compose --profile core stats --no-stream 2>/dev/null | awk '{sum+=$6} END {print int(sum)}' 2>/dev/null || echo "0")
-    fi
-    
-    # Create resource metrics JSON
-    cat > "$metrics_file" <<EOF
-{
-  "timestamp": "$timestamp",
-  "max_memory_usage_mb": $max_memory_mb,
-  "max_memory_usage_gb": $(echo "scale=2; $max_memory_mb / 1024" | bc 2>/dev/null || echo "0"),
-  "note": "max_memory_usage represents peak container memory usage during experiment"
+    local metrics_file="${METRICS_ROOT}/resource_metrics.json"
+    local timeseries_file="${METRICS_ROOT}/resource_metrics_timeseries.csv"
+    python3 - "$timeseries_file" "$metrics_file" <<'PY'
+import csv
+import json
+import re
+import sys
+from datetime import datetime, timezone
+
+timeseries, out = sys.argv[1], sys.argv[2]
+rows = []
+try:
+    with open(timeseries, "r", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+except FileNotFoundError:
+    rows = []
+
+def parse_pct(raw: str) -> float:
+    try:
+        return float((raw or "0").replace("%", "").strip())
+    except Exception:
+        return 0.0
+
+def parse_mem_mb(mem_usage_raw: str) -> float:
+    if not mem_usage_raw:
+        return 0.0
+    head = mem_usage_raw.split("/")[0].strip()
+    m = re.match(r"([0-9]+(?:\.[0-9]+)?)\s*([KMG]i?)?B", head, flags=re.IGNORECASE)
+    if not m:
+        return 0.0
+    value = float(m.group(1))
+    unit = (m.group(2) or "").lower()
+    if unit in ("ki", "k"):
+        return value / 1024.0
+    if unit in ("mi", "m"):
+        return value
+    if unit in ("gi", "g"):
+        return value * 1024.0
+    return value / (1024.0 * 1024.0)
+
+max_memory_mb = 0.0
+max_cpu_pct = 0.0
+samples = 0
+per_container_peak_memory_mb = {}
+for row in rows:
+    samples += 1
+    name = row.get("container_name", "unknown")
+    mem_mb = parse_mem_mb(row.get("mem_usage_raw", ""))
+    cpu_pct = parse_pct(row.get("cpu_pct", ""))
+    max_memory_mb = max(max_memory_mb, mem_mb)
+    max_cpu_pct = max(max_cpu_pct, cpu_pct)
+    if mem_mb > per_container_peak_memory_mb.get(name, 0.0):
+        per_container_peak_memory_mb[name] = mem_mb
+
+payload = {
+    "timestamp": datetime.now(timezone.utc).isoformat(),
+    "sample_count": samples,
+    "timeseries_file": "resource_metrics_timeseries.csv",
+    "max_memory_usage_mb": round(max_memory_mb, 3),
+    "max_memory_usage_gb": round(max_memory_mb / 1024.0, 6),
+    "max_cpu_pct": round(max_cpu_pct, 3),
+    "per_container_peak_memory_mb": {
+        k: round(v, 3) for k, v in sorted(per_container_peak_memory_mb.items())
+    },
 }
-EOF
+with open(out, "w", encoding="utf-8") as fh:
+    json.dump(payload, fh, indent=2)
+PY
     
     echo "[metrics] saved resource metrics → $metrics_file"
 }
@@ -525,6 +635,7 @@ EOF
 # ── traps — always clean up sequencer ─────────────────────────────────────────
 SEQ_PID=""
 cleanup() {
+    stop_resource_sampler
     if [[ -n "$SEQ_PID" ]]; then
         echo "[cleanup] killing sequencer PID $SEQ_PID"
         kill "$SEQ_PID" 2>/dev/null || true
@@ -561,7 +672,7 @@ echo "  RUN: $RUN_ID"
 echo "  Exp: $EXP_ID  |  Repeat: $REPEAT  |  Seed: $SEED"
 echo "  Name: $EXPERIMENT_NAME"
 echo "  batch_size=$MAX_BATCH_SIZE  timeout=${TIMEOUT_MS}ms  policy=$POLICY"
-echo "  da=$DA_MODE  prover=$PROVER  rate=${RATE_TPS}tps  mix=$TX_MIX  concurrency=$WORKLOAD_CONCURRENCY  target_txs=$WORKLOAD_TARGET_TXS"
+echo "  da=$DA_MODE  prover=$PROVER  rate=${RATE_TPS}tps  mix=$TX_MIX  concurrency=$WORKLOAD_CONCURRENCY  target_txs=$WORKLOAD_TARGET_TXS  account_count=$WORKLOAD_ACCOUNT_COUNT"
 echo "======================================================================"
 
 # ── 2. Collect environment metadata ──────────────────────────────────────────
@@ -576,6 +687,8 @@ else
     echo "[config] written → $SEQ_CONFIG"
 fi
 
+export SEQUENCER_DEV_SEED_ADDRS="$(sender_addresses_for_count "$WORKLOAD_ACCOUNT_COUNT")"
+
 # ── 4. (Re)start sequencer ────────────────────────────────────────────────────
 # Adjust SEQUENCER_BIN to your actual binary path.
 SEQUENCER_BIN=${SEQUENCER_BIN:-./target/release/sequencer}
@@ -584,6 +697,7 @@ USED_DOCKER_STACK=0
 if should_use_docker_stack; then
     USED_DOCKER_STACK=1
     restart_docker_stack_for_run
+    start_resource_sampler
 elif [[ -x "$SEQUENCER_BIN" ]]; then
     echo "[sequencer] stopping any existing instance ..."
     pkill -f "$(basename "$SEQUENCER_BIN")" 2>/dev/null || true
@@ -602,54 +716,72 @@ else
 fi
 
 # ── 5. Run workload generator ─────────────────────────────────────────────────
-echo "[workload] starting ..."
+echo "[workload] starting warmup phase ..."
+if [[ "$WARMUP_S" -gt 0 ]]; then
+    WARMUP_DIR="${METRICS_ROOT}/warmup"
+    mkdir -p "$WARMUP_DIR"
+    METRICS_ROOT="$WARMUP_DIR" python3 workload/poisson_generator.py \
+        --experiment_id "$EXP_ID" \
+        --run_id        "${RUN_ID}_warmup" \
+        --rate          "$RATE_TPS" \
+        --duration      "$WARMUP_S" \
+        --warmup        0 \
+        --seed          "$SEED" \
+        --tx_mix        "$TX_MIX" \
+        --prover_backend "$PROVER" \
+        --host          "$SEQ_HOST" \
+        --port          "$SEQ_PORT" \
+        --concurrency   "$WORKLOAD_CONCURRENCY" \
+        --target_txs    0 \
+        --account_count "$WORKLOAD_ACCOUNT_COUNT" \
+        --phase         warmup \
+        --start_nonce   0
+    wait_for_component_metrics_flush
+fi
+
+WARMUP_TXS=0
+if [[ -f "${METRICS_ROOT}/warmup/workload_${EXP_ID}.json" ]]; then
+    WARMUP_TXS=$(python3 - "${METRICS_ROOT}/warmup/workload_${EXP_ID}.json" <<'PY'
+import json
+import sys
+with open(sys.argv[1], "r", encoding="utf-8") as fh:
+    payload = json.load(fh)
+print(payload.get("details", {}).get("total_txs", 0))
+PY
+)
+fi
+echo "[workload] warmup complete (total_txs=${WARMUP_TXS}); resetting measured metric files"
+rm -f "${METRICS_ROOT}/sequencer_batch_metrics.jsonl" \
+      "${METRICS_ROOT}/executor_batch_metrics.jsonl" \
+      "${METRICS_ROOT}/submitter_metrics.json" \
+      "${METRICS_ROOT}/run_status.json" \
+      "${METRICS_ROOT}/workload_${EXP_ID}.json" \
+      "${METRICS_ROOT}/tx_log_${RUN_ID}.csv" \
+      "${SHARED_METRICS_DIR}/sequencer_batch_metrics.jsonl" \
+      "${SHARED_METRICS_DIR}/executor_batch_metrics.jsonl" \
+      "${SHARED_METRICS_DIR}/submitter_metrics.json"
+
+echo "[workload] starting measured phase ..."
 python3 workload/poisson_generator.py \
     --experiment_id "$EXP_ID" \
     --run_id        "$RUN_ID" \
     --rate          "$RATE_TPS" \
     --duration      "$DURATION_S" \
-    --warmup        "$WARMUP_S" \
+    --warmup        0 \
     --seed          "$SEED" \
     --tx_mix        "$TX_MIX" \
     --prover_backend "$PROVER" \
     --host          "$SEQ_HOST" \
     --port          "$SEQ_PORT" \
     --concurrency   "$WORKLOAD_CONCURRENCY" \
-    --target_txs    "$WORKLOAD_TARGET_TXS"
+    --target_txs    "$WORKLOAD_TARGET_TXS" \
+    --account_count "$WORKLOAD_ACCOUNT_COUNT" \
+    --phase         measured \
+    --start_nonce   "$WARMUP_TXS"
 
 # ── 6. Wait for submitter to flush final batch ────────────────────────────────
 # Poll component metrics until executor/submitter have caught up and files stop growing.
-echo "[wait] waiting for component metrics to flush ..."
-PREV_SIZE=0
-STABLE_COUNT=0
-
-if [[ -z "${SUBMITTER_WAIT_MAX:-}" ]]; then
-    # Real proving runs can take several minutes per batch; use a larger default wait
-    # so the harness does not declare failure while the async executor queue is draining.
-    if [[ "$PROVER" == "groth16" || "${REQUIRE_REAL_PROOFS:-}" == "1" || "${REQUIRE_REAL_PROOFS:-}" == "true" ]]; then
-        SUBMITTER_WAIT_MAX=600
-    else
-        SUBMITTER_WAIT_MAX=120
-    fi
-fi
-COMPONENT_STABLE_POLLS=${COMPONENT_STABLE_POLLS:-$((TIMEOUT_MS / 3000 + 5))}
-for poll in $(seq 1 "$SUBMITTER_WAIT_MAX"); do
-    sleep 3
-    CURR_SIZE=$(component_metrics_size)
-    read -r SEQ_ROWS EXE_ROWS SUB_ROWS < <(component_metric_counts)
-    echo "[wait] poll=${poll}/${SUBMITTER_WAIT_MAX} rows: sequencer=${SEQ_ROWS} executor=${EXE_ROWS} submitter=${SUB_ROWS} bytes=${CURR_SIZE}"
-
-    if [[ "$CURR_SIZE" -eq "$PREV_SIZE" ]]; then
-        STABLE_COUNT=$((STABLE_COUNT + 1))
-        if [[ "$STABLE_COUNT" -ge "$COMPONENT_STABLE_POLLS" ]] && component_metrics_caught_up; then
-            echo "[wait] component metrics caught up and idle (stable for $((COMPONENT_STABLE_POLLS * 3))s)"
-            break
-        fi
-    else
-        STABLE_COUNT=0
-        PREV_SIZE="$CURR_SIZE"
-    fi
-done
+wait_for_component_metrics_flush
 
 # Copy component-level metrics from the legacy shared directory if a non-Docker run used it.
 if [[ "$USED_DOCKER_STACK" != "1" && "$SHARED_METRICS_DIR" != "$METRICS_ROOT" ]]; then
@@ -672,6 +804,7 @@ if command -v jq &>/dev/null && [[ -f "$METADATA_FILE" ]]; then
 fi
 
 # ── 7b. Collect resource metrics ───────────────────────────────────────────────
+stop_resource_sampler
 save_resource_metrics
 
 # ── 8. Generate analysis report ────────────────────────────────────────────────

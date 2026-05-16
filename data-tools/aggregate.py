@@ -78,7 +78,7 @@ def _load_run(run_dir: str) -> dict | None:
         duration = details.get("duration", 1)
         row.update(
             {
-                "tps_offered": wl.get("rate", 0),
+                "tps_offered": details.get("rate", 0),
                 "total_txs": details.get("total_txs", 0),
                 "success_txs": details.get("successful_txs", 0),
                 "failed_txs": details.get("failed_txs", 0),
@@ -106,7 +106,9 @@ def _load_run(run_dir: str) -> dict | None:
     if os.path.exists(sub_file):
         batches = _load_jsonl(sub_file)
         if batches:
-            l2_l1 = [b.get("l2_l1_latency_ms", 0) or 0 for b in batches]
+            submitted = [b for b in batches if b.get("submission_status") in ("submitted", "offchain_simulated")]
+            effective = submitted if submitted else batches
+            l2_l1 = [b.get("l2_l1_latency_ms", 0) or 0 for b in effective]
             gas_used = [b.get("l1_gas_used", 0) or 0 for b in batches]
             blobs = [b.get("blob_utilization", 0) or 0 for b in batches]
             cost_usd = [float(b.get("total_cost_usd", 0) or 0) for b in batches]
@@ -119,9 +121,9 @@ def _load_run(run_dir: str) -> dict | None:
                     "p95_l2_l1_ms": _percentile(l2_l1, 95),
                     "avg_l1_gas_used": statistics.mean(gas_used) if gas_used else 0,
                     "avg_blob_utilization": statistics.mean(blobs) if blobs else 0,
-                    "avg_soft_commit_ms": statistics.mean([b.get("soft_commit_ms", 0) or 0 for b in batches]),
-                    "avg_hard_finality_ms": statistics.mean([b.get("hard_finality_ms", 0) or 0 for b in batches]),
-                    "avg_finality_gain_ms": statistics.mean([b.get("finality_gain_ms", 0) or 0 for b in batches]),
+                    "avg_soft_commit_ms": statistics.mean([b.get("soft_commit_ms", 0) or 0 for b in effective]),
+                    "avg_hard_finality_ms": statistics.mean([b.get("hard_finality_ms", 0) or 0 for b in effective]),
+                    "avg_finality_gain_ms": statistics.mean([b.get("finality_gain_ms", 0) or 0 for b in effective]),
                     "avg_total_cost_wei": statistics.mean([float(b.get("total_cost_wei", 0) or 0) for b in batches]),
                     "avg_cost_per_tx_wei": statistics.mean([float(b.get("cost_per_tx_wei", 0) or 0) for b in batches]),
                     "avg_total_cost_usd": statistics.mean(cost_usd) if cost_usd else 0,
@@ -136,6 +138,8 @@ def _load_run(run_dir: str) -> dict | None:
                     "blob_gas_price_reference_wei": batches[-1].get("blob_gas_price_reference_wei"),
                     "cost_model_version": batches[-1].get("cost_model_version"),
                     "total_batches": len(batches),
+                    "submitted_batches": len([b for b in batches if b.get("submission_status") == "submitted"]),
+                    "simulated_batches": len([b for b in batches if b.get("submission_status") == "offchain_simulated"]),
                 }
             )
     return row
@@ -170,15 +174,20 @@ def _load_batch_rows(run_dir: str) -> list[dict]:
                 "batch_data_bytes": seq.get("batch_data_bytes"),
                 "estimated_batch_bytes": seq.get("estimated_batch_bytes"),
                 "blob_utilization_sequencer": seq.get("blob_utilization"),
-                "oldest_tx_wait_ms": seq.get("oldest_tx_wait_ms"),
+                "wait_time_p50_ms": seq.get("wait_time_p50_ms"),
+                "wait_time_p95_ms": seq.get("wait_time_p95_ms"),
+                "wait_time_p99_ms": seq.get("wait_time_p99_ms"),
+                "wait_time_max_ms": seq.get("wait_time_max_ms"),
+                "wait_time_mean_ms": seq.get("wait_time_mean_ms"),
+                "jains_fairness_index": seq.get("jains_fairness_index"),
                 "total_gas_limit": seq.get("total_gas_limit"),
                 "fee_proxy_wei_sequencer": seq.get("fee_proxy_wei"),
                 "state_diff_count": ex.get("state_diff_count"),
                 "state_diff_bytes": ex.get("state_diff_bytes"),
                 "unique_touched_accounts": ex.get("unique_touched_accounts"),
                 "repeated_touched_accounts": ex.get("repeated_touched_accounts"),
-                "execution_time_ms": ex.get("execution_time_ms"),
-                "proof_time_ms": ex.get("proof_time_ms"),
+                "execution_time_ms": ex.get("total_execution_ms"),
+                "proof_time_ms": ex.get("total_proof_ms"),
                 "proof_bytes": ex.get("proof_bytes"),
                 "journal_bytes": ex.get("journal_bytes"),
                 "da_mode": sub.get("da_mode"),

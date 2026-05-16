@@ -60,6 +60,9 @@ class PoissonWorkloadGenerator:
         port: int = 3000,
         concurrency: int = 1,
         target_txs: int = 0,
+        account_count: int = 1,
+        phase: str = "measured",
+        start_nonce: int = 0,
     ):
         self.rate          = rate
         self.duration      = duration
@@ -72,6 +75,9 @@ class PoissonWorkloadGenerator:
         self.base_url      = f"http://{host}:{port}"
         self.concurrency   = max(1, concurrency)
         self.target_txs    = max(0, target_txs)
+        self.account_count = max(1, account_count)
+        self.phase         = phase
+        self.start_nonce   = max(0, start_nonce)
 
         # seeded RNG — separate instance for type sampling vs inter-arrival
         self.rng_arrival = random.Random(seed)
@@ -79,8 +85,12 @@ class PoissonWorkloadGenerator:
 
         self.factory = TxFactory(
             private_key=_DEFAULT_PRIVATE_KEY,
+            account_count=self.account_count,
             seed=seed + 2000 if seed is not None else None,  # independent stream
         )
+        self.sender_nonce: dict[int, int] = {
+            i: self.start_nonce for i in range(self.account_count)
+        }
 
         # stats storage
         self.stats: list[dict] = []          # timed run only
@@ -97,7 +107,7 @@ class PoissonWorkloadGenerator:
         if self.target_txs > 0:
             print(f"  fixed_target_txs={self.target_txs}")
 
-        nonce = 0
+        nonce = self.start_nonce
 
         # ── warm-up phase ─────────────────────────────────────────────────────
         if self.warmup > 0:
@@ -164,10 +174,18 @@ class PoissonWorkloadGenerator:
                 if time.time() >= end_time:
                     break
 
-                tx_type = self.rng_factory.choices(
-                    ["A", "B", "C"], weights=self.tx_mix, k=1
-                )[0]
-                tx = self.factory.make(tx_type, nonce)
+                tx_type = self.rng_factory.choices(["A", "B", "C"], weights=self.tx_mix, k=1)[0]
+                sender_idx = self.rng_factory.randrange(self.account_count)
+                sender_nonce = self.sender_nonce[sender_idx]
+                tx = self.factory.make(
+                    tx_type,
+                    sender_nonce,
+                    phase=self.phase,
+                    run_id=self.run_id,
+                    experiment_id=self.experiment_id,
+                )
+                tx["benchmark"]["sender_index"] = sender_idx
+                self.sender_nonce[sender_idx] = sender_nonce + 1
 
                 ts_start = time.time()
                 status, err = self._post_tx(tx)
@@ -176,6 +194,10 @@ class PoissonWorkloadGenerator:
                 record_to.append({
                     "tx_id":    nonce,
                     "tx_type":  tx_type,
+                    "sender_index": sender_idx,
+                    "sender_nonce": sender_nonce,
+                    "from": tx["from"],
+                    "phase": self.phase,
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                     "latency":  latency,
                     "status":   status,
@@ -218,11 +240,23 @@ class PoissonWorkloadGenerator:
                     if time.time() >= end_time:
                         break
 
-                    tx_type = self.rng_factory.choices(
-                        ["A", "B", "C"], weights=self.tx_mix, k=1
-                    )[0]
-                    tx = self.factory.make(tx_type, nonce)
-                    futures.append(executor.submit(self._post_tx_record, tx, nonce, tx_type))
+                    tx_type = self.rng_factory.choices(["A", "B", "C"], weights=self.tx_mix, k=1)[0]
+                    sender_idx = self.rng_factory.randrange(self.account_count)
+                    sender_nonce = self.sender_nonce[sender_idx]
+                    tx = self.factory.make(
+                        tx_type,
+                        sender_nonce,
+                        phase=self.phase,
+                        run_id=self.run_id,
+                        experiment_id=self.experiment_id,
+                    )
+                    tx["benchmark"]["sender_index"] = sender_idx
+                    self.sender_nonce[sender_idx] = sender_nonce + 1
+                    futures.append(
+                        executor.submit(
+                            self._post_tx_record, tx, nonce, tx_type, sender_idx, sender_nonce
+                        )
+                    )
 
                     if tx_count % 100 == 0:
                         print(f"  [{label}] scheduled {tx_count} txs ...")
@@ -239,13 +273,24 @@ class PoissonWorkloadGenerator:
         record_to.sort(key=lambda item: item["tx_id"])
         return nonce
 
-    def _post_tx_record(self, tx: dict, nonce: int, tx_type: str) -> dict:
+    def _post_tx_record(
+        self,
+        tx: dict,
+        nonce: int,
+        tx_type: str,
+        sender_idx: int | None = None,
+        sender_nonce: int | None = None,
+    ) -> dict:
         ts_start = time.time()
         status, err = self._post_tx(tx)
         latency = time.time() - ts_start
         return {
             "tx_id":    nonce,
             "tx_type":  tx_type,
+            "sender_index": sender_idx if sender_idx is not None else tx.get("benchmark", {}).get("sender_index"),
+            "sender_nonce": sender_nonce if sender_nonce is not None else tx.get("nonce"),
+            "from": tx.get("from"),
+            "phase": self.phase,
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "latency":  latency,
             "status":   status,
@@ -262,19 +307,27 @@ class PoissonWorkloadGenerator:
         nonce = start_nonce
         prepared = []
         for i in range(count):
-            tx_type = self.rng_factory.choices(
-                ["A", "B", "C"], weights=self.tx_mix, k=1
-            )[0]
-            tx = self.factory.make(tx_type, nonce)
-            prepared.append((tx, nonce, tx_type))
+            tx_type = self.rng_factory.choices(["A", "B", "C"], weights=self.tx_mix, k=1)[0]
+            sender_idx = self.rng_factory.randrange(self.account_count)
+            sender_nonce = self.sender_nonce[sender_idx]
+            tx = self.factory.make(
+                tx_type,
+                sender_nonce,
+                phase=self.phase,
+                run_id=self.run_id,
+                experiment_id=self.experiment_id,
+            )
+            tx["benchmark"]["sender_index"] = sender_idx
+            self.sender_nonce[sender_idx] = sender_nonce + 1
+            prepared.append((tx, nonce, tx_type, sender_idx, sender_nonce))
             nonce += 1
             if i % 250 == 0:
                 print(f"  [{label}] prepared {i} txs ...")
 
         with ThreadPoolExecutor(max_workers=self.concurrency) as executor:
             futures = [
-                executor.submit(self._post_tx_record, tx, tx_nonce, tx_type)
-                for tx, tx_nonce, tx_type in prepared
+                executor.submit(self._post_tx_record, tx, tx_nonce, tx_type, sender_idx, sender_nonce)
+                for tx, tx_nonce, tx_type, sender_idx, sender_nonce in prepared
             ]
             for index, future in enumerate(as_completed(futures), start=1):
                 record_to.append(future.result())
@@ -329,6 +382,9 @@ class PoissonWorkloadGenerator:
             "prover_backend": self.prover_backend,
             "da_mode":       "n/a",
             "seed":          self.seed,
+            "phase":         self.phase,
+            "account_count": self.account_count,
+            "start_nonce":   self.start_nonce,
             "tx_mix":        {
                 "A": self.tx_mix[0],
                 "B": self.tx_mix[1],
@@ -349,6 +405,7 @@ class PoissonWorkloadGenerator:
                 "duration":       self.duration,
                 "rate":           self.rate,
                 "type_counts":    type_counts,
+                "sender_counts":  self._sender_counts(),
             },
         }
 
@@ -365,7 +422,19 @@ class PoissonWorkloadGenerator:
         csv_path = os.path.join(metrics_root, f"tx_log_{self.run_id}.csv")
         with open(csv_path, "w", newline="") as f:
             writer = csv.DictWriter(
-                f, fieldnames=["tx_id","tx_type","timestamp","latency","status","error"]
+                f,
+                fieldnames=[
+                    "tx_id",
+                    "tx_type",
+                    "sender_index",
+                    "sender_nonce",
+                    "from",
+                    "phase",
+                    "timestamp",
+                    "latency",
+                    "status",
+                    "error",
+                ],
             )
             writer.writeheader()
             writer.writerows(self.stats)
@@ -385,11 +454,20 @@ class PoissonWorkloadGenerator:
             "success_txs":   success_txs,
             "failed_txs":    failed_txs,
             "success_rate":  success_txs / total_txs if total_txs else 0,
+            "phase":         self.phase,
         }
         path = os.path.join(metrics_root, "run_status.json")
         with open(path, "w") as f:
             json.dump(status, f, indent=2)
         print(f"Saved status  → {path}")
+
+    def _sender_counts(self) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for stat in self.stats:
+            idx = stat.get("sender_index")
+            key = str(idx if idx is not None else "unknown")
+            counts[key] = counts.get(key, 0) + 1
+        return counts
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
@@ -418,6 +496,12 @@ def parse_args():
                    help="Number of concurrent HTTP sender workers")
     p.add_argument("--target_txs", type=int, default=0,
                    help="If >0, send this many txs as a fixed-count concurrent burst")
+    p.add_argument("--account_count", type=int, default=1,
+                   help="Number of deterministic sender accounts to use")
+    p.add_argument("--phase", type=str, default="measured", choices=["warmup", "measured"],
+                   help="Benchmark phase label")
+    p.add_argument("--start_nonce", type=int, default=0,
+                   help="Initial nonce for each sender account")
 
     # tx mix
     mix_group = p.add_argument_group("Transaction mix")
@@ -457,6 +541,9 @@ def main():
         port          = args.port,
         concurrency   = args.concurrency,
         target_txs    = args.target_txs,
+        account_count = args.account_count,
+        phase         = args.phase,
+        start_nonce   = args.start_nonce,
     )
     gen.run()
 

@@ -9,7 +9,6 @@ Type B  Medium ERC-20 swap   ~300 B calldata   65,000 gas
 Type C  Heavy contract call  ~600 B calldata  200,000 gas
 """
 
-import os
 import random
 import time
 
@@ -58,6 +57,20 @@ MIX_PRESETS: dict[str, tuple[float, float, float]] = {
 _DEFAULT_PRIVATE_KEY = (
     "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
 )
+_DEFAULT_HARDHAT_MNEMONIC = "test test test test test test test test test test test junk"
+
+
+def _hardhat_account_keys(count: int) -> list[str]:
+    """Derive first `count` dev account keys from Hardhat mnemonic."""
+    Account.enable_unaudited_hdwallet_features()
+    keys = []
+    for i in range(count):
+        acct = Account.from_mnemonic(
+            _DEFAULT_HARDHAT_MNEMONIC,
+            account_path=f"m/44'/60'/0'/0/{i}",
+        )
+        keys.append(acct.key.hex())
+    return keys
 
 
 def hash_tx(from_addr, to_addr, value, nonce, gas_price, timestamp, boost_bid=None):
@@ -107,14 +120,36 @@ class TxFactory:
     def __init__(
         self,
         private_key: str = _DEFAULT_PRIVATE_KEY,
+        account_count: int = 1,
         seed: int | None = None,
     ):
-        self.private_key = private_key
-        self.acct = Account.from_key(private_key)
-        self.from_addr = self.acct.address
         self._rng = random.Random(seed)  # private, only used for value amounts
+        self.accounts = []
+        if account_count <= 1:
+            acct = Account.from_key(private_key)
+            self.accounts.append(
+                {"private_key": private_key, "address": acct.address, "sender_index": 0}
+            )
+        else:
+            selected = _hardhat_account_keys(account_count)
+            if len(selected) < account_count:
+                raise ValueError(
+                    f"account_count={account_count} exceeds supported hardhat key set ({len(selected)})"
+                )
+            for idx, pk in enumerate(selected):
+                acct = Account.from_key(pk)
+                self.accounts.append(
+                    {"private_key": pk, "address": acct.address, "sender_index": idx}
+                )
 
-    def make(self, tx_type: str, nonce: int) -> dict:
+    def make(
+        self,
+        tx_type: str,
+        nonce: int,
+        phase: str = "measured",
+        run_id: str | None = None,
+        experiment_id: str | None = None,
+    ) -> dict:
         """
         Build a transaction dict ready to POST to /tx.
 
@@ -135,11 +170,14 @@ class TxFactory:
         timestamp = int(time.time())
         gas_price = TYPE_GAS_PRICE[tx_type]
         to_addr = TYPE_TO_ADDR[tx_type]
-        
-        sig = _sign_tx(self.private_key, self.from_addr, to_addr, value, nonce, gas_price, timestamp)
+        account = self._rng.choice(self.accounts)
+        from_addr = account["address"]
+        sig = _sign_tx(
+            account["private_key"], from_addr, to_addr, value, nonce, gas_price, timestamp
+        )
 
         return {
-            "from":      self.from_addr,
+            "from":      from_addr,
             "to":        to_addr,
             "value":     hex(value),
             "nonce":     nonce,
@@ -150,6 +188,12 @@ class TxFactory:
             "tx_type":   tx_type,
             # calldata simulates realistic payload size for proving/DA stress
             "calldata":  _extra_data(TYPE_CALLDATA_EXTRA[tx_type]),
+            "benchmark": {
+                "phase": phase,
+                "run_id": run_id or "",
+                "experiment_id": experiment_id or "",
+                "sender_index": account["sender_index"],
+            },
         }
 
     # ── convenience batch builder ─────────────────────────────────────────────

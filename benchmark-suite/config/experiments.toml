@@ -22,6 +22,8 @@ rate_tps = 10
 duration_s = 120
 warmup_s = 15
 tx_mix = "balanced"
+workload_concurrency = 1
+workload_account_count = 1
 repeats = 5
 seeds = [42, 43, 44, 45, 46]
 
@@ -126,3 +128,60 @@ batch_size = 500
 batch_policy = "adaptive"
 policy = "BlobPacking"
 da_mode = "blob"
+
+[[experiments]]
+factor = "rate"
+id = "exp_040_rate_005tps_bs100_calldata_fcfs_balanced"
+name = "Rate sweep: 5 TPS"
+rate_tps = 5
+
+[[experiments]]
+factor = "rate"
+id = "exp_041_rate_025tps_bs100_calldata_fcfs_balanced"
+name = "Rate sweep: 25 TPS"
+rate_tps = 25
+
+[[experiments]]
+factor = "rate"
+id = "exp_042_rate_050tps_bs100_calldata_fcfs_balanced"
+name = "Rate sweep: 50 TPS"
+rate_tps = 50
+
+[[experiments]]
+factor = "tx_mix"
+id = "exp_050_mix_light_bs100_calldata_fcfs_10tps"
+name = "Workload mix sweep: light"
+tx_mix = "light"
+
+[[experiments]]
+factor = "tx_mix"
+id = "exp_051_mix_balanced_bs100_calldata_fcfs_10tps"
+name = "Workload mix sweep: balanced"
+tx_mix = "balanced"
+
+[[experiments]]
+factor = "tx_mix"
+id = "exp_052_mix_heavy_bs100_calldata_fcfs_10tps"
+name = "Workload mix sweep: heavy"
+tx_mix = "heavy"
+
+[[experiments]]
+factor = "workload"
+id = "exp_060_workload_accounts1_conc1_bs100_calldata_fcfs_10tps"
+name = "Workload sender stress: 1 account, concurrency 1"
+workload_account_count = 1
+workload_concurrency = 1
+
+[[experiments]]
+factor = "workload"
+id = "exp_061_workload_accounts4_conc4_bs100_calldata_fcfs_10tps"
+name = "Workload sender stress: 4 accounts, concurrency 4"
+workload_account_count = 4
+workload_concurrency = 4
+
+[[experiments]]
+factor = "workload"
+id = "exp_062_workload_accounts8_conc8_bs100_calldata_fcfs_10tps"
+name = "Workload sender stress: 8 accounts, concurrency 8"
+workload_account_count = 8
+workload_concurrency = 8

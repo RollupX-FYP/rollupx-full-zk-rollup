@@ -133,16 +133,20 @@ async fn seed_local_dev_state(state_cache: &StateCache) {
         return;
     }
 
-    let addr: Address = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
-        .parse()
-        .expect("valid hardhat dev address");
+    let addresses_raw = std::env::var("SEQUENCER_DEV_SEED_ADDRS").unwrap_or_else(|_| {
+        "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string()
+    });
     let balance = U256::from_dec_str("10000000000000000000000")
         .expect("valid seeded balance"); // 10_000 ETH
-    state_cache
-        .update(AccountState {
-            address: addr,
-            balance,
-            nonce: 0,
-        })
-        .await;
+    for raw in addresses_raw.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+        if let Ok(addr) = raw.parse::<Address>() {
+            state_cache
+                .update(AccountState {
+                    address: addr,
+                    balance,
+                    nonce: 0,
+                })
+                .await;
+        }
+    }
 }
