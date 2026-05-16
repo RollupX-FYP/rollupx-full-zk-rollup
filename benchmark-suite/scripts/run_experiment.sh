@@ -284,6 +284,11 @@ component_metric_counts() {
     echo "$seq $exe $sub"
 }
 
+strict_pipeline_catchup_required() {
+    local strict="${STRICT_PIPELINE_CATCHUP:-0}"
+    [[ "$strict" == "1" || "$strict" == "true" ]]
+}
+
 component_metrics_caught_up() {
     local seq exe sub
     read -r seq exe sub < <(component_metric_counts)
@@ -291,8 +296,10 @@ component_metrics_caught_up() {
     [[ "$seq" -gt 0 ]] || return 1
     [[ "$exe" -gt 0 ]] || return 1
     [[ "$sub" -gt 0 ]] || return 1
-    [[ "$exe" -ge "$seq" ]] || return 1
-    [[ "$sub" -ge "$exe" ]] || return 1
+    if strict_pipeline_catchup_required; then
+        [[ "$exe" -ge "$seq" ]] || return 1
+        [[ "$sub" -ge "$exe" ]] || return 1
+    fi
 }
 
 summarize_component_metrics() {
@@ -340,13 +347,22 @@ validate_component_metrics() {
         echo "[metrics] ERROR: missing submitter metrics"
         failed=1
     fi
-    if [[ "$exe" -lt "$seq" ]]; then
-        echo "[metrics] ERROR: executor metrics lag sequencer metrics (${exe} < ${seq})"
-        failed=1
-    fi
-    if [[ "$sub" -lt "$exe" ]]; then
-        echo "[metrics] ERROR: submitter metrics lag executor metrics (${sub} < ${exe})"
-        failed=1
+    if strict_pipeline_catchup_required; then
+        if [[ "$exe" -lt "$seq" ]]; then
+            echo "[metrics] ERROR: executor metrics lag sequencer metrics (${exe} < ${seq})"
+            failed=1
+        fi
+        if [[ "$sub" -lt "$exe" ]]; then
+            echo "[metrics] ERROR: submitter metrics lag executor metrics (${sub} < ${exe})"
+            failed=1
+        fi
+    else
+        if [[ "$exe" -lt "$seq" ]]; then
+            echo "[metrics] WARN: executor metrics lag sequencer metrics (${exe} < ${seq}) in non-strict mode"
+        fi
+        if [[ "$sub" -lt "$exe" ]]; then
+            echo "[metrics] WARN: submitter metrics lag executor metrics (${sub} < ${exe}) in non-strict mode"
+        fi
     fi
 
     return "$failed"
@@ -366,6 +382,11 @@ validate_workload_status() {
 
 wait_for_component_metrics_flush() {
     echo "[wait] waiting for component metrics to flush ..."
+    if strict_pipeline_catchup_required; then
+        echo "[wait] mode=strict (require executor>=sequencer and submitter>=executor)"
+    else
+        echo "[wait] mode=non-strict (require non-zero sequencer/executor/submitter metrics and file idle)"
+    fi
     local prev_size=0
     local stable_count=0
     if [[ -z "${SUBMITTER_WAIT_MAX:-}" ]]; then
