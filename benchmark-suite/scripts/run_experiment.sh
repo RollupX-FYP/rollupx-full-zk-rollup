@@ -418,6 +418,15 @@ wait_for_component_metrics_flush() {
 }
 
 validate_l1_state() {
+    local require="${REQUIRE_L1_VALIDATION:-}"
+    if [[ -z "$require" ]]; then
+        require="${REQUIRE_COMPONENT_METRICS:-$USED_DOCKER_STACK}"
+    fi
+    if [[ "$require" != "1" && "$require" != "true" ]]; then
+        echo "[validation] skipping L1 validation (REQUIRE_L1_VALIDATION=${require})"
+        return 0
+    fi
+
     echo "[validation] verifying L1 state and submitter progress ..."
     local sub_metrics="${METRICS_ROOT}/submitter_metrics.json"
     local l1_deploy="${METRICS_ROOT}/l1_deployment.json"
