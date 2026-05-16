@@ -720,7 +720,7 @@ echo "[workload] starting warmup phase ..."
 if [[ "$WARMUP_S" -gt 0 ]]; then
     WARMUP_DIR="${METRICS_ROOT}/warmup"
     mkdir -p "$WARMUP_DIR"
-    METRICS_ROOT="$WARMUP_DIR" python3 workload/poisson_generator.py \
+    METRICS_ROOT="$WARMUP_DIR" python3 "${ROOT_DIR}/benchmark-suite/workload/poisson_generator.py" \
         --experiment_id "$EXP_ID" \
         --run_id        "${RUN_ID}_warmup" \
         --rate          "$RATE_TPS" \
@@ -762,7 +762,7 @@ rm -f "${METRICS_ROOT}/sequencer_batch_metrics.jsonl" \
       "${SHARED_METRICS_DIR}/submitter_metrics.json"
 
 echo "[workload] starting measured phase ..."
-python3 workload/poisson_generator.py \
+python3 "${ROOT_DIR}/benchmark-suite/workload/poisson_generator.py" \
     --experiment_id "$EXP_ID" \
     --run_id        "$RUN_ID" \
     --rate          "$RATE_TPS" \
