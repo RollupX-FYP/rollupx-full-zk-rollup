@@ -146,6 +146,7 @@ class TxFactory:
         self,
         tx_type: str,
         nonce: int,
+        sender_index: int | None = None,
         phase: str = "measured",
         run_id: str | None = None,
         experiment_id: str | None = None,
@@ -170,7 +171,14 @@ class TxFactory:
         timestamp = int(time.time())
         gas_price = TYPE_GAS_PRICE[tx_type]
         to_addr = TYPE_TO_ADDR[tx_type]
-        account = self._rng.choice(self.accounts)
+        if sender_index is None:
+            account = self._rng.choice(self.accounts)
+        else:
+            if sender_index < 0 or sender_index >= len(self.accounts):
+                raise ValueError(
+                    f"sender_index={sender_index} out of range for {len(self.accounts)} accounts"
+                )
+            account = self.accounts[sender_index]
         from_addr = account["address"]
         sig = _sign_tx(
             account["private_key"], from_addr, to_addr, value, nonce, gas_price, timestamp

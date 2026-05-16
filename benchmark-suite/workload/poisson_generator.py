@@ -180,11 +180,11 @@ class PoissonWorkloadGenerator:
                 tx = self.factory.make(
                     tx_type,
                     sender_nonce,
+                    sender_index=sender_idx,
                     phase=self.phase,
                     run_id=self.run_id,
                     experiment_id=self.experiment_id,
                 )
-                tx["benchmark"]["sender_index"] = sender_idx
                 self.sender_nonce[sender_idx] = sender_nonce + 1
 
                 ts_start = time.time()
@@ -246,11 +246,11 @@ class PoissonWorkloadGenerator:
                     tx = self.factory.make(
                         tx_type,
                         sender_nonce,
+                        sender_index=sender_idx,
                         phase=self.phase,
                         run_id=self.run_id,
                         experiment_id=self.experiment_id,
                     )
-                    tx["benchmark"]["sender_index"] = sender_idx
                     self.sender_nonce[sender_idx] = sender_nonce + 1
                     futures.append(
                         executor.submit(
@@ -313,11 +313,11 @@ class PoissonWorkloadGenerator:
             tx = self.factory.make(
                 tx_type,
                 sender_nonce,
+                sender_index=sender_idx,
                 phase=self.phase,
                 run_id=self.run_id,
                 experiment_id=self.experiment_id,
             )
-            tx["benchmark"]["sender_index"] = sender_idx
             self.sender_nonce[sender_idx] = sender_nonce + 1
             prepared.append((tx, nonce, tx_type, sender_idx, sender_nonce))
             nonce += 1
