@@ -1,80 +1,77 @@
 # Sequencer
 
-## Sequencer Abstract Architecture
-**Purpose:** High-level view of Sequencer responsibilities.
-**Evidence from code:** `sequencer/src/main.rs`, `sequencer/README.md`
+The sequencer is the front-door and batching component for RollupX benchmarks. It accepts benchmark transactions, validates them against local state, stores them in a pool, seals batches, records per-batch metrics, and publishes batches to the executor.
+
+## Runtime Architecture
 
 ```mermaid
 flowchart TD
-    API[JSON-RPC API] --> Pool[Tx Pools]
-    L1[L1 Listener] --> Pool
-    Pool --> Orch[Batch Orchestrator]
-    Orch --> Exec[Executor Client]
+    API[REST /tx and JSON-RPC] --> VAL[Validator]
+    VAL <--> CACHE[StateCache]
+    VAL --> POOL[TransactionPool]
+    L1[L1 listener] --> FORCED[Forced queue]
+    POOL --> ORCH[BatchOrchestrator]
+    FORCED --> ORCH
+    ORCH --> SCHED[Scheduler policy]
+    ORCH --> REG[Registry DB]
+    ORCH --> EXEC[Executor gRPC]
+    ORCH --> MET[sequencer_batch_metrics.jsonl]
 ```
-**Explanation:** The Sequencer ingests from users and L1, queues them, orders them via a scheduler, and dispatches batches to the Executor.
 
-## Sequencer Detailed Architecture
-**Purpose:** Internal breakdown of the Sequencer.
-**Evidence from code:** `sequencer/src/main.rs`, `sequencer/src/pool/`, `sequencer/src/scheduler/`
+Core files:
 
-```mermaid
-flowchart TD
-    subgraph Sequencer_Process
-        API[API Server] --> VAL[Validity Checker]
-        VAL <--> CACHE[(State Cache)]
-        VAL --> NORM[Normal Tx Pool]
-        
-        L1[L1 Event Listener] --> FORC[Forced Tx Queue]
-        
-        NORM --> ORCH[Batch Orchestrator]
-        FORC --> ORCH
-        
-        ORCH <--> TRIG{Triggers:\nSize/Timeout/Forced}
-        ORCH --> SCHED[Scheduler Policies:\nFCFS/TimeBoost/etc.]
-        SCHED --> DB[(SQLite Registry)]
-    end
-```
-**Explanation:** The Validty Checker strictly uses pessimistic balance tracking against the State Cache. Triggers dictate when the Orchestrator pulls from the queues and applies the active Strategy pattern scheduling policy.
+- `sequencer/src/api/server.rs`
+- `sequencer/src/validation/validator.rs`
+- `sequencer/src/state/cache.rs`
+- `sequencer/src/pool/tx_pool.rs`
+- `sequencer/src/batch/orchestrator.rs`
+- `sequencer/src/scheduler/policies.rs`
 
-## Sequencer Sequence Diagram
-**Purpose:** Transaction lifecycle inside the Sequencer.
-**Evidence from code:** `sequencer/src/main.rs`
+## Transaction Lifecycle
 
-```mermaid
-sequenceDiagram
-    participant User
-    participant API
-    participant Cache
-    participant Pool
-    participant Orch
-    participant Disk
-    participant Exec
+1. The benchmark posts a signed transaction to `/tx`.
+2. The validator checks signature, nonce, and balance.
+3. The state cache is pessimistically updated on acceptance.
+4. The transaction enters the normal pool with arrival timestamps.
+5. The orchestrator seals a batch on size, timeout, or forced-transaction trigger.
+6. The selected policy orders/selects transactions.
+7. Batch metrics are appended to `sequencer_batch_metrics.jsonl`.
+8. The batch is published to executor.
 
-    User->>API: sendTransaction
-    API->>Cache: Check Nonce & Balance
-    Cache-->>API: OK (deduct balance)
-    API->>Pool: Push to Normal Queue
-    API-->>User: Accepted
+## Scheduling Policies
 
-    loop Background Task
-        Orch->>Orch: Check Triggers (Timeout?)
-        Orch->>Pool: Pull Txs
-        Orch->>Orch: Apply Scheduling Policy
-        Orch->>Cache: Collect cache_hit_rate
-        Orch->>Disk: Write sequencer_batches_<exp>.jsonl
-        Orch->>Exec: PublishBatch
-    end
-```
-**Explanation:** User interaction is isolated from batch creation. Validation is instantaneous, while batching happens asynchronously. Every batch cycle logs its own performance and fairness metrics to disk for later analysis.
+| Policy | Design |
+|---|---|
+| `FCFS` | Preserve arrival order. |
+| `FeePriority` | Prefer higher gas price. |
+| `TimeBoost` | Use time window, boost bid, then gas price. |
+| `FairBFT` | Single-node timestamp-order approximation. |
+| `BlobPacking` | Nonce-safe fill-first greedy packing by estimated encoded bytes. |
 
-## Research & Metrics Mapping
+## BlobPacking
 
-The metrics collected by the Sequencer directly feed into the project's research questions (RQs):
+`BlobPacking` is implemented in `TransactionPool::take_blob_packed_nonce_safe`. It reads expected nonces from `StateCache`, builds a contiguous eligible nonce prefix per sender, greedily selects larger eligible transactions that fit the blob byte budget, and restores unselected transactions in original arrival order.
 
-| Research Goal | Sequencer Metric | Interpretation |
-| :--- | :--- | :--- |
-| **System Fairness** | `jains_fairness_index` | 1.0 = Perfect fairness. Lower values indicate policy bias. |
-| **User Experience** | `wait_time_p95_ms` | Predictability of confirmation times for regular users. |
-| **MEV / Efficiency** | `ordering_efficiency` | How well the policy captures available fee revenue compared to pure FeePriority. |
-| **System Stability** | `cache_hit_rate` | Efficiency of the pessimistic balance tracking mechanism. |
-| **Network Cost** | `raw_tx_bytes` | Drives the L1 DA costs in the overall system feasibility study. |
+Metrics emitted for this policy:
+
+- `blob_selected_bytes`
+- `blob_eligible_bytes`
+- `blob_eligible_tx_count`
+- `blob_ineligible_nonce_gap_count`
+- `blob_nonce_chain_truncated_senders`
+- `blob_low_fill_reason`
+
+## Metrics Mapping
+
+| Research question | Sequencer fields | Notes |
+|---|---|---|
+| Batch latency | `wait_time_p50_ms`, `wait_time_p95_ms`, `wait_time_mean_ms` | In-batch wait distribution. |
+| Batch fill | `tx_count`, `estimated_batch_bytes`, `blob_utilization` | Serialized-size proxy. |
+| Scheduling behavior | `scheduling_policy`, `ordering_efficiency`, `reordering_events` | Proxy metrics, not MEV proof. |
+| State-cache health | `cache_hit_rate`, `stale_nonce_rejections`, `cache_age_ms` | Depends on correct reset/seeding. |
+| Blob scheduling | `blob_*` fields | Meaningful only under `BlobPacking`. |
+
+## Validity Notes
+
+The sequencer is strong for measuring local admission, batching, and policy behavior. It does not by itself validate full end-to-end throughput; executor and submitter metrics must also catch up for pipeline claims.
+

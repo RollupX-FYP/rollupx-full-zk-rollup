@@ -1,82 +1,53 @@
 # Submitter
 
-## Submitter Abstract Architecture
-**Purpose:** Overview of the batch submission process.
-**Evidence from code:** `submitter/README.md`, `submitter/src/submitter.rs`
+The submitter receives executor-enriched batches, applies the selected data-availability strategy, submits to the local bridge, and records settlement/cost metrics.
+
+## Runtime Architecture
 
 ```mermaid
 flowchart TD
-    EXEC[Executor Stream] --> ING[Ingestion]
-    ING --> SAGA[Saga Workflow Engine]
-    SAGA --> DA[DA Formatting]
-    SAGA --> L1[L1 Broadcaster]
+    EXEC[Executor stream] --> DAEMON[submitter daemon]
+    DAEMON --> DA[DA strategy]
+    DA --> CALLDATA[Calldata path]
+    DA --> BLOB[Blob-like path]
+    DA --> OFFCHAIN[Offchain path]
+    CALLDATA --> ETH[Ethereum adapter]
+    BLOB --> ETH
+    OFFCHAIN --> ETH
+    ETH --> BRIDGE[ZKRollupBridge]
+    DAEMON --> MET[submitter_metrics.json]
 ```
-**Explanation:** The Submitter pulls execution results and uses a robust Saga pattern to ensure Data Availability and Proofs are securely and reliably posted to L1.
 
-## Submitter Detailed Architecture
-**Purpose:** Internal DDD structure of the Submitter.
-**Evidence from code:** `submitter/src/infrastructure/`
+Core files:
 
-```mermaid
-flowchart TD
-    subgraph Submitter_Daemon
-        GRPC[gRPC Client] --> DOM[Domain Layer / Saga]
-        
-        DOM <--> DB[(Postgres / SQLite)]
-        DOM --> PROV[ProofProvider Interface]
-        
-        DOM --> DA_FMT[DA Formatter]
-        DA_FMT -->|Calldata| COMP[Zlib Compression]
-        DA_FMT -->|EIP-4844| BLOB[Blob Formatter]
-        
-        COMP --> ETH[Ethereum Adapter]
-        BLOB --> ETH
-    end
-```
-**Explanation:** Follows Hexagonal Architecture. The domain logic dictates the workflow (fetch proof -> format DA -> send tx), utilizing adapters for storage, proving, and Ethereum RPC.
+- `submitter/src/daemon.rs`
+- `submitter/src/infrastructure/da_calldata.rs`
+- `submitter/src/infrastructure/da_blob.rs`
+- `submitter/src/infrastructure/da_offchain.rs`
+- `submitter/src/infrastructure/ethereum_adapter.rs`
+- `submitter/src/domain/cost_breakdown.rs`
 
-## Submitter Sequence Diagram
-**Purpose:** The Saga execution loop.
-**Evidence from code:** `submitter/src/infrastructure/prover_http.rs`, `submitter/README.md`
+## DA Modes
 
-```mermaid
-sequenceDiagram
-    participant Stream
-    participant Saga
-    participant DB
-    participant CB as Circuit Breaker
-    participant Prover
-    participant L1
+| Mode | Meaning |
+|---|---|
+| `calldata` | Batch payload is submitted through calldata-style path. |
+| `blob` | Blob-like path records blob metadata and estimated/measured blob cost provenance. |
+| `offchain` | Stores data locally and submits a pointer/commitment; simulated DA. |
 
-    Stream->>Saga: New Batch
-    Saga->>DB: Save State (Discovered)
-    
-    rect rgb(200, 220, 255)
-    Note over Saga, Prover: Proving Phase
-    Saga->>CB: Request Proof
-    alt Circuit CLOSED
-        CB->>Prover: HTTP POST /prove
-        Prover-->>CB: 200 OK (Proof)
-        CB-->>Saga: proof bytes
-    else Circuit OPEN (Load Shedding)
-        CB-->>Saga: Error (CircuitOpen)
-        Saga->>Saga: Backoff & Retry
-    end
-    end
+## Metrics Mapping
 
-    Saga->>DB: Save State (Proved)
-    Saga->>L1: eth_sendRawTransaction
-    L1-->>Saga: Receipt
-    Saga->>DB: Save State (Confirmed)
-```
-**Explanation:** The Submitter implements a robust Saga loop with a built-in Circuit Breaker to prevent overwhelming a struggling prover. Every state transition is persisted to the database, allowing the service to resume seamlessly after a crash.
+Rows are appended to `submitter_metrics.json` as JSONL.
 
-## Research & Metrics Mapping
+| Research question | Submitter fields | Notes |
+|---|---|---|
+| Settlement latency | `submission_latency_ms`, `l2_l1_latency_ms`, `soft_commit_ms`, `hard_finality_ms` | Local Hardhat timing only. |
+| DA size/fill | `batch_data_bytes`, `compressed_bytes`, `blob_count`, `blob_utilization` | Depends on DA mode. |
+| Cost | `l1_gas_used`, `total_cost_wei`, `cost_per_tx_wei`, USD fields | Use provenance fields. |
+| Blob validity | `real_eip4844_blob`, `blob_cost_source`, `measured_blob_gas_used` | Required for real blob claims. |
+| Reliability | `submission_status`, `error`, `gas_bumped`, `gas_bump_count` | Filter failures and bumped rows where needed. |
 
-| Research Goal | Submitter Metric | Interpretation |
-| :--- | :--- | :--- |
-| **System Finality** | `batch_e2e_duration_seconds` | Primary measure of L2 -> L1 settlement latency. |
-| **System Stability** | `prover_circuit_tripped_total` | Frequency of prover outages or overload events. |
-| **DA Efficiency** | `tx_submitted_total` | Comparative analysis of Calldata vs. Blob frequency. |
-| **Operational Cost** | `gas_used` (logs) | Direct projection of L1 operational overhead. |
-| **Fault Tolerance** | `batches_failed_permanent_total`| System reliability floor (Dead Letter Queue rate). |
+## Validity Notes
+
+Submitter data is required for L1/cost claims. If a smoke run reports missing submitter metrics or skipped L1 validation, the result is not a full end-to-end settlement result.
+

@@ -1,12 +1,10 @@
 # Benchmark Variables and Experimental Design
 
-This document describes the benchmark matrix encoded in `benchmark-suite/config/experiments.toml` and the execution harness in `benchmark-suite/scripts/`.
+This document describes the current benchmark matrix in `benchmark-suite/config/experiments.toml` and the execution controls in `benchmark-suite/scripts/run_experiment.sh`.
 
-## Baseline Configuration
+## Baseline
 
-The current baseline is:
-
-| Variable | Baseline |
+| Variable | Baseline value |
 |---|---|
 | `id` | `exp_000_baseline_fixed100_calldata_fcfs_10tps` |
 | `batch_size` | `100` |
@@ -20,172 +18,175 @@ The current baseline is:
 | `duration_s` | `120` |
 | `warmup_s` | `15` |
 | `tx_mix` | `balanced` |
+| `workload_concurrency` | `1` |
+| `workload_account_count` | `1` |
 | `repeats` | `5` |
 | `seeds` | `[42, 43, 44, 45, 46]` |
 | `eth_price_usd` | `2500` |
 | `regular_gas_price_gwei` | `2` |
 | `blob_gas_price_gwei` | `0.001` |
 
-The baseline is a single-node local experiment. It is intended for comparative benchmarking, not market-representative Ethereum cost measurement.
+The baseline is local, single-node, and comparative. It is not a mainnet cost benchmark.
 
 ## Independent Variables
 
-The configured sweeps are one-factor-at-a-time around the baseline.
-
-### Batch Size
+### Batch Size Sweep
 
 | Experiment | Value |
-|---|---|
-| `exp_001_batch_size_bs010_calldata_fcfs_10tps` | `10` |
-| `exp_002_batch_size_bs050_calldata_fcfs_10tps` | `50` |
-| `exp_003_batch_size_bs100_calldata_fcfs_10tps` | `100` |
-| `exp_004_batch_size_bs500_calldata_fcfs_10tps` | `500` |
-| `exp_005_batch_size_bs1000_calldata_fcfs_10tps` | `1000` |
+|---|---:|
+| `exp_001_batch_size_bs010_calldata_fcfs_10tps` | 10 |
+| `exp_002_batch_size_bs050_calldata_fcfs_10tps` | 50 |
+| `exp_003_batch_size_bs100_calldata_fcfs_10tps` | 100 |
+| `exp_004_batch_size_bs500_calldata_fcfs_10tps` | 500 |
+| `exp_005_batch_size_bs1000_calldata_fcfs_10tps` | 1000 |
 
-Purpose: evaluate latency/cost/throughput tradeoffs as fixed target batch size changes.
+Purpose: measure latency, batch count, gas/cost proxy, and proof/submission behavior as fixed batch target changes.
 
-### Scheduling Policy
+### Scheduling Policy Sweep
 
-| Experiment | Value |
+| Experiment | Policy |
 |---|---|
 | `exp_010_policy_fcfs_bs100_calldata_10tps` | `FCFS` |
 | `exp_011_policy_feepriority_bs100_calldata_10tps` | `FeePriority` |
 | `exp_012_policy_blobpacking_bs100_calldata_10tps` | `BlobPacking` |
 
-Purpose: compare ordering effects on fee proxy, wait-time distribution, and blob-size proxy behavior. The configured DA mode remains calldata unless overridden, so `BlobPacking` in this sweep is mostly a scheduling heuristic test, not necessarily an actual blob-DA result.
+Purpose: compare ordering/composition behavior. `BlobPacking` now uses nonce-safe eligibility and fill-first greedy packing. If `da_mode` remains `calldata`, this tests scheduling and blob-size proxies, not real blob submission economics.
 
-### DA Mode
+### DA Mode Sweep
 
-| Experiment | Value |
+| Experiment | DA mode |
 |---|---|
 | `exp_020_da_calldata_bs100_fcfs_10tps` | `calldata` |
 | `exp_021_da_blob_bs100_fcfs_10tps` | `blob` |
 | `exp_022_da_offchain_bs100_fcfs_10tps` | `offchain` |
 
-Purpose: compare settlement/DA paths. Interpret blob and offchain rows through submitter provenance fields such as `real_eip4844_blob`, `cost_source`, and `da_mode_is_simulated`.
+Purpose: compare local DA/submission/cost paths. Blob/offchain results must be separated by provenance fields.
 
-### Batch Policy
+### Batch Policy Sweep
 
 | Experiment | Configuration |
 |---|---|
-| `exp_030_batch_policy_fixed100_bs100_calldata_fcfs_10tps` | fixed, max `100` |
-| `exp_031_batch_policy_fixed500_bs500_calldata_fcfs_10tps` | fixed, max `500` |
-| `exp_032_batch_policy_adaptive_bs500_calldata_fcfs_10tps` | adaptive, max `500` |
-| `exp_033_batch_policy_adaptive_blob_bs500_blob_blobpacking_10tps` | adaptive, blob DA, blob packing |
+| `exp_030_batch_policy_fixed100_bs100_calldata_fcfs_10tps` | fixed, 100 |
+| `exp_031_batch_policy_fixed500_bs500_calldata_fcfs_10tps` | fixed, 500 |
+| `exp_032_batch_policy_adaptive_bs500_calldata_fcfs_10tps` | adaptive, max 500 |
+| `exp_033_batch_policy_adaptive_blob_bs500_blob_blobpacking_10tps` | adaptive + blob DA + BlobPacking |
 
-Purpose: validate adaptive batching and its combination with blob-aware selection.
+Adaptive parameters:
 
-Adaptive thresholds:
+| Parameter | Value |
+|---|---:|
+| `adaptive_low_load_threshold` | 50 |
+| `adaptive_medium_load_threshold` | 200 |
+| `adaptive_small_batch_size` | 50 |
+| `adaptive_medium_batch_size` | 100 |
+| `adaptive_large_batch_size` | 500 |
+| `blob_target_bytes` | 131072 |
+| `blob_fill_target` | 0.90 |
 
-| Parameter | Baseline |
+### Rate Sweep
+
+| Experiment | Offered rate |
+|---|---:|
+| `exp_040_rate_005tps_bs100_calldata_fcfs_balanced` | 5 TPS |
+| `exp_041_rate_025tps_bs100_calldata_fcfs_balanced` | 25 TPS |
+| `exp_042_rate_050tps_bs100_calldata_fcfs_balanced` | 50 TPS |
+
+Purpose: identify load-dependent behavior and proof/submission lag.
+
+### Transaction Mix Sweep
+
+| Experiment | Mix |
 |---|---|
-| `adaptive_low_load_threshold` | `50` |
-| `adaptive_medium_load_threshold` | `200` |
-| `adaptive_small_batch_size` | `50` |
-| `adaptive_medium_batch_size` | `100` |
-| `adaptive_large_batch_size` | `500` |
-| `blob_target_bytes` | `131072` |
-| `blob_fill_target` | `0.90` |
+| `exp_050_mix_light_bs100_calldata_fcfs_10tps` | light |
+| `exp_051_mix_balanced_bs100_calldata_fcfs_10tps` | balanced |
+| `exp_052_mix_heavy_bs100_calldata_fcfs_10tps` | heavy |
 
-## Workload Variables
+### Workload Sender Sweep
 
-The workload generator supports transaction mixes:
+| Experiment | Accounts | HTTP concurrency |
+|---|---:|---:|
+| `exp_060_workload_accounts1_conc1_bs100_calldata_fcfs_10tps` | 1 | 1 |
+| `exp_061_workload_accounts4_conc4_bs100_calldata_fcfs_10tps` | 4 | 4 |
+| `exp_062_workload_accounts8_conc8_bs100_calldata_fcfs_10tps` | 8 | 8 |
 
-| Mix | Type A | Type B | Type C |
-|---|---:|---:|---:|
-| `balanced` | 70% | 20% | 10% |
-| `light` | 95% | 4% | 1% |
-| `heavy` | 20% | 30% | 50% |
+Purpose: test nonce handling, sender contention, and multi-account validity.
+
+## Workload Model
 
 Transaction classes:
 
 | Type | Intended profile | Gas limit | Gas price | Extra calldata |
 |---|---|---:|---:|---:|
 | A | light transfer | 21,000 | 1 gwei | 0 bytes |
-| B | medium swap-like tx | 65,000 | 2 gwei | 200 bytes |
-| C | heavy contract-like call | 200,000 | 3 gwei | 500 bytes |
+| B | medium swap-like | 65,000 | 2 gwei | 200 bytes |
+| C | heavy contract-like | 200,000 | 3 gwei | 500 bytes |
 
-In the current sequencer/executor path, the transaction object used by `UserTransaction` does not fully consume the synthetic `calldata` field as execution input. The gas limit, gas price, value, and destination still affect batching and fee proxies.
+Mix presets:
+
+| Mix | A | B | C |
+|---|---:|---:|---:|
+| `balanced` | 70% | 20% | 10% |
+| `light` | 95% | 4% | 1% |
+| `heavy` | 20% | 30% | 50% |
+
+The synthetic calldata contributes to payload-size estimates and DA stress, but execution remains transfer-centric.
 
 ## Dependent Variables
 
-Primary dependent variables:
+Primary:
 
-- accepted TPS,
-- sealed batch count,
-- actual per-batch `tx_count`,
-- wait-time percentiles,
-- executor execution time,
-- prover wall time,
-- proof bytes and journal bytes,
-- L1 gas used,
-- estimated/measured blob gas,
-- total cost and cost per transaction,
-- blob utilization,
-- finality/latency fields,
-- failure/retry/gas-bump incidence.
+- workload success rate and client latency;
+- sealed batch count and per-batch `tx_count`;
+- wait-time percentiles and fairness proxy;
+- blob selected/eligible bytes and low-fill reason;
+- executor execution/proof timings;
+- proof and journal bytes;
+- submitter latency, gas, and cost;
+- resource time series.
 
-Secondary diagnostics:
+Secondary:
 
-- mempool depth at batch,
-- pool growth rate,
-- gas limit utilization,
-- state diff count/bytes,
-- touched-account count,
-- proof mode,
-- cost provenance,
-- Docker/container diagnostics.
+- mempool depth;
+- pool growth rate;
+- cache hit/stale-nonce diagnostics;
+- ordering efficiency;
+- gas bumping;
+- cost provenance;
+- real/simulated DA provenance.
 
-## Execution Phases
+## Run Modes
 
-`run_matrix.sh` defines common phases:
+The same script supports two important modes:
 
-| Phase | Filter | Repeats | Duration | Warmup |
-|---|---|---:|---:|---:|
-| `smoke` | batch size | 1 | 30s | 5s |
-| `feasibility-lite` | batch size | 3 | 90s | 5s |
-| `feasibility` | batch size | 5 | 120s | 15s |
-| `model-quality` | batch size | 30 | 120s | 15s |
+| Mode | Required environment | Meaning |
+|---|---|---|
+| Smoke | `REQUIRE_COMPONENT_METRICS=0`, `REQUIRE_L1_VALIDATION=0`, shorter `SUBMITTER_WAIT_MAX` | Validates workload/sequencer quickly; executor/submitter may be missing. |
+| Strict | `STRICT_PIPELINE_CATCHUP=1`, `REQUIRE_COMPONENT_METRICS=1`, `REQUIRE_L1_VALIDATION=1` | Validates full pipeline catch-up and L1 submission; can take long with real proofs. |
 
-Each run gets a seed from the baseline seed list. If repeats exceed the seed list length, the current matrix logic only uses `seeds[:repeats]`; ensure enough seeds are configured before relying on high-repeat phases.
+Use smoke mode for debugging. Use strict mode for research evidence.
 
-## Run Isolation
+## Recommended Experimental Design
 
-For Docker mode, each run recreates the core stack with the run-specific environment:
+For defensible comparisons:
 
-- sequencer batch size and timeout,
-- batch policy and adaptive thresholds,
-- scheduling policy,
-- DA mode,
-- proof backend,
-- gas/ETH price references,
-- experiment id/name,
-- metrics directory.
+1. Use the same seeds across compared configurations.
+2. Report actual emitted batch counts, not only configured batch size.
+3. Separate smoke and strict runs.
+4. Separate `calldata`, `blob`, and `offchain` results.
+5. Separate `measured`, `hybrid`, `estimated`, and simulated cost rows.
+6. Use confidence intervals across repeats.
+7. Analyze raw JSONL before relying on aggregate CSVs.
+8. Include rate and mix sweeps when making general claims.
+9. Run BlobPacking with `POLICY=BlobPacking` and verify nonzero blob-selection fields.
+10. Use multi-account sweeps for fairness/nonce claims.
 
-The harness calls `docker compose down -v` before `up -d --force-recreate`, then waits for sequencer health. It also resets local runtime state when `CLEAN_STATE_BEFORE_RUN=1`.
+## Design Threats
 
-## Recommended Analysis Design
-
-Use the benchmark as a comparative factorial study with controlled local conditions:
-
-1. Treat the baseline as the control.
-2. Analyze one-factor sweeps separately.
-3. Use identical seeds across compared configurations where possible.
-4. Analyze actual `tx_count`, not only configured batch size.
-5. Separate rows by `cost_source`, `blob_cost_source`, and `real_eip4844_blob`.
-6. Exclude or label gas-bumped rows.
-7. Report confidence intervals across repeats.
-8. Inspect raw JSONL for schema consistency before plotting.
-
-## Threats to Design Quality
-
-The current matrix is useful but incomplete for strong research claims:
-
-- one-factor sweeps miss interactions between rate, mix, batch size, DA mode, and proof mode;
-- only one offered rate is configured in the current TOML;
-- warmup traffic is not component-tagged;
-- local Hardhat timing does not represent public L1 finality;
-- local blob mode may be hybrid/estimated rather than real EIP-4844;
-- the STF is transfer-centric and does not exercise real contract execution;
-- aggregation contains some historical field names that should be reconciled with current emitters.
+- Local Hardhat settlement is not public Ethereum.
+- The STF is simplified and not EVM-equivalent.
+- Blob mode may be estimated/hybrid rather than real EIP-4844.
+- Warmup traffic can contaminate component metrics unless drained or filtered.
+- Strict pipeline runs can take much longer than workload duration because proof/submission lag behind sequencing.
+- Fairness and MEV fields are proxies, not full adversarial fairness or MEV measurement.
+- Aggregation scripts must be checked against current raw schemas before publication.
 

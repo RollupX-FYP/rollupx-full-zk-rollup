@@ -116,7 +116,19 @@ impl TransactionPool {
                 std::cmp::Ordering::Equal => a.0.cmp(&b.0),
                 other => other,
             });
-            let mut expected = expected_nonces.get(&sender).copied().unwrap_or(0);
+            // The sequencer state cache is pessimistically advanced when a
+            // transaction is admitted to the pool. For scheduling, the first
+            // executable pending nonce is therefore the lower of the cache
+            // nonce and the earliest pending nonce for that sender.
+            let earliest_pending_nonce = sender_txs
+                .first()
+                .map(|(_, tx, _)| tx.tx.nonce)
+                .unwrap_or_else(|| expected_nonces.get(&sender).copied().unwrap_or(0));
+            let mut expected = expected_nonces
+                .get(&sender)
+                .copied()
+                .unwrap_or(earliest_pending_nonce)
+                .min(earliest_pending_nonce);
             let mut saw_gap = false;
 
             for entry in sender_txs {

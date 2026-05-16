@@ -1,82 +1,67 @@
 # Executor
 
-Executor is the host-side state transition and proving coordinator.
+The executor is the host-side state transition and proof coordinator. It receives sealed batches from the sequencer, executes the repository's simplified transfer-centric STF, writes traces, invokes the RISC0 proof path, emits metrics, and streams enriched batches to the submitter.
 
-## Runtime Flow (`service.rs`)
-
-For each gRPC `publish_batch` request:
-
-1. Parse and normalize sequencer batch transactions.
-2. Execute STF using `SimpleTransactionEngine` over `RocksDbStateManager`.
-3. Build `ExecutionTraceV1` (public inputs, tx outcomes, state diffs).
-4. Persist trace and verify persisted SHA-256.
-5. Invoke prover backend (`risc0`) to generate proof artifacts.
-6. Build enriched batch payload (DA commitment + proof) and broadcast to submitter stream.
-7. Append lifecycle status transitions: `generated -> persisted -> proved -> published`.
-
-Core files:
-- `executor/src/service.rs`
-- `executor/src/tx_engine.rs`
-- `executor/src/proof.rs`
-- `executor/src/trace.rs`
-
-## Prover Backend
-
-Only `risc0` is supported in the current executor codepath (`PROVER_BACKEND=risc0`).
-
-Required env:
-- `RISC0_HOST_BIN`
-
-Optional env:
-- `RISC0_GUEST_ELF`
-- `RISC0_WORK_DIR` (default `tmp/risc0`)
-- `ALLOW_PROOF_FALLBACK` (default strict off; set to `1` only if you intentionally allow non-groth16 proof mode)
-- `ALLOW_UNSIGNED_USER_TXS` (default strict off; set to `1` for synthetic unsigned user-transaction experiments)
+## Runtime Flow
 
 ```mermaid
 flowchart TD
-    SUB[Sequencer] -->|PublishBatch| EX[Executor Service]
-    EX -->|Normalize| TXS[Transactions]
-    TXS -->|Execute STF| ENG[Tx Engine]
-    ENG <-->|RocksDB| STATE[(State Manager)]
-    ENG -->|Timed Phases| METRICS[Batch Metrics Row]
-    ENG -->|ExecutionTraceV1| TRACE[Trace Store]
-    
-    TRACE -->|sha256| VER[Integrity Check]
-    VER -->|Invoke| PROV[RISC0 Prover]
-    PROV -->|SNARK| ART[Proof Artifacts]
-    
-    ART -->|Final Check| PUB[Broadcast Stream]
-    PUB -->|Enriched Payload| SUM[Submitter]
+    SEQ[Sequencer BatchPayload] --> SVC[Executor gRPC service]
+    SVC --> PARSE[Parse transactions]
+    PARSE --> STF[SimpleTransactionEngine]
+    STF <--> STATE[State manager]
+    STF --> TRACE[ExecutionTraceV1]
+    TRACE --> STORE[Trace store]
+    STORE --> CHECK[Trace hash check]
+    CHECK --> PROOF[RISC0 host]
+    PROOF --> ART[Proof/journal/metadata]
+    ART --> MET[executor_batch_metrics.jsonl]
+    ART --> STREAM[Enriched stream to submitter]
 ```
-**Explanation:** The Executor maintains a strict cryptographic link between the input batch, the internal state transitions, and the final ZK proof. Every step of this pipeline is instrumented for research analysis.
 
-## Research & Metrics Mapping
+Core files:
 
-| Research Goal | Executor Metric | Interpretation |
-| :--- | :--- | :--- |
-| **STF Performance** | `total_execution_ms` | Baseline cost of rollup execution without ZK overhead. |
-| **State Scalability**| `merkle_update_ms` | Direct measure of Sparse Merkle Tree (SMT) bottleneck as state grows. |
-| **Prover Latency** | `total_prover_wall_ms`| The "Proving Time" bottleneck in ZK-rollup finality. |
-| **Storage Cost** | `state_diff_bytes` | Predicts L1 Data Availability (DA) costs for state-diff rollups. |
-| **Auditability** | `trace_id` | Unique handle for cross-referencing L1 settlements with local execution. |
+- `executor/src/service.rs`
+- `executor/src/tx_engine.rs`
+- `executor/src/state.rs`
+- `executor/src/trace.rs`
+- `executor/src/proof.rs`
 
-## Inputs and Outputs
+## Execution Semantics
 
-Inputs:
-- gRPC `BatchPayload` from sequencer.
+The current STF:
 
-Outputs:
-- gRPC `StreamBatches` enriched payload for submitter.
-- Trace files under `TRACE_ROOT`.
-- Proof/journal/metadata artifacts under `RISC0_WORK_DIR`.
+1. Verifies user signatures.
+2. Checks nonce and balance.
+3. Applies transfer-style state changes.
+4. Emits sender/receiver state diffs.
+5. Computes a lightweight root.
+6. Builds a trace with phase timing.
 
-## State and Trace Guarantees
+It is not an EVM-equivalent execution engine. It is valid as a controlled synthetic execution model.
 
-- Trace hash is verified immediately after persistence.
-- Prover metadata checks include:
-  - trace hash match,
-  - expected public input hash match,
-  - journal/proof size and hash integrity.
+## Proof Path
 
-If any check fails, batch publication fails fast.
+The executor writes a converted trace for `risc0_prover`, invokes the RISC0 host, and verifies artifact metadata before publishing. The proof statement covers replay consistency of simplified state diffs from initial root to final root.
+
+Important env variables:
+
+- `PROVER_BACKEND`
+- `RISC0_HOST_BIN`
+- `RISC0_WORK_DIR`
+- `ALLOW_PROOF_FALLBACK`
+
+## Metrics Mapping
+
+| Research question | Executor fields | Notes |
+|---|---|---|
+| STF cost | `total_execution_ms`, execution phase fields | Local host timing. |
+| State workload | `state_diff_count`, `state_diff_bytes`, `unique_touched_accounts` | Synthetic transfer model. |
+| Proof bottleneck | `total_proof_ms`, `prover_metrics` | Can dominate strict runs. |
+| Artifact size | `proof_bytes`, `journal_bytes` | Circuit-specific. |
+| Trace auditability | `trace_id`, lifecycle index | Links local trace/proof artifacts. |
+
+## Validity Notes
+
+Executor metrics can lag sequencer metrics by minutes when real proof work is enabled. For research claims about full throughput, require nonzero executor rows and batch-id catch-up, not only workload success.
+

@@ -1,169 +1,164 @@
 # Metrics Collection Design
 
-This document explains how metrics are produced, synchronized, and aggregated in the current RollupX benchmark implementation.
+This document describes how metrics are produced and validated in the current RollupX benchmark implementation.
 
-## Metrics Contract
+## Run Directory Contract
 
-The benchmark harness sets `METRICS_ROOT` for each run. Components append files inside that directory:
+Each benchmark run writes to:
+
+```text
+metrics/<experiment_id>/<run_id_timestamp>/
+```
+
+Expected files:
 
 | File | Producer | Format | Meaning |
 |---|---|---|---|
-| `workload_<experiment_id>.json` | Workload generator | JSON | Run-level offered load and accepted transaction counts. |
-| `tx_log_<run_id>.csv` | Workload generator | CSV | Per-submission client-side status and HTTP latency. |
-| `run_status.json` | Workload generator | JSON | Pass/fail based on transaction submission success. |
-| `run_metadata.json` | `collect_env.sh` | JSON | Git commit, machine, runtime, config snapshot, validity envelope. |
+| `run.log` | Harness | text | Full orchestration log. |
+| `run_metadata.json` | `collect_env.sh` | JSON | Git/env/machine/config snapshot. |
+| `run_status.json` | Workload generator | JSON | Pass/fail based on HTTP transaction submission success. |
+| `workload_<experiment_id>.json` | Workload generator | JSON | Offered load, accepted count, latency summary, mix. |
+| `tx_log_<run_id>.csv` | Workload generator | CSV | Per-transaction client status/error/latency. |
 | `sequencer_batch_metrics.jsonl` | Sequencer | JSONL | One row per sealed batch. |
 | `executor_batch_metrics.jsonl` | Executor | JSONL | One row per executed/proved batch. |
 | `executor_<experiment_id>.json` | Executor | JSON | Run-level executor summary. |
-| `submitter_metrics.json` | Submitter | JSONL despite `.json` name | One row per submitted/simulated batch. |
-| `resource_metrics.json` | Harness | JSON | Docker memory snapshot/proxy. |
+| `submitter_metrics.json` | Submitter | JSONL | One row per submitted batch despite `.json` suffix. |
+| `resource_metrics_timeseries.csv` | Harness sampler | CSV | Time-series process/container resource sampling. |
+| `analysis_report.md` | Report script | Markdown | Human-readable run summary. |
+| `diagnostics/` | Harness | logs/text | Docker logs, stats, config snapshots. |
 
 ## Workload Metrics
 
-The workload generator is `benchmark-suite/workload/poisson_generator.py`.
+`benchmark-suite/workload/poisson_generator.py` emits signed transactions. It supports:
 
-It emits synthetic transactions using seeded random streams:
+- timed Poisson workload: `--rate`, `--duration`;
+- warmup phase: `--warmup`;
+- fixed-count burst: `--target_txs`;
+- sender concurrency: `--concurrency`;
+- multiple dev accounts: `--account_count`;
+- deterministic seed streams.
 
-- inter-arrival RNG,
-- transaction-type RNG,
-- transaction-value RNG.
+The workload now selects a sender index first and passes that explicit `sender_index` to `TxFactory.make`. This keeps `from`, signature key, sender nonce, and logged sender metadata aligned. That is essential for nonce-valid multi-account experiments.
 
-Modes:
-
-- timed Poisson phase: `--rate`, `--duration`,
-- warmup phase: `--warmup`,
-- fixed-count burst: `--target_txs > 0`,
-- optional concurrent HTTP senders: `--concurrency`.
-
-The JSON summary records:
-
-- configured rate,
-- duration,
-- total transactions sent during measured phase,
-- successful/failed submissions,
-- client-side average action latency,
-- tx type counts,
-- seed and tx mix.
-
-The CSV log records:
+`tx_log_<run_id>.csv` records:
 
 - `tx_id`,
 - `tx_type`,
+- `sender_index`,
+- `sender_nonce`,
+- `from`,
+- phase,
 - UTC timestamp,
-- HTTP submission latency,
-- success/error status,
-- error string.
+- HTTP latency,
+- success/error,
+- rejection/error detail.
 
-Important limitation: warmup transactions are not recorded by the workload JSON, but they are still sent into the live system. Unless the system drains fully before measurement or the components tag warmup traffic, component-level metrics may include warmup-originated batches.
+## Sequencer Metrics
 
-## Sequencer Batch Metrics
+Sequencer rows are appended by `BatchOrchestrator::append_batch_metrics_row` to `sequencer_batch_metrics.jsonl`.
 
-Sequencer metrics are emitted in `sequencer/src/batch/orchestrator.rs` by appending `SequencerBatchMetricsRow` to `sequencer_batch_metrics.jsonl`.
+Important field groups:
 
-Major field groups:
-
-| Group | Example fields |
+| Group | Fields |
 |---|---|
 | Identity/timing | `batch_id`, `experiment_id`, `sealed_at_ms`, `batch_created_time_ms`, `time_since_last_seal_ms` |
 | Policy | `batch_policy`, `scheduling_policy`, `scheduler_config`, `seal_reason` |
-| Batch composition | `tx_count`, `forced_tx_count`, `normal_tx_count`, `mempool_depth_at_batch` |
-| Resource proxies | `total_gas_limit`, `gas_limit_utilization`, `estimated_batch_bytes`, `blob_utilization` |
-| Fee proxies | `total_gas_price_wei`, `fee_proxy_wei` |
-| Wait-time/fairness | `wait_time_p50_ms`, `wait_time_p95_ms`, `wait_time_p99_ms`, `wait_time_mean_ms`, `jains_fairness_index` |
-| Ordering diagnostics | `actual_batch_fee_wei`, `optimal_batch_fee_wei`, `ordering_efficiency`, `reordering_events`, `max_reorder_distance` |
-| Pool/cache diagnostics | `pool_depth_at_seal`, `pool_depth_after_seal`, `pool_growth_rate_tps`, `cache_hit_rate`, `cache_age_ms` |
+| Composition | `tx_count`, `forced_tx_count`, `normal_tx_count`, `mempool_depth_at_batch` |
+| Capacity proxies | `total_gas_limit`, `gas_limit_max`, `gas_limit_utilization`, `estimated_batch_bytes`, `blob_utilization` |
+| Fee proxies | `total_gas_price_wei`, `fee_proxy_wei`, `actual_batch_fee_wei`, `optimal_batch_fee_wei`, `ordering_efficiency` |
+| Waiting/fairness | `wait_time_p50_ms`, `wait_time_p95_ms`, `wait_time_p99_ms`, `wait_time_mean_ms`, `jains_fairness_index` |
+| Pool/cache | `pool_depth_at_seal`, `pool_depth_after_seal`, `pool_growth_rate_tps`, `cache_hit_rate`, `stale_nonce_rejections`, `cache_age_ms` |
+| BlobPacking | `blob_selected_bytes`, `blob_eligible_bytes`, `blob_eligible_tx_count`, `blob_ineligible_nonce_gap_count`, `blob_nonce_chain_truncated_senders`, `blob_low_fill_reason` |
 
-Interpretation notes:
+Blob fields are meaningful when `scheduling_policy = "BlobPacking"`. Under other policies they are expected to be zero/null.
 
-- `blob_utilization` is based on estimated serialized bytes divided by configured target bytes.
-- `fee_proxy_wei` is a gas-price times gas-limit proxy, not actual paid L1 fee.
-- `ordering_efficiency` currently compares sums of included gas prices, so it can be weak as a measure of MEV/revenue optimality when the selected set is unchanged.
-- Percentiles are computed per batch from in-batch wait times, not across the full experiment.
+`blob_low_fill_reason` can be:
+
+- `nonce_gaps`,
+- `insufficient_eligible_bytes`,
+- `count_cap`,
+- `null`.
 
 ## Executor Metrics
 
-Executor batch metrics are emitted in `executor/src/service.rs` to `executor_batch_metrics.jsonl`.
+Executor rows are appended in `executor/src/service.rs` to `executor_batch_metrics.jsonl`.
 
-Major fields:
+Important field groups:
 
-| Group | Example fields |
+| Group | Fields |
 |---|---|
 | Identity | `experiment_id`, `batch_id`, `trace_id` |
 | Batch size | `tx_count`, `batch_data_bytes` |
-| State/proof workload | `state_diff_count`, `state_diff_bytes`, `unique_touched_accounts`, `repeated_touched_accounts` |
+| State workload | `state_diff_count`, `state_diff_bytes`, `unique_touched_accounts`, `repeated_touched_accounts` |
 | Gas/fee proxies | `total_gas_limit`, `total_gas_price_wei`, `fee_proxy_wei` |
 | Execution phases | `signature_verify_ms`, `nonce_balance_check_ms`, `state_transition_ms`, `merkle_update_ms`, `state_diff_computation_ms`, `trace_serialization_ms`, `total_execution_ms` |
-| Prover metadata | `witness_generation_ms`, `zkvm_execution_ms`, `proof_compression_ms`, `total_prover_wall_ms`, `total_cycles`, `total_segments`, `proof_mode` |
-| I/O | `trace_write_ms`, `proof_read_ms`, `proof_bytes`, `journal_bytes` |
+| Proof | `prover_metrics`, `total_proof_ms`, `proof_bytes`, `journal_bytes`, `proof_mode`, cycles/segments when present |
+| I/O | `trace_write_ms`, `proof_read_ms` |
 
-The executor also writes `executor_<experiment_id>.json`, but aggregation code should be checked before relying on older fields; some historical field names no longer match the current emitted schema.
+Executor metrics can lag sequencer metrics substantially when real proof work is enabled. A run can have a passing workload and complete sequencer metrics before executor/submitter have caught up.
 
 ## Submitter Metrics
 
-Submitter metrics are emitted in `submitter/src/daemon.rs` by appending `SubmitterMetrics` rows to `submitter_metrics.json`.
+Submitter rows are written by `submitter/src/daemon.rs` to `submitter_metrics.json` as JSONL.
 
-Major field groups:
+Important field groups:
 
-| Group | Example fields |
+| Group | Fields |
 |---|---|
 | Status | `submission_status`, `error`, `batch_id`, `tx_hash`, `da_mode`, `da_mode_is_simulated` |
 | Latency | `submission_latency_ms`, `l2_l1_latency_ms`, `soft_commit_ms`, `hard_finality_ms`, `finality_gain_ms` |
 | Proof | `prover_rtt_ms`, `proof_generation_ms`, `proof_metadata_hash`, `proof_bytes` |
 | Payload/DA | `batch_data_bytes`, `compressed_bytes`, `compression_ratio`, `blob_count`, `blob_utilization` |
-| Gas and cost | `l1_gas_used`, `regular_gas_used`, `blob_gas_used`, `blob_base_fee_wei`, `total_cost_wei`, `cost_per_tx_wei`, `total_cost_usd`, `cost_per_tx_usd` |
-| Cost provenance | `cost_source`, `blob_cost_source`, `real_eip4844_blob`, `cost_model_version`, `cost_breakdown_is_estimated` |
+| Gas/cost | `l1_gas_used`, `regular_gas_used`, `blob_gas_used`, `total_cost_wei`, `cost_per_tx_wei`, `total_cost_usd`, `cost_per_tx_usd` |
+| Provenance | `cost_source`, `blob_cost_source`, `real_eip4844_blob`, `cost_model_version`, `cost_breakdown_is_estimated` |
 | Gas bumping | `gas_bumped`, `gas_bump_count`, `original_gas_price_gwei`, `final_gas_price_gwei` |
 
-Cost model provenance is critical:
+Cost provenance is mandatory for interpretation:
 
-- `measured`: receipt-level gas/fee data is available.
-- `hybrid`: measured regular gas plus estimated blob gas.
-- `estimated`: model-derived values without full receipt backing.
-- `real_eip4844_blob = false`: do not treat blob results as observed EIP-4844 market outcomes.
+| Field pattern | Interpretation |
+|---|---|
+| `cost_source = measured` | receipt-backed regular gas/cost path. |
+| `cost_source = hybrid` | measured regular gas plus estimated blob component. |
+| `cost_source = estimated` | model-derived cost. |
+| `real_eip4844_blob = false` | do not claim observed real blob-market behavior. |
 
 ## Harness Synchronization
 
-`benchmark-suite/scripts/run_experiment.sh` coordinates each run:
+`run_experiment.sh` polls component metrics using unique `batch_id` counts.
 
-1. Create/clean `METRICS_ROOT`.
-2. Reset local state if configured.
-3. Write metadata.
-4. Recreate Docker core stack with experiment env.
-5. Run workload generator.
-6. Poll component metric files.
-7. Require sequencer, executor, and submitter rows.
-8. Require row parity: executor rows >= sequencer rows, submitter rows >= executor rows.
-9. Validate workload status.
-10. Validate L1/submission state.
-11. Write diagnostics and resource metrics.
+Current validation controls:
 
-This is a useful guard against early termination, but it is not a substitute for experimental isolation. Row parity only shows that components processed at least as many unique batch ids as upstream, not that those rows correspond exactly to measured-phase transactions.
+| Variable | Default/use |
+|---|---|
+| `SUBMITTER_WAIT_MAX` | Maximum 3-second polling iterations; defaults longer for groth16/real proof modes. |
+| `COMPONENT_STABLE_POLLS` | Number of stable-size polls before the wait loop can exit. |
+| `STRICT_PIPELINE_CATCHUP` | If true, require executor batch count >= sequencer and submitter >= executor before considering metrics caught up. |
+| `REQUIRE_COMPONENT_METRICS` | If true, missing sequencer/executor/submitter metrics fail the run. |
+| `REQUIRE_L1_VALIDATION` | If true, validate submitter/L1 progress. |
+
+Fast smoke runs may intentionally skip executor/submitter/L1 validation. Such runs are useful for checking workload and sequencer behavior, but they are not full end-to-end proof/settlement evidence.
 
 ## Aggregation
 
-`data-tools/aggregate.py` produces:
+`data-tools/aggregate.py` scans run directories and writes run-level and batch-level CSVs. Raw JSONL should be treated as the source of truth, because aggregate code can lag behind emitter schema changes.
 
-- run-level `all_results.csv`,
-- batch-level `all_batch_results.csv`.
+Before publication, verify these mappings:
 
-It joins rows primarily by `batch_id` and run directory. For valid analysis, inspect the emitted schemas before trusting all derived columns. Known examples to verify:
-
-- executor emits `total_execution_ms` and `total_proof_ms`, while aggregation contains historical `execution_time_ms` and `proof_time_ms` batch fields;
-- sequencer emits wait-time fields named `wait_time_*`, while aggregation references `oldest_tx_wait_ms`;
-- sequencer rows do not include `batch_data_bytes`; executor/submitter do.
-
-Recommended practice: treat raw JSONL as the source of truth, and regenerate/patch aggregate fields before producing research figures.
+- executor emits `total_execution_ms` and `total_proof_ms`;
+- sequencer emits `wait_time_*` rather than old wait field names;
+- sequencer does not emit executor/submitter payload-size fields;
+- submitter `submitter_metrics.json` is JSONL, not a single JSON document.
 
 ## Metric Validity Checklist
 
-Before analyzing a run, confirm:
+Before analyzing results:
 
-- `run_status.json` has `"status": "pass"`.
-- `run_metadata.json` includes the expected config snapshot and git commit.
-- All three component metrics exist and have nonzero unique batch ids.
-- Submitter rows have `submission_status = "submitted"` or an explicitly simulated status that you intend to include.
-- Blob rows are separated by `real_eip4844_blob`, `cost_source`, and `blob_cost_source`.
-- Gas-bumped rows are filtered or analyzed separately.
-- Warmup rows are absent or explicitly accounted for.
-- Aggregation columns match current raw schemas.
+- Confirm `run_status.json` has `"status": "pass"`.
+- Confirm `run_metadata.json` has the intended git commit and environment.
+- Confirm `scheduling_policy` and `da_mode` match the research question.
+- For full pipeline claims, require nonzero sequencer, executor, and submitter batch ids.
+- For strict end-to-end claims, use `STRICT_PIPELINE_CATCHUP=1`, `REQUIRE_COMPONENT_METRICS=1`, and `REQUIRE_L1_VALIDATION=1`.
+- Separate blob rows by `real_eip4844_blob`, `cost_source`, and `blob_cost_source`.
+- Treat smoke runs with missing executor/submitter metrics as partial validation only.
+- Archive raw JSONL/CSV, diagnostics, and exact command/environment with every figure.
 

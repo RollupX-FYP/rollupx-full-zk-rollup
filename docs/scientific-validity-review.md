@@ -1,153 +1,152 @@
 # Scientific Validity Review
 
-This review evaluates the current RollupX implementation as a research tool. The short version: it is useful for controlled engineering experiments and internal comparative studies, but its results should be framed as local prototype measurements, not as production rollup or Ethereum mainnet performance claims.
+This review evaluates the current RollupX implementation as a research tool. The short version: it is useful for controlled prototype experiments, but results must be framed as local comparative measurements, not production rollup or Ethereum mainnet performance.
 
 ## Overall Judgment
 
-| Validity dimension | Rating | Reason |
+| Validity dimension | Rating | Current assessment |
 |---|---|---|
-| Internal validity | Moderate | The harness resets state, uses seeds, records config, and waits for component metric parity. However, warmup contamination and some schema mismatches weaken causal interpretation. |
-| Construct validity | Mixed | Batch size, local execution time, proof wall time, and local gas receipts are meaningful. Fairness, MEV, blob utilization, and mainnet cost constructs are only approximations. |
-| External validity | Low to moderate | The system is single-node, local, transfer-centric, and not public-network representative. |
-| Reproducibility | Moderate | Seeds, run metadata, git commit, and Docker recreation help. Full reproducibility still depends on local hardware, Docker images, RISC0 build artifacts, and Hardhat behavior. |
-| Statistical validity | Currently limited | Repeats exist, but the default matrix is narrow and analysis scripts need schema reconciliation before publication-quality inference. |
+| Internal validity | Moderate, improving | State reset, seeded workloads, sender/nonce fix, nonce-safe BlobPacking, and run metadata help. Smoke mode can still pass without executor/submitter metrics, so run mode must be reported. |
+| Construct validity | Mixed | Batch size, wait time, local proof time, and local gas receipts are meaningful. Fairness, MEV, blob economics, and mainnet cost are proxy constructs. |
+| External validity | Low to moderate | Single-node, local Hardhat, simplified STF, synthetic workload, and local proof hardware limit generalization. |
+| Reproducibility | Moderate | Git commit, seeds, Docker recreation, and run directories support replay. Hardware, Docker cache, proof artifacts, and local timing still affect outcomes. |
+| Statistical validity | Limited to moderate | The matrix now includes batch, policy, DA, rate, mix, and sender sweeps, but publication-grade claims still require enough repeats and schema-checked aggregation. |
 
 ## What Is Scientifically Credible
 
-The implementation can credibly support claims like:
+The implementation can support carefully scoped claims such as:
 
-- Under this local single-node setup, fixed batch-size changes alter observed batch counts, per-batch wait distributions, and local proof/submitter load.
-- Under identical synthetic traffic, FCFS, FeePriority, and BlobPacking produce different batch composition and fee/blob-size proxy patterns.
-- The executor/prover path has measurable wall-clock phases for this simplified STF and RISC0 proof artifact path.
-- Calldata, blob-like, and offchain DA modes produce different local settlement/cost metric rows under the repository's configured model.
-- Component-level instrumentation can identify bottlenecks in the prototype pipeline.
+- In this local prototype, changing batch size changes wait-time distribution, sealed batch count, and downstream proof/submission pressure.
+- Under identical synthetic workloads, scheduling policies produce different ordering and batch-composition metrics.
+- The nonce-safe BlobPacking implementation avoids deliberately selecting transactions that violate per-sender nonce prefixes.
+- The simplified executor/prover path has measurable wall-clock and artifact-size behavior for its state-diff circuit.
+- Local calldata/blob/offchain DA modes produce different measured or model-derived cost rows, when separated by provenance.
+- Component metrics can identify bottlenecks and lag in the prototype pipeline.
 
-These are valid engineering research findings when clearly scoped to the repository's implementation and local environment.
+## Claims That Are Not Valid Without More Evidence
 
-## Claims That Are Not Yet Valid
+Avoid or heavily qualify:
 
-Avoid or heavily qualify claims like:
-
-- "This is the cost of RollupX on Ethereum mainnet."
+- "RollupX achieves this throughput in production."
+- "These costs are Ethereum mainnet costs."
 - "Blob mode measures real EIP-4844 economics" unless `real_eip4844_blob = true` and receipt blob fields are present.
 - "The system is EVM-equivalent."
-- "The proof proves full rollup state-transition validity."
-- "FairBFT demonstrates decentralized sequencing fairness."
-- "The benchmark predicts production throughput."
-- "MEV resistance is measured" based only on the current fee/order proxies.
+- "The proof proves full rollup validity."
+- "FairBFT proves decentralized sequencing fairness."
+- "MEV resistance is measured."
 
-## Key Validity Risks
+## Major Validity Risks
 
-### 1. Warmup Contamination
+### 1. Smoke Runs Are Partial Validation
 
-The workload generator sends warmup traffic but discards it from workload metrics. The live sequencer/executor/submitter do not tag warmup transactions. If warmup traffic remains queued or creates batches during the measured phase, component metrics include warmup effects while workload metrics exclude them.
+Fast smoke mode can pass with `REQUIRE_COMPONENT_METRICS=0` and `REQUIRE_L1_VALIDATION=0`. That is useful for debugging but not sufficient for full pipeline claims.
 
-Impact: latency, batch count, cost per tx, and throughput comparisons can be biased.
+Impact: a passing report may show workload/sequencer health while executor, submitter, and L1 bridge are missing or still lagging.
 
-Fix: tag every transaction with phase/run id, discard warmup-tagged component rows, or wait until the pipeline drains before starting measurement.
+Fix: for research results, use strict mode: `STRICT_PIPELINE_CATCHUP=1`, `REQUIRE_COMPONENT_METRICS=1`, `REQUIRE_L1_VALIDATION=1`.
 
-### 2. Local L1 Is Not Mainnet
+### 2. Executor/Submitter Lag Is Real
 
-Hardhat/local mining, local base fees, local receipt timing, and deterministic deployment behavior are not public Ethereum. The cost model partly compensates with reference gas/ETH prices, but it cannot reproduce public mempool conditions, EIP-1559 dynamics, blob base fee dynamics, reorgs, or validator timing.
+Sequencer can seal many batches before executor proof work and submitter settlement catch up. Short waits can produce missing executor/submitter files even when the workload succeeded.
 
-Impact: local L1 latency and cost results are comparative only.
+Impact: comparing only sequencer metrics overstates end-to-end throughput.
 
-Fix: clearly label local results; run a separate public testnet/mainnet-shadow study for market-facing claims.
+Fix: report both front-door success and full-pipeline completion; track unique batch ids by component.
 
-### 3. Blob Mode May Be Hybrid
+### 3. Warmup Contamination
 
-Submitter metrics distinguish real and estimated blob cost using:
+Warmup transactions are sent into the live system, while workload summaries discard them. If component metrics are not reset/drained cleanly, warmup effects can leak into measured component rows.
 
-- `real_eip4844_blob`,
-- `cost_source`,
-- `blob_cost_source`,
-- `measured_blob_gas_used`,
-- `estimated_blob_gas_used`.
+Impact: latency, cost per tx, and batch count may be biased.
 
-If blob receipt fields are absent, blob cost is estimated. That is acceptable for model comparison, but not for claims about actual EIP-4844 fee-market outcomes.
+Fix: tag phase/run id through component metrics or wait for complete pipeline drain before measurement.
 
-Fix: separate measured blob rows from hybrid rows in all plots/tables.
+### 4. Local L1 Is Not Mainnet
 
-### 4. Simplified Execution Semantics
+Hardhat timing, local gas behavior, and deterministic deployments do not reproduce public Ethereum mempool/base-fee/blob-fee dynamics.
 
-The executor is a transfer-centric STF with lightweight state diffs and hash-derived roots. It validates signatures, nonce, balance, and transfer updates, but it does not execute arbitrary EVM bytecode.
+Impact: local L1 latency and cost are comparative only.
 
-Impact: execution/proof timing does not generalize to full smart-contract workloads.
+Fix: label local results clearly; use public testnet or mainnet-shadow experiments for market-facing claims.
 
-Fix: describe it as a synthetic STF; add EVM-equivalent execution or a calibrated trace corpus before broader claims.
+### 5. Blob Economics Are Often Hybrid
 
-### 5. Proof Construct Is Narrow
+Blob mode records provenance fields. If receipt-backed blob gas is absent, blob cost is estimated or hybrid.
 
-The RISC0 guest verifies replay of simplified state diffs from initial root to final root. This is valuable, but it is not a full rollup validity circuit. It proves consistency of the trace model, not end-to-end correctness of arbitrary L2 execution.
+Impact: blob rows may validate a cost model, not real EIP-4844 behavior.
 
-Impact: proof timing and proof-size measurements are valid for this circuit, not for a production rollup circuit.
+Fix: separate rows by `real_eip4844_blob`, `cost_source`, and `blob_cost_source`.
 
-Fix: specify the circuit statement precisely in papers/reports.
+### 6. Simplified Execution Semantics
 
-### 6. Aggregation Schema Drift
+The executor implements a transfer-centric STF, not arbitrary EVM bytecode execution.
 
-`data-tools/aggregate.py` contains historical field names that do not fully match current emitters. Examples:
+Impact: proof/execution results do not generalize to smart-contract-heavy rollup workloads.
 
-- executor currently emits `total_execution_ms` and `total_proof_ms`, while aggregation references `execution_time_ms` and `proof_time_ms` in batch rows;
-- sequencer emits `wait_time_*`, while aggregation references `oldest_tx_wait_ms`;
-- sequencer does not emit `batch_data_bytes`, while aggregation references it from the sequencer row.
+Fix: describe the STF exactly; add EVM-equivalent execution or calibrated traces before broader claims.
 
-Impact: CSV outputs may contain missing/empty columns even when raw JSONL is correct.
+### 7. Narrow Proof Statement
 
-Fix: update aggregation mappings and add schema tests using real fixture rows.
+The RISC0 path proves replay consistency for simplified state diffs. It does not prove a production rollup VM.
 
-### 7. One-Factor Matrix Limits
+Impact: proof size/time are valid for this circuit only.
 
-The configured experiments mostly vary one factor at 10 TPS with balanced traffic. This is good for first-order debugging but weak for interaction effects.
+Fix: state the public input and proof statement explicitly in research text.
 
-Impact: conclusions may not hold at higher load, different mixes, or combined DA/scheduler/prover settings.
+### 8. Fairness and MEV Proxies Are Weak
 
-Fix: add factorial or fractional-factorial runs across rate, mix, DA, scheduler, and batch policy.
+Jain's fairness index is computed from included transaction wait times, and ordering efficiency is a simplified fee-proxy comparison.
 
-### 8. Fairness and MEV Metrics Are Proxies
+Impact: these do not prove user-level fairness, censorship resistance, or MEV resistance.
 
-Jain's fairness index is computed over in-batch wait times. That can describe wait-time equality among included transactions, but it does not prove user-level fairness or censorship resistance. The MEV/order metrics are also simplified fee-order proxies.
+Fix: add adversarial workloads, starvation metrics, rejected/delayed transaction accounting, and whole-run fairness metrics.
 
-Impact: fairness/MEV conclusions should be descriptive, not normative.
+### 9. Workload Realism Is Limited
 
-Fix: define adversarial workloads, measure starvation, include rejected/delayed transactions, and compute fairness over the whole run.
+The workload is synthetic. The new multi-account sweeps improve nonce/fairness coverage, but sender distribution, balances, transaction semantics, and calldata are still simplified.
 
-### 9. Single Sender and Nonce Structure
+Impact: results are workload-model dependent.
 
-The default workload uses one Hardhat account/private key with sequential nonces. That is reproducible, but it is not representative of multi-user mempool behavior, account contention, or heterogeneous balances.
+Fix: report workload parameters fully and add calibrated real-trace or trace-inspired workloads.
 
-Impact: validation/cache contention and fairness behavior are underexplored.
+### 10. Aggregation Schema Drift
 
-Fix: add multi-account workloads with controlled account distributions.
+Raw JSONL emitters evolve faster than aggregation scripts. Historical field names can silently produce missing aggregate columns.
 
-### 10. Resource Metrics Are Weak
+Impact: CSV-derived plots may be wrong even when raw metrics are correct.
 
-`resource_metrics.json` currently captures a Docker stats snapshot/proxy, not a rigorous peak memory profile over the whole run.
+Fix: add schema fixture tests and prefer raw JSONL for final checks.
 
-Impact: memory claims should be treated as diagnostic, not scientific.
+## Validity Improvements Already Implemented
 
-Fix: sample resource metrics continuously and record time series per component.
+- Workload sender selection now passes explicit `sender_index` to transaction signing, aligning sender metadata, private key, `from`, and nonce.
+- BlobPacking is nonce-safe and only selects contiguous per-sender nonce prefixes from state-cache expected nonce.
+- BlobPacking emits selection diagnostics: selected bytes, eligible bytes, eligible count, nonce gaps, truncated senders, and low-fill reason.
+- Harness supports strict vs smoke validation, making partial runs explicit.
+- Experiment matrix includes rate, transaction mix, and sender/concurrency sweeps in addition to batch, policy, DA, and batch-policy sweeps.
+- Resource sampling produces a time series rather than relying only on a final memory snapshot.
 
 ## Validity Envelope for Current Results
 
-A defensible report statement would be:
+A defensible statement is:
 
-> These results measure a local, single-node RollupX prototype with a transfer-centric STF, RISC0 state-diff proof path, synthetic Poisson workloads, and local Hardhat settlement. Cost metrics are comparative and may combine measured local gas with configured or estimated fee references. Results should be interpreted as implementation-level evidence about relative behavior under controlled conditions, not as production or mainnet performance.
+> These results measure a local, single-node RollupX prototype using a transfer-centric STF, RISC0 state-diff proof path, synthetic seeded workloads, and local Hardhat settlement. Metrics are suitable for comparing configurations within this implementation when run mode, cost provenance, DA provenance, and raw schemas are reported. They should not be interpreted as production rollup, mainnet Ethereum, decentralized sequencing, or full EVM validity results.
 
-## Recommendations Before Publication
+## Recommended Publication Checklist
 
-1. Patch aggregation schema drift and add fixture tests.
-2. Add phase/run identifiers to transactions and component metrics.
-3. Drain or reset after warmup before measured collection.
-4. Add multi-account workload generation.
-5. Add rate and tx-mix sweeps, not only batch-size sweeps.
-6. Separate real, hybrid, estimated, and simulated cost rows in all analysis.
-7. Report confidence intervals and raw sample counts.
-8. Archive `run_metadata.json`, diagnostics, git commit, and raw JSONL with every figure.
-9. Explicitly state the STF and proof statement.
-10. Validate at least one end-to-end run against a public testnet if making external settlement claims.
+Before using results in a report or paper:
+
+1. Run strict mode for any end-to-end claim.
+2. Verify `scheduling_policy`, `da_mode`, git commit, and run environment in `run_metadata.json`.
+3. Require nonzero sequencer/executor/submitter batch ids for full-pipeline results.
+4. Separate smoke runs from strict runs.
+5. Separate measured/hybrid/estimated/simulated cost rows.
+6. Use confidence intervals across repeats.
+7. Validate aggregation schema against current raw JSONL.
+8. Archive raw metrics and diagnostics with every figure.
+9. State the simplified STF and proof statement.
+10. Avoid mainnet/economic/decentralization claims without separate external validation.
 
 ## Bottom Line
 
-RollupX is a valid research harness for studying relative behavior of this prototype under controlled local workloads. It is not yet a valid standalone source for broad scientific claims about production ZK-rollup performance, Ethereum mainnet economics, decentralized sequencing fairness, or full EVM validity. The right use is careful comparative experimentation with clear caveats and raw-metric transparency.
-
+RollupX is scientifically valid as a controlled prototype benchmark for relative, implementation-level comparisons. It is not yet scientifically valid as a standalone source for broad claims about production ZK-rollup performance, Ethereum mainnet economics, decentralized fairness, or full EVM validity.

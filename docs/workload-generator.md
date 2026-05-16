@@ -1,108 +1,73 @@
-# Workload Generator / Benchmark Suite
+# Workload Generator
 
-The RollupX workload generator is a Python-based subsystem designed to produce controlled, reproducible, and heterogeneous transaction streams. It is the primary driver for all system-level benchmarks.
+The workload generator drives system-level benchmarks by producing reproducible synthetic transaction streams and posting them to the sequencer.
 
 ## Architecture
 
-The generator operates as a standalone process that interacts with the Sequencer via JSON-RPC. It is orchestrated by the `benchmark-suite` scripts to ensure consistency across experimental runs.
-
 ```mermaid
 flowchart LR
-    A[experiments.toml / env vars] --> B[run_matrix.sh]
-    B --> C[run_experiment.sh]
-    C --> D[poisson_generator.py]
-
-    D --> E[Arrival Process Engine]
-    D --> F[Tx Mix Selector]
-    D --> G[Tx Factory]
-    D --> H[Warm-up Controller]
-    D --> I[Metrics Writer]
-
-    G --> J[Type A: Light]
-    G --> K[Type B: Medium]
-    G --> L[Type C: Heavy]
-
-    D --> M[HTTP/RPC Client]
-    M --> N[Sequencer API]
-
-    I --> O[workload_exp.json]
+    CFG[experiments.toml / env] --> RUN[run_experiment.sh]
+    RUN --> GEN[poisson_generator.py]
+    GEN --> ARR[Arrival RNG]
+    GEN --> MIX[Tx type selector]
+    GEN --> SEND[Sender selector]
+    GEN --> FACT[TxFactory]
+    FACT --> SIGN[Signature + nonce]
+    GEN --> HTTP[HTTP /tx]
+    HTTP --> SEQ[Sequencer]
+    GEN --> MET[workload JSON + tx CSV]
 ```
 
-### Core Components
+Core files:
 
-- **Arrival Process Engine**: Implements a Poisson arrival process. Inter-arrival times are sampled from an exponential distribution based on the target `rate_tps`.
-- **Tx Mix Selector**: Selects the transaction class (A, B, or C) for each arrival based on configured presets (e.g., `balanced`, `light`, `heavy`).
-- **Tx Factory**: Constructs valid, signed Ethereum-like transactions with class-specific properties (gas limits, calldata size, and resource weights).
-- **Warm-up Controller**: Executes an unmeasured initial phase to bring the system (and its caches/queues) into a steady state.
-- **Metrics Writer**: Logs workload-side telemetry, including actual emission counts and timestamps.
+- `benchmark-suite/workload/poisson_generator.py`
+- `benchmark-suite/workload/tx_types.py`
+- `benchmark-suite/config/experiments.toml`
+- `benchmark-suite/scripts/run_experiment.sh`
 
-## Transaction Types (Heterogeneity)
+## Workload Controls
 
-The system avoids uniform synthetic traffic by defining three distinct transaction classes:
+| Control | Meaning |
+|---|---|
+| `RATE_TPS` | Target Poisson arrival rate. |
+| `DURATION_S` | Measured phase duration. |
+| `WARMUP_S` | Warmup duration. |
+| `WORKLOAD_TARGET_TXS` | Fixed-count burst mode when nonzero. |
+| `WORKLOAD_CONCURRENCY` | Number of concurrent HTTP workers. |
+| `WORKLOAD_ACCOUNT_COUNT` | Number of Hardhat-derived sender accounts. |
+| `TX_MIX` | `balanced`, `light`, or `heavy`. |
+| `SEED` | Reproducible RNG seed. |
 
-| Type | Name | Purpose | Profile |
-|------|------|---------|---------|
-| **A** | Light | Background load | Low gas, low calldata, fast proving. |
-| **B** | Medium | Typical activity | Moderate gas (ERC-20), moderate calldata. |
-| **C** | Heavy | Stressor | High gas (Complex call), large calldata, heavy proving. |
+## Transaction Types
 
-### Mix Presets
+| Type | Profile | Gas limit | Gas price | Extra calldata |
+|---|---|---:|---:|---:|
+| A | light transfer | 21,000 | 1 gwei | 0 bytes |
+| B | medium | 65,000 | 2 gwei | 200 bytes |
+| C | heavy | 200,000 | 3 gwei | 500 bytes |
 
-| Preset | Type A | Type B | Type C | Purpose |
-|--------|--------|--------|--------|---------|
-| `balanced` | 70% | 20% | 10% | Steady-state baseline. |
-| `light` | 95% | 4% | 1% | High-volume simple transfers. |
-| `heavy` | 20% | 30% | 50% | Prover and DA stress testing. |
+Mix presets:
 
-## Reproducibility and RNG Strategy
+| Mix | A | B | C |
+|---|---:|---:|---:|
+| `balanced` | 70% | 20% | 10% |
+| `light` | 95% | 4% | 1% |
+| `heavy` | 20% | 30% | 50% |
 
-To ensure experiments are statistically rigorous and reproducible, the generator uses independent Random Number Generator (RNG) streams for different subsystems:
+## Sender and Nonce Correctness
 
-1. `rng_arrival`: Controls timing between transactions.
-2. `rng_mix`: Controls the sequence of transaction classes.
-3. `rng_factory`: Controls internal payload variation.
+The generator chooses `sender_index`, reads that sender's next nonce, and passes the same `sender_index` into `TxFactory.make`. `TxFactory` signs with the corresponding Hardhat private key and sets `from` to the matching address.
 
-By splitting these streams, changes to one factor (e.g., transaction payload size) do not unintentionally shift the arrival timing of transactions, allowing for clean isolation of variables.
+This avoids the previous validity risk where the logged sender/nonce could diverge from the actual signing account.
 
-## Lifecycle
+## Outputs
 
-```mermaid
-sequenceDiagram
-    participant RM as run_matrix.sh
-    participant WG as poisson_generator.py
-    participant SQ as Sequencer
-    participant MW as Metrics Writer
+| File | Meaning |
+|---|---|
+| `workload_<experiment_id>.json` | Run-level workload summary. |
+| `tx_log_<run_id>.csv` | Per-transaction status/error/latency and sender/nonce fields. |
+| `run_status.json` | Pass/fail based on workload submission success. |
 
-    RM->>WG: Start (rate, duration, mix, seed)
-    WG->>WG: Initialize RNG streams
-    
-    Note over WG,SQ: Warm-up Phase
-    loop Warm-up
-        WG->>SQ: submitTransaction
-    end
+## Validity Notes
 
-    Note over WG,SQ: Measurement Phase
-    loop Duration
-        WG->>WG: Sample inter-arrival & class
-        WG->>SQ: submitTransaction
-        WG->>MW: Log event
-    end
-    
-    WG->>MW: Write workload_<exp_id>.json
-```
-
-## Usage and CLI
-
-The generator is typically invoked via `run_matrix.sh`, but can be run manually for debugging:
-
-```bash
-python3 benchmark-suite/workload/poisson_generator.py \
-    --experiment_id my_test \
-    --rate 10 \
-    --duration 60 \
-    --warmup 10 \
-    --seed 42 \
-    --tx_mix balanced \
-    --host localhost \
-    --port 3000
-```
+The workload is synthetic. It is good for controlled repeatable comparisons, but it is not a substitute for real L2 transaction traces. For fairness and nonce studies, use the multi-account experiments and inspect `sender_index`, `sender_nonce`, and rejection errors in the CSV.
