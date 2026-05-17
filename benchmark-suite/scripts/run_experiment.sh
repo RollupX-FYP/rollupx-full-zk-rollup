@@ -400,12 +400,22 @@ wait_for_component_metrics_flush() {
         fi
     fi
     COMPONENT_STABLE_POLLS=${COMPONENT_STABLE_POLLS:-$((TIMEOUT_MS / 3000 + 5))}
-    for poll in $(seq 1 "$SUBMITTER_WAIT_MAX"); do
+    local unlimited_wait=0
+    if [[ "$SUBMITTER_WAIT_MAX" == "0" || "$SUBMITTER_WAIT_MAX" == "unlimited" ]]; then
+        unlimited_wait=1
+    fi
+    local poll=0
+    while [[ "$unlimited_wait" == "1" || "$poll" -lt "$SUBMITTER_WAIT_MAX" ]]; do
+        poll=$((poll + 1))
         sleep 3
         local curr_size
         curr_size=$(component_metrics_size)
         read -r SEQ_ROWS EXE_ROWS SUB_ROWS < <(component_metric_counts)
-        echo "[wait] poll=${poll}/${SUBMITTER_WAIT_MAX} rows: sequencer=${SEQ_ROWS} executor=${EXE_ROWS} submitter=${SUB_ROWS} bytes=${curr_size}"
+        local wait_limit_label="$SUBMITTER_WAIT_MAX"
+        if [[ "$unlimited_wait" == "1" ]]; then
+            wait_limit_label="unlimited"
+        fi
+        echo "[wait] poll=${poll}/${wait_limit_label} rows: sequencer=${SEQ_ROWS} executor=${EXE_ROWS} submitter=${SUB_ROWS} bytes=${curr_size}"
 
         if [[ "$curr_size" -eq "$prev_size" ]]; then
             stable_count=$((stable_count + 1))
