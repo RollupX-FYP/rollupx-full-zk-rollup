@@ -41,6 +41,14 @@ pub struct UserTransaction {
     /// Optional premium bid for Time-Boost policy (faster confirmation)
     #[serde(default)]
     pub boost_bid: Option<U256>,
+    /// Optional benchmark/application calldata payload encoded as a hex string.
+    ///
+    /// This is intentionally not part of the signature hash in the current
+    /// prototype because the benchmark signing helper signs the legacy fields.
+    /// It is preserved so DA-size and blob-packing diagnostics reflect the
+    /// workload's Type A/B/C payload sizes instead of silently dropping them.
+    #[serde(default)]
+    pub calldata: Option<String>,
 }
 
 fn deserialize_signature<'de, D>(deserializer: D) -> Result<Signature, D::Error>
@@ -184,6 +192,14 @@ impl PooledTransaction {
         fn u256_digits(value: &U256) -> usize {
             value.to_string().len()
         }
+        fn hex_payload_bytes(value: &str) -> usize {
+            let hex = value.strip_prefix("0x").unwrap_or(value);
+            if hex.len() % 2 == 0 && hex.bytes().all(|b| b.is_ascii_hexdigit()) {
+                hex.len() / 2
+            } else {
+                value.len()
+            }
+        }
 
         let mut size = 20 + 20 + 32 + 8 + 32 + 8 + 65;
         size += u256_digits(&self.tx.value);
@@ -192,6 +208,12 @@ impl PooledTransaction {
         size += self.tx.gas_limit.to_string().len();
         size += self.tx.timestamp.to_string().len();
         size += self.tx.boost_bid.as_ref().map(u256_digits).unwrap_or(4);
+        size += self
+            .tx
+            .calldata
+            .as_deref()
+            .map(hex_payload_bytes)
+            .unwrap_or(0);
         size
     }
 }
@@ -434,6 +456,7 @@ mod tests {
             },
             timestamp: 1000,
             boost_bid: None,
+            calldata: None,
         };
 
         let arrived_at = 1000;
@@ -443,6 +466,36 @@ mod tests {
         assert_eq!(ptx.arrived_at, 1000);
         assert_eq!(ptx.pool_entry_at, 1050);
         assert_eq!(ptx.validation_latency_ms, 50);
+    }
+
+    #[test]
+    fn test_estimated_encoded_bytes_includes_calldata_payload() {
+        let base_tx = UserTransaction {
+            from: Address::random(),
+            to: Address::random(),
+            value: U256::from(100),
+            nonce: 1,
+            gas_limit: 21000,
+            gas_price: U256::from(10),
+            signature: Signature {
+                r: U256::zero(),
+                s: U256::zero(),
+                v: 0,
+            },
+            timestamp: 1000,
+            boost_bid: None,
+            calldata: None,
+        };
+        let mut payload_tx = base_tx.clone();
+        payload_tx.calldata = Some(format!("0x{}", "00".repeat(128)));
+
+        let base = PooledTransaction::new(base_tx, 1000, 1001);
+        let with_payload = PooledTransaction::new(payload_tx, 1000, 1001);
+
+        assert_eq!(
+            with_payload.estimated_encoded_bytes() - base.estimated_encoded_bytes(),
+            128
+        );
     }
 
     #[test]
@@ -461,6 +514,7 @@ mod tests {
             },
             timestamp: 1234,
             boost_bid: None,
+            calldata: None,
         };
         let ptx = PooledTransaction::new(tx, 1234, 1235);
         let normal = Transaction::Normal(ptx);

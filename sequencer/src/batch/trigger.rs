@@ -225,6 +225,7 @@ mod tests {
                 },
                 timestamp: 1_000,
                 boost_bid: None,
+                calldata: None,
             },
             arrived_at: 1_000,
             pool_entry_at: 1_001,

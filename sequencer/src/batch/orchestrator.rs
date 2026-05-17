@@ -530,8 +530,11 @@ impl BatchOrchestrator {
         let raw_tx_bytes = serde_json::to_vec(&ordered_txs)
             .map(|v| v.len())
             .unwrap_or(0);
-        let estimated_da_bytes_pre_enrichment = raw_tx_bytes + 128;
-        let estimated_batch_bytes = raw_tx_bytes;
+        let estimated_batch_bytes = ordered_txs
+            .iter()
+            .map(|tx| tx.estimated_encoded_bytes())
+            .sum::<usize>();
+        let estimated_da_bytes_pre_enrichment = estimated_batch_bytes + 128;
         let blob_utilization = if self.config.blob_target_bytes == 0 {
             0.0
         } else {
@@ -800,6 +803,7 @@ mod tests {
             },
             timestamp: 1234,
             boost_bid: None,
+            calldata: None,
         };
         let batch = Batch {
             batch_id: 1,

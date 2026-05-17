@@ -519,6 +519,7 @@ mod tests {
             },
             timestamp,
             boost_bid,
+            calldata: None,
         };
         PooledTransaction {
             tx,
@@ -548,6 +549,7 @@ mod tests {
             },
             timestamp: arrived_at,
             boost_bid: None,
+            calldata: None,
         };
         PooledTransaction {
             tx,
@@ -576,6 +578,7 @@ mod tests {
             },
             timestamp: 1000,
             boost_bid: None,
+            calldata: None,
         };
         let ptx = PooledTransaction {
             tx,

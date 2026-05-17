@@ -37,6 +37,7 @@ mod tests {
             },
             timestamp,
             boost_bid: boost_bid.map(U256::from),
+            calldata: None,
         };
         crate::PooledTransaction::new(tx, timestamp, timestamp + 10)
     }

@@ -361,6 +361,7 @@ mod tests {
             },
             timestamp,
             boost_bid: None,
+            calldata: None,
         };
         PooledTransaction {
             tx,
