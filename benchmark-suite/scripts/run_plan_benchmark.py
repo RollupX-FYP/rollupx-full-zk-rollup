@@ -75,8 +75,8 @@ BASE_ENV = {
     "PROVER": "groth16",
     "PROVER_BACKEND": "risc0",
     # Keep exploratory stages focused on batching/policy/DA behavior.
-    "REQUIRE_REAL_PROOFS": "false",
-    "ALLOW_PROOF_FALLBACK": "1",
+    "REQUIRE_REAL_PROOFS": "true",
+    "ALLOW_PROOF_FALLBACK": "0",
     "ALLOW_UNSIGNED_USER_TXS": "0",
     "ETH_PRICE_USD": "3000",
     "REGULAR_GAS_PRICE_GWEI": "10",
