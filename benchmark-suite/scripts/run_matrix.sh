@@ -26,6 +26,11 @@ Options:
   --warmup <seconds>      Override warmup duration
   --docker / --no-docker  Force Docker stack on/off for run_experiment.sh
   --no-build              Do not pass --build to docker compose up
+
+Proof-mode safety:
+  Short screening matrices default to PROVER_OVERRIDE=mock and
+  REQUIRE_REAL_PROOFS=false. If you intentionally want real proofs with a
+  fast-mode prover override, set FORCE_REAL_PROOFS=1.
   --help                  Show this help
 
 Examples:
@@ -134,6 +139,7 @@ repeats = r_override if r_override is not None else baseline["repeats"]
 def resolve_proof_mode(duration_s: int, repeats: int):
     prover_override = os.environ.get("PROVER_OVERRIDE")
     require_real_override = os.environ.get("REQUIRE_REAL_PROOFS")
+    force_real = os.environ.get("FORCE_REAL_PROOFS", "").lower() in ("1", "true", "yes")
 
     # For short screening runs, default to fast local proof mode unless
     # explicitly overridden by the caller.
@@ -143,11 +149,13 @@ def resolve_proof_mode(duration_s: int, repeats: int):
         else:
             prover_override = None
 
-    if require_real_override in (None, ""):
-        if prover_override in ("mock", "dev"):
-            require_real_override = "false"
-        else:
-            require_real_override = "true"
+    # Fast proof modes are intentionally non-real. A stale exported
+    # REQUIRE_REAL_PROOFS=true from a previous strict run can otherwise make a
+    # screening matrix wait for real proofs and fail component-metric catchup.
+    if prover_override in ("mock", "dev") and not force_real:
+        require_real_override = "false"
+    elif require_real_override in (None, ""):
+        require_real_override = "true"
 
     return prover_override, require_real_override
 
