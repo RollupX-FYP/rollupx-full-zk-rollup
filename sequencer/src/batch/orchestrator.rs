@@ -1,17 +1,17 @@
 use crate::{
-    batch::{trigger::TriggerReason, BatchEngine, BatchTrigger},
+    Batch, BatchMetadata, Transaction,
+    batch::{BatchEngine, BatchTrigger, trigger::TriggerReason},
     config::BatchConfig,
     pool::{ForcedQueue, TransactionPool},
     proto::rollup::{
-        rollup_service_client::RollupServiceClient, BatchPayload, PublishBatchResponse,
+        BatchPayload, PublishBatchResponse, rollup_service_client::RollupServiceClient,
     },
     registry::Registry,
-    scheduler::{create_policy, Scheduler, SchedulingPolicyType},
-    Batch, BatchMetadata, Transaction,
+    scheduler::{Scheduler, SchedulingPolicyType, create_policy},
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tokio::time::{sleep, timeout, Duration, Instant};
+use tokio::time::{Duration, Instant, sleep, timeout};
 use tracing::{debug, error, info, warn};
 
 #[derive(Debug, serde::Serialize)]
@@ -21,18 +21,18 @@ struct SequencerBatchMetricsRow {
     sealed_at_ms: u64,
     batch_created_time_ms: u64,
     seal_reason: String,
-    
+
     // Scheduler Metadata
     batch_policy: String,
     scheduling_policy: String,
     scheduler_config: serde_json::Value,
-    
+
     // Batch Composition
     tx_count: usize,
     forced_tx_count: usize,
     normal_tx_count: usize,
     mempool_depth_at_batch: usize,
-    
+
     // Resource Utilization
     total_gas_limit: u64,
     gas_limit_max: u64,
@@ -41,7 +41,7 @@ struct SequencerBatchMetricsRow {
     blob_utilization: f64,
     total_gas_price_wei: String,
     fee_proxy_wei: String,
-    
+
     // DA Estimates (Pre-Enrichment)
     estimated_da_bytes_pre_enrichment: usize,
     raw_tx_bytes: usize,
@@ -51,6 +51,8 @@ struct SequencerBatchMetricsRow {
     blob_ineligible_nonce_gap_count: usize,
     blob_nonce_chain_truncated_senders: usize,
     blob_low_fill_reason: Option<String>,
+    blob_age_guard_triggered_count: usize,
+    blob_best_fit_selected_count: usize,
 
     // Wait Time Distribution
     wait_time_p50_ms: u64,
@@ -104,6 +106,8 @@ struct ProducedBatch {
     blob_ineligible_nonce_gap_count: usize,
     blob_nonce_chain_truncated_senders: usize,
     blob_low_fill_reason: Option<String>,
+    blob_age_guard_triggered_count: usize,
+    blob_best_fit_selected_count: usize,
 }
 
 pub struct BatchOrchestrator {
@@ -129,7 +133,8 @@ impl BatchOrchestrator {
         executor_grpc_url: String,
     ) -> Self {
         let policy = create_policy(scheduling_policy);
-        let trigger = BatchTrigger::new(batch_config.clone(), tx_pool.clone(), forced_queue.clone());
+        let trigger =
+            BatchTrigger::new(batch_config.clone(), tx_pool.clone(), forced_queue.clone());
         Self {
             forced_queue,
             tx_pool,
@@ -145,7 +150,7 @@ impl BatchOrchestrator {
 
     pub async fn start(&self) -> anyhow::Result<()> {
         info!("Batch orchestrator started");
-        
+
         let last_batch_id = match self.registry.get_next_batch_id().await {
             Ok(id) => {
                 let last = id.saturating_sub(1);
@@ -157,11 +162,14 @@ impl BatchOrchestrator {
                 id
             }
             Err(err) => {
-                warn!("Failed to recover next batch id from registry (defaulting to 1): {:?}", err);
+                warn!(
+                    "Failed to recover next batch id from registry (defaulting to 1): {:?}",
+                    err
+                );
                 1
             }
         };
-        
+
         {
             let mut engine = self.batch_engine.write().await;
             engine.set_next_batch_id(last_batch_id);
@@ -177,31 +185,50 @@ impl BatchOrchestrator {
                 Some(reason) => reason,
                 None => continue,
             };
-            
-            debug!("Batch trigger fired: {} ({}ms since last batch)", trigger_reason, last_batch_time.elapsed().as_millis());
-            
+
+            debug!(
+                "Batch trigger fired: {} ({}ms since last batch)",
+                trigger_reason,
+                last_batch_time.elapsed().as_millis()
+            );
+
             match self.produce_batch(trigger_reason.clone()).await {
                 Ok(Some(produced)) => {
                     let batch = produced.batch;
                     let tx_count = batch.transactions.len();
-                    let forced_count = batch.transactions.iter().filter(|tx| matches!(tx, Transaction::Forced(_))).count();
-                    
-                    info!("Batch #{} sealed: {} txs ({} forced, {} normal) | trigger: {} | policy: {}", 
-                        batch.batch_id, tx_count, forced_count, tx_count.saturating_sub(forced_count), trigger_reason, self.scheduler.policy_name());
+                    let forced_count = batch
+                        .transactions
+                        .iter()
+                        .filter(|tx| matches!(tx, Transaction::Forced(_)))
+                        .count();
 
-                    if let Err(e) = self.registry.store(&BatchMetadata {
-                        batch_id: batch.batch_id,
+                    info!(
+                        "Batch #{} sealed: {} txs ({} forced, {} normal) | trigger: {} | policy: {}",
+                        batch.batch_id,
                         tx_count,
-                        forced_tx_count: forced_count,
-                        scheduling_policy: self.scheduler.policy_name().to_string(),
-                        timestamp: batch.timestamp,
-                    }).await {
+                        forced_count,
+                        tx_count.saturating_sub(forced_count),
+                        trigger_reason,
+                        self.scheduler.policy_name()
+                    );
+
+                    if let Err(e) = self
+                        .registry
+                        .store(&BatchMetadata {
+                            batch_id: batch.batch_id,
+                            tx_count,
+                            forced_tx_count: forced_count,
+                            scheduling_policy: self.scheduler.policy_name().to_string(),
+                            timestamp: batch.timestamp,
+                        })
+                        .await
+                    {
                         error!("Failed to store batch metadata: {:?}", e);
                     }
 
                     let pool_depth_at_seal = self.tx_pool.pending_count().await;
                     let forced_queue_depth = self.forced_queue.get_all().await.len();
-                    
+
                     let now_ms = Self::now_unix_ms();
                     let current_total_received = self.tx_pool.total_received();
                     let arrivals = current_total_received.saturating_sub(last_total_received);
@@ -239,14 +266,18 @@ impl BatchOrchestrator {
                         blob_utilization: produced.blob_utilization,
                         total_gas_price_wei: produced.total_gas_price_wei.to_string(),
                         fee_proxy_wei: produced.fee_proxy_wei.to_string(),
-                        estimated_da_bytes_pre_enrichment: produced.estimated_da_bytes_pre_enrichment,
+                        estimated_da_bytes_pre_enrichment: produced
+                            .estimated_da_bytes_pre_enrichment,
                         raw_tx_bytes: produced.raw_tx_bytes,
                         blob_selected_bytes: produced.blob_selected_bytes,
                         blob_eligible_bytes: produced.blob_eligible_bytes,
                         blob_eligible_tx_count: produced.blob_eligible_tx_count,
                         blob_ineligible_nonce_gap_count: produced.blob_ineligible_nonce_gap_count,
-                        blob_nonce_chain_truncated_senders: produced.blob_nonce_chain_truncated_senders,
+                        blob_nonce_chain_truncated_senders: produced
+                            .blob_nonce_chain_truncated_senders,
                         blob_low_fill_reason: produced.blob_low_fill_reason.clone(),
+                        blob_age_guard_triggered_count: produced.blob_age_guard_triggered_count,
+                        blob_best_fit_selected_count: produced.blob_best_fit_selected_count,
                         wait_time_p50_ms: produced.wait_times.p50_wait_ms,
                         wait_time_p95_ms: produced.wait_times.p95_wait_ms,
                         wait_time_p99_ms: produced.wait_times.p99_wait_ms,
@@ -276,7 +307,9 @@ impl BatchOrchestrator {
                     last_batch_time = Instant::now();
 
                     match self.publish_batch_to_executor(&batch).await {
-                        Ok(response) if response.accepted => info!("Published batch #{} to executor", batch.batch_id),
+                        Ok(response) if response.accepted => {
+                            info!("Published batch #{} to executor", batch.batch_id)
+                        }
                         Ok(_) => warn!("Batch #{} rejected by executor", batch.batch_id),
                         Err(e) => error!("Failed to publish batch #{}: {:?}", batch.batch_id, e),
                     }
@@ -291,7 +324,10 @@ impl BatchOrchestrator {
         }
     }
 
-    async fn produce_batch(&self, _trigger_reason: TriggerReason) -> anyhow::Result<Option<ProducedBatch>> {
+    async fn produce_batch(
+        &self,
+        _trigger_reason: TriggerReason,
+    ) -> anyhow::Result<Option<ProducedBatch>> {
         let forced_txs = self.forced_queue.get_all().await;
         let engine = self.batch_engine.read().await;
         let mut accepted_forced_txs = Vec::new();
@@ -313,10 +349,12 @@ impl BatchOrchestrator {
         let target_batch_size = self.trigger.target_batch_size_for_depth(normal_pool_depth);
         let max_normal_txs = target_batch_size.saturating_sub(accepted_forced_txs.len());
         let mempool_depth_at_batch = normal_pool_depth.saturating_add(accepted_forced_txs.len());
-        let remaining_blob_bytes = self
-            .config
-            .blob_target_bytes
-            .saturating_sub(accepted_forced_txs.iter().map(|tx| tx.estimated_encoded_bytes()).sum::<usize>());
+        let remaining_blob_bytes = self.config.blob_target_bytes.saturating_sub(
+            accepted_forced_txs
+                .iter()
+                .map(|tx| tx.estimated_encoded_bytes())
+                .sum::<usize>(),
+        );
 
         let mut blob_selected_bytes = 0usize;
         let mut blob_eligible_bytes = 0usize;
@@ -324,22 +362,46 @@ impl BatchOrchestrator {
         let mut blob_ineligible_nonce_gap_count = 0usize;
         let mut blob_nonce_chain_truncated_senders = 0usize;
         let mut blob_low_fill_reason: Option<String> = None;
+        let mut blob_age_guard_triggered_count = 0usize;
+        let mut blob_best_fit_selected_count = 0usize;
 
-        let normal_txs = if self.scheduler.policy_name() == "BlobPacking" {
+        let normal_txs = if self.scheduler.policy_name() == "BlobPacking"
+            || self.scheduler.policy_name() == "BlobPackingBestFit"
+        {
             let senders = self.tx_pool.pending_senders().await;
             let mut expected_nonces = std::collections::HashMap::new();
             for sender in senders {
-                expected_nonces.insert(sender, self.state_cache.get_nonce(&sender).await.unwrap_or(0));
+                expected_nonces.insert(
+                    sender,
+                    self.state_cache.get_nonce(&sender).await.unwrap_or(0),
+                );
             }
-            let selection = self.tx_pool
-                .take_blob_packed_nonce_safe(max_normal_txs, remaining_blob_bytes, expected_nonces)
-                .await;
+            let selection = if self.scheduler.policy_name() == "BlobPackingBestFit" {
+                self.tx_pool
+                    .take_blob_packed_best_fit_age_guard(
+                        max_normal_txs,
+                        remaining_blob_bytes,
+                        expected_nonces,
+                        15_000,
+                    )
+                    .await
+            } else {
+                self.tx_pool
+                    .take_blob_packed_nonce_safe(
+                        max_normal_txs,
+                        remaining_blob_bytes,
+                        expected_nonces,
+                    )
+                    .await
+            };
             blob_selected_bytes = selection.selected_bytes;
             blob_eligible_bytes = selection.eligible_bytes;
             blob_eligible_tx_count = selection.eligible_tx_count;
             blob_ineligible_nonce_gap_count = selection.ineligible_nonce_gap_count;
             blob_nonce_chain_truncated_senders = selection.nonce_chain_truncated_senders;
             blob_low_fill_reason = selection.low_fill_reason;
+            blob_age_guard_triggered_count = selection.age_guard_triggered_count;
+            blob_best_fit_selected_count = selection.best_fit_selected_count;
             selection.selected
         } else {
             self.tx_pool.get_pending(max_normal_txs).await
@@ -363,21 +425,29 @@ impl BatchOrchestrator {
             self.tx_pool.add(tx).await;
         }
         drop(engine);
-        
+
         if accepted_forced_txs.is_empty() && accepted_normal_txs.is_empty() {
             return Ok(None);
         }
 
-        let forced_inner: Vec<_> = accepted_forced_txs.into_iter().filter_map(|tx| match tx {
-            Transaction::Forced(inner) => Some(inner),
-            _ => None,
-        }).collect();
-        let normal_inner: Vec<_> = accepted_normal_txs.into_iter().filter_map(|tx| match tx {
-            Transaction::Normal(inner) => Some(inner),
-            _ => None,
-        }).collect();
+        let forced_inner: Vec<_> = accepted_forced_txs
+            .into_iter()
+            .filter_map(|tx| match tx {
+                Transaction::Forced(inner) => Some(inner),
+                _ => None,
+            })
+            .collect();
+        let normal_inner: Vec<_> = accepted_normal_txs
+            .into_iter()
+            .filter_map(|tx| match tx {
+                Transaction::Normal(inner) => Some(inner),
+                _ => None,
+            })
+            .collect();
 
-        let ordered_txs = if self.scheduler.policy_name() == "BlobPacking" {
+        let ordered_txs = if self.scheduler.policy_name() == "BlobPacking"
+            || self.scheduler.policy_name() == "BlobPackingBestFit"
+        {
             let mut txs = Vec::new();
             txs.extend(forced_inner.into_iter().map(Transaction::Forced));
             txs.extend(normal_inner.into_iter().map(Transaction::Normal));
@@ -386,7 +456,7 @@ impl BatchOrchestrator {
             self.scheduler.schedule(forced_inner, normal_inner)
         };
         let total_gas_limit: u64 = ordered_txs.iter().map(|tx| tx.gas_limit()).sum();
-        
+
         let mut total_gas_price_wei: u128 = 0;
         let mut fee_proxy_wei: u128 = 0;
         let mut wait_times = Vec::new();
@@ -395,8 +465,14 @@ impl BatchOrchestrator {
         for tx in &ordered_txs {
             match tx {
                 Transaction::Normal(ptx) => {
-                    total_gas_price_wei = total_gas_price_wei.saturating_add(ptx.tx.gas_price.as_u128());
-                    fee_proxy_wei = fee_proxy_wei.saturating_add(ptx.tx.gas_price.as_u128().saturating_mul(ptx.tx.gas_limit as u128));
+                    total_gas_price_wei =
+                        total_gas_price_wei.saturating_add(ptx.tx.gas_price.as_u128());
+                    fee_proxy_wei = fee_proxy_wei.saturating_add(
+                        ptx.tx
+                            .gas_price
+                            .as_u128()
+                            .saturating_mul(ptx.tx.gas_limit as u128),
+                    );
                     wait_times.push(now_ms.saturating_sub(ptx.arrived_at));
                 }
                 Transaction::Forced(inner) => {
@@ -437,7 +513,11 @@ impl BatchOrchestrator {
             }
         }
 
-        let ordering_efficiency = if optimal_fee.is_zero() { 1.0 } else { actual_fee.as_u128() as f64 / optimal_fee.as_u128() as f64 };
+        let ordering_efficiency = if optimal_fee.is_zero() {
+            1.0
+        } else {
+            actual_fee.as_u128() as f64 / optimal_fee.as_u128() as f64
+        };
 
         let mev = crate::MevMetrics {
             actual_batch_fee_wei: actual_fee,
@@ -447,7 +527,9 @@ impl BatchOrchestrator {
             max_reorder_distance,
         };
 
-        let raw_tx_bytes = serde_json::to_vec(&ordered_txs).map(|v| v.len()).unwrap_or(0);
+        let raw_tx_bytes = serde_json::to_vec(&ordered_txs)
+            .map(|v| v.len())
+            .unwrap_or(0);
         let estimated_da_bytes_pre_enrichment = raw_tx_bytes + 128;
         let estimated_batch_bytes = raw_tx_bytes;
         let blob_utilization = if self.config.blob_target_bytes == 0 {
@@ -485,6 +567,8 @@ impl BatchOrchestrator {
             blob_ineligible_nonce_gap_count,
             blob_nonce_chain_truncated_senders,
             blob_low_fill_reason,
+            blob_age_guard_triggered_count,
+            blob_best_fit_selected_count,
         }))
     }
 
@@ -492,7 +576,10 @@ impl BatchOrchestrator {
         self.state_cache.collect_metrics()
     }
 
-    async fn publish_batch_to_executor(&self, batch: &Batch) -> anyhow::Result<PublishBatchResponse> {
+    async fn publish_batch_to_executor(
+        &self,
+        batch: &Batch,
+    ) -> anyhow::Result<PublishBatchResponse> {
         let attempts = std::env::var("SEQUENCER_EXECUTOR_PUBLISH_RETRIES")
             .ok()
             .and_then(|v| v.parse::<u32>().ok())
@@ -538,7 +625,10 @@ impl BatchOrchestrator {
         ))
     }
 
-    async fn publish_batch_to_executor_once(&self, batch: &Batch) -> anyhow::Result<PublishBatchResponse> {
+    async fn publish_batch_to_executor_once(
+        &self,
+        batch: &Batch,
+    ) -> anyhow::Result<PublishBatchResponse> {
         let mut client = RollupServiceClient::connect(self.executor_grpc_url.clone()).await?;
         let payload = BatchPayload {
             batch_id: batch.batch_id.to_string(),
@@ -579,13 +669,23 @@ impl BatchOrchestrator {
     }
 
     fn now_unix_ms() -> u64 {
-        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis() as u64
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64
     }
 
     fn calculate_distribution_metrics(wait_times: &[u64]) -> crate::WaitTimeDistribution {
         if wait_times.is_empty() {
             return crate::WaitTimeDistribution {
-                p50_wait_ms: 0, p95_wait_ms: 0, p99_wait_ms: 0, max_wait_ms: 0, min_wait_ms: 0, mean_wait_ms: 0.0, std_dev_wait_ms: 0.0, jains_fairness_index: 1.0,
+                p50_wait_ms: 0,
+                p95_wait_ms: 0,
+                p99_wait_ms: 0,
+                max_wait_ms: 0,
+                min_wait_ms: 0,
+                mean_wait_ms: 0.0,
+                std_dev_wait_ms: 0.0,
+                jains_fairness_index: 1.0,
             };
         }
         let mut sorted = wait_times.to_vec();
@@ -598,23 +698,48 @@ impl BatchOrchestrator {
         let min = *sorted.first().unwrap_or(&0);
         let sum: u64 = sorted.iter().sum();
         let mean = sum as f64 / n as f64;
-        let variance = sorted.iter().map(|&x| { let diff = x as f64 - mean; diff * diff }).sum::<f64>() / n as f64;
+        let variance = sorted
+            .iter()
+            .map(|&x| {
+                let diff = x as f64 - mean;
+                diff * diff
+            })
+            .sum::<f64>()
+            / n as f64;
         let std_dev = variance.sqrt();
         let sum_sq = sorted.iter().map(|&x| (x as f64).powi(2)).sum::<f64>();
-        let jains = if sum_sq == 0.0 { 1.0 } else { (sum as f64).powi(2) / (n as f64 * sum_sq) };
+        let jains = if sum_sq == 0.0 {
+            1.0
+        } else {
+            (sum as f64).powi(2) / (n as f64 * sum_sq)
+        };
         crate::WaitTimeDistribution {
-            p50_wait_ms: p50, p95_wait_ms: p95, p99_wait_ms: p99, max_wait_ms: max, min_wait_ms: min, mean_wait_ms: mean, std_dev_wait_ms: std_dev, jains_fairness_index: jains,
+            p50_wait_ms: p50,
+            p95_wait_ms: p95,
+            p99_wait_ms: p99,
+            max_wait_ms: max,
+            min_wait_ms: min,
+            mean_wait_ms: mean,
+            std_dev_wait_ms: std_dev,
+            jains_fairness_index: jains,
         }
     }
 
     fn append_batch_metrics_row(&self, row: &SequencerBatchMetricsRow) {
         let metrics_root = std::env::var("METRICS_ROOT").unwrap_or_else(|_| "metrics".to_string());
         let path = std::path::Path::new(&metrics_root).join("sequencer_batch_metrics.jsonl");
-        if let Some(parent) = path.parent() { std::fs::create_dir_all(parent).ok(); }
-        let file = std::fs::OpenOptions::new().create(true).append(true).open(path);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).ok();
+        }
+        let file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path);
         if let Ok(mut file) = file {
             use std::io::Write;
-            if let Ok(json) = serde_json::to_string(row) { writeln!(file, "{}", json).ok(); }
+            if let Ok(json) = serde_json::to_string(row) {
+                writeln!(file, "{}", json).ok();
+            }
         }
     }
 }
@@ -623,7 +748,7 @@ impl BatchOrchestrator {
 mod tests {
     use super::*;
     use crate::{ForcedEventType, ForcedTransaction, PooledTransaction, UserTransaction};
-    use ethers::types::{Address, Signature, H256, U256};
+    use ethers::types::{Address, H256, Signature, U256};
 
     #[test]
     fn test_calculate_distribution_metrics_empty() {
@@ -668,7 +793,11 @@ mod tests {
             nonce: 1,
             gas_price: U256::from(10),
             gas_limit: 21_000,
-            signature: Signature { r: U256::zero(), s: U256::zero(), v: 27 },
+            signature: Signature {
+                r: U256::zero(),
+                s: U256::zero(),
+                v: 27,
+            },
             timestamp: 1234,
             boost_bid: None,
         };

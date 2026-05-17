@@ -1,5 +1,5 @@
 //! Type Definitions Module
-//! 
+//!
 //! This module contains all the core data structures used throughout the sequencer:
 //! - Transaction types (normal user transactions and forced L1 transactions)
 //! - Account state representation
@@ -7,16 +7,16 @@
 //! - Validation error types
 //! - Soft confirmation responses
 
-use ethers::types::{Address, U256, Signature, H256};
+use ethers::types::{Address, H256, Signature, U256};
 use ethers::utils::keccak256;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::str::FromStr;
 
 /// User transaction submitted to L2
-/// 
+///
 /// Represents a standard transaction submitted by users through the RPC API.
 /// These transactions go through validation before being added to the pool.
-/// 
+///
 /// # Fields
 /// - `from`: Sender's address
 /// - `to`: Recipient's address
@@ -53,68 +53,68 @@ where
 
 impl UserTransaction {
     /// Compute the hash of the transaction for signature verification
-    /// 
+    ///
     /// This hash is used to:
     /// 1. Verify the ECDSA signature
     /// 2. Uniquely identify the transaction
-    /// 
+    ///
     /// The hash is computed by concatenating all transaction fields and
     /// applying Keccak256 (the same hash function used in Ethereum).
-    /// 
+    ///
     /// # Note
     /// In production, this should follow EIP-712 or similar standard for
     /// structured data hashing to improve security and user experience.
-    /// 
+    ///
     /// # Returns
     /// A 32-byte hash (H256) uniquely identifying this transaction
     pub fn hash(&self) -> H256 {
         // Encode all transaction fields into a byte array
         let mut data = Vec::new();
-        
+
         // Add sender address (20 bytes)
         data.extend_from_slice(self.from.as_bytes());
-        
+
         // Add recipient address (20 bytes)
         data.extend_from_slice(self.to.as_bytes());
-        
+
         // Convert value to big-endian bytes (32 bytes)
         let mut value_bytes = [0u8; 32];
         self.value.to_big_endian(&mut value_bytes);
         data.extend_from_slice(&value_bytes);
-        
+
         // Add nonce as big-endian bytes (8 bytes)
         data.extend_from_slice(&self.nonce.to_be_bytes());
-        
+
         // Convert gas_price to big-endian bytes (32 bytes)
         let mut gas_price_bytes = [0u8; 32];
         self.gas_price.to_big_endian(&mut gas_price_bytes);
         data.extend_from_slice(&gas_price_bytes);
-        
+
         // Add timestamp as big-endian bytes (8 bytes)
         data.extend_from_slice(&self.timestamp.to_be_bytes());
-        
+
         // Add boost_bid if present (32 bytes, or zeros if None)
         let mut boost_bid_bytes = [0u8; 32];
         if let Some(boost_bid) = self.boost_bid {
             boost_bid.to_big_endian(&mut boost_bid_bytes);
         }
         data.extend_from_slice(&boost_bid_bytes);
-        
+
         // Apply Keccak256 hash and return as H256
         H256::from_slice(&keccak256(data))
     }
 }
 
 /// Forced transaction from L1
-/// 
+///
 /// Represents a transaction that was submitted on Layer 1 (Ethereum mainnet)
 /// and must be included in the sequencer. These transactions bypass the normal
 /// validation and scheduling process.
-/// 
+///
 /// # Use Cases
 /// - **Deposits**: Users deposit funds from L1 to L2
 /// - **Forced Exits**: Users withdraw funds if the sequencer is censoring them
-/// 
+///
 /// # Fields
 /// - `tx_hash`: Hash of this forced transaction
 /// - `from`: Sender's address
@@ -141,7 +141,7 @@ pub struct ForcedTransaction {
 }
 
 /// Type of forced transaction event from L1
-/// 
+///
 /// Distinguishes between different types of L1-originated transactions:
 /// - `Deposit`: User is depositing funds from L1 to L2
 /// - `ForcedExit`: User is forcing a withdrawal (censorship resistance)
@@ -154,7 +154,7 @@ pub enum ForcedEventType {
 }
 
 /// Normal transaction with pooling metadata
-/// 
+///
 /// Wraps a UserTransaction with additional timestamps and latency info
 /// recorded during the ingestion process. This is used for precise
 /// performance and fairness measurements.
@@ -191,22 +191,17 @@ impl PooledTransaction {
         size += self.tx.nonce.to_string().len();
         size += self.tx.gas_limit.to_string().len();
         size += self.tx.timestamp.to_string().len();
-        size += self
-            .tx
-            .boost_bid
-            .as_ref()
-            .map(u256_digits)
-            .unwrap_or(4);
+        size += self.tx.boost_bid.as_ref().map(u256_digits).unwrap_or(4);
         size
     }
 }
 
 /// Generic transaction (can be normal or forced)
-/// 
+///
 /// A unified type that can represent either:
 /// - Normal user transactions submitted via the RPC API (with metadata)
 /// - Forced transactions originating from L1
-/// 
+///
 /// This enum allows batches to contain a mix of both transaction types.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Transaction {
@@ -218,7 +213,7 @@ pub enum Transaction {
 
 impl Transaction {
     /// Get the gas limit for this transaction
-    /// 
+    ///
     /// Returns the gas limit regardless of whether this is a normal or forced transaction.
     /// Used for cumulative gas tracking in batch creation.
     pub fn gas_limit(&self) -> u64 {
@@ -252,7 +247,6 @@ impl Transaction {
         }
     }
 }
-
 
 /// Wait time distribution metrics for a batch
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -299,10 +293,10 @@ pub struct StateCacheMetrics {
 }
 
 /// Account state
-/// 
+///
 /// Represents the current state of an account in the sequencer.
 /// This is cached in memory for fast validation of incoming transactions.
-/// 
+///
 /// # Fields
 /// - `address`: The account's Ethereum address
 /// - `balance`: Current balance in wei
@@ -315,10 +309,10 @@ pub struct AccountState {
 }
 
 /// Sealed batch ready for execution
-/// 
+///
 /// A batch is a collection of transactions that will be executed together
 /// and posted to L1 as a single unit. Batching reduces L1 costs.
-/// 
+///
 /// # Fields
 /// - `batch_id`: Unique identifier for this batch (sequential)
 /// - `transactions`: All transactions in this batch (normal + forced)
@@ -333,10 +327,10 @@ pub struct Batch {
 }
 
 /// Batch metadata for registry
-/// 
+///
 /// Lightweight metadata about a batch, stored in the database registry.
 /// This allows querying batch information without loading full transaction data.
-/// 
+///
 /// # Fields
 /// - `batch_id`: Unique identifier for this batch
 /// - `tx_count`: Total number of transactions (normal + forced)
@@ -353,7 +347,7 @@ pub struct BatchMetadata {
 }
 
 /// Validation errors
-/// 
+///
 /// Enumeration of all possible transaction validation failures.
 /// Each variant contains contextual information to help diagnose the issue.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -374,8 +368,15 @@ impl std::fmt::Display for ValidationError {
             ValidationError::InvalidNonce { expected, got } => {
                 write!(f, "Invalid nonce: expected {}, got {}", expected, got)
             }
-            ValidationError::InsufficientBalance { required, available } => {
-                write!(f, "Insufficient balance: required {}, available {}", required, available)
+            ValidationError::InsufficientBalance {
+                required,
+                available,
+            } => {
+                write!(
+                    f,
+                    "Insufficient balance: required {}, available {}",
+                    required, available
+                )
             }
         }
     }
@@ -385,11 +386,11 @@ impl std::fmt::Display for ValidationError {
 impl std::error::Error for ValidationError {}
 
 /// Soft confirmation sent to users after validation
-/// 
+///
 /// Provides immediate feedback to users after they submit a transaction.
 /// This is called a "soft" confirmation because the transaction hasn't been
 /// executed yet - it's just been accepted into the pool.
-/// 
+///
 /// # Fields
 /// - `tx_hash`: Hash identifying the transaction
 /// - `status`: Whether the transaction was accepted or rejected
@@ -402,7 +403,7 @@ pub struct SoftConfirmation {
 }
 
 /// Status of a soft confirmation
-/// 
+///
 /// Indicates whether a transaction passed validation and was accepted,
 /// or failed validation and was rejected.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -426,15 +427,19 @@ mod tests {
             nonce: 1,
             gas_limit: 21000,
             gas_price: U256::from(10),
-            signature: Signature { r: U256::zero(), s: U256::zero(), v: 0 },
+            signature: Signature {
+                r: U256::zero(),
+                s: U256::zero(),
+                v: 0,
+            },
             timestamp: 1000,
             boost_bid: None,
         };
-        
+
         let arrived_at = 1000;
         let pool_entry_at = 1050;
         let ptx = PooledTransaction::new(tx, arrived_at, pool_entry_at);
-        
+
         assert_eq!(ptx.arrived_at, 1000);
         assert_eq!(ptx.pool_entry_at, 1050);
         assert_eq!(ptx.validation_latency_ms, 50);
@@ -449,7 +454,11 @@ mod tests {
             nonce: 1,
             gas_limit: 21000,
             gas_price: U256::from(10),
-            signature: Signature { r: U256::zero(), s: U256::zero(), v: 0 },
+            signature: Signature {
+                r: U256::zero(),
+                s: U256::zero(),
+                v: 0,
+            },
             timestamp: 1234,
             boost_bid: None,
         };

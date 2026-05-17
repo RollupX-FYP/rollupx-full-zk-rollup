@@ -179,7 +179,7 @@ impl BatchTrigger {
     ///
     /// # Arguments
     /// * `last_batch_time` - Mutable reference to the timer to reset
-pub fn reset(&self, last_batch_time: &mut Instant) {
+    pub fn reset(&self, last_batch_time: &mut Instant) {
         *last_batch_time = Instant::now();
     }
 }

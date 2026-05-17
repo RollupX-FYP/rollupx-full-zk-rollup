@@ -1,17 +1,17 @@
 //! Tests for scheduling policies
-//! 
+//!
 //! Comprehensive test suite verifying the behavior of all scheduling policies
 
 #[cfg(test)]
 mod tests {
     use crate::{
+        ForcedEventType, ForcedTransaction, Transaction, UserTransaction,
         scheduler::{
-            SchedulingPolicy, FcfsPolicy, FeePriorityPolicy, TimeBoostPolicy, FairBftPolicy,
-            SchedulingPolicyType, create_policy, Scheduler,
+            FairBftPolicy, FcfsPolicy, FeePriorityPolicy, Scheduler, SchedulingPolicy,
+            SchedulingPolicyType, TimeBoostPolicy, create_policy,
         },
-        UserTransaction, ForcedTransaction, Transaction, ForcedEventType,
     };
-    use ethers::types::{Address, U256, Signature, H256};
+    use ethers::types::{Address, H256, Signature, U256};
 
     /// Helper function to create a test pooled transaction
     fn create_test_tx(
@@ -30,7 +30,11 @@ mod tests {
             gas_limit,
             // Construct a dummy signature for testing (all zeros).
             // Not cryptographically valid, but sufficient for ordering tests.
-            signature: Signature { r: U256::zero(), s: U256::zero(), v: 0 },
+            signature: Signature {
+                r: U256::zero(),
+                s: U256::zero(),
+                v: 0,
+            },
             timestamp,
             boost_bid: boost_bid.map(U256::from),
         };
@@ -56,16 +60,16 @@ mod tests {
     #[test]
     fn test_fcfs_policy_maintains_order() {
         let policy = FcfsPolicy;
-        
+
         // Create transactions with different gas prices but sequential timestamps
         let txs = vec![
             create_test_tx(1, 100, 21000, 1000, None),
-            create_test_tx(2, 500, 21000, 2000, None),  // Higher gas price
-            create_test_tx(3, 50, 21000, 3000, None),   // Lower gas price
+            create_test_tx(2, 500, 21000, 2000, None), // Higher gas price
+            create_test_tx(3, 50, 21000, 3000, None),  // Lower gas price
         ];
-        
+
         let ordered = policy.order_transactions(txs.clone());
-        
+
         // FCFS should maintain original order
         assert_eq!(ordered.len(), 3);
         assert_eq!(ordered[0].tx.nonce, 1);
@@ -76,23 +80,23 @@ mod tests {
     #[test]
     fn test_fee_priority_orders_by_gas_price() {
         let policy = FeePriorityPolicy;
-        
+
         // Create transactions with different gas prices
         let txs = vec![
             create_test_tx(1, 100, 21000, 1000, None),
-            create_test_tx(2, 500, 21000, 2000, None),  // Highest gas price
-            create_test_tx(3, 50, 21000, 3000, None),   // Lowest gas price
-            create_test_tx(4, 300, 21000, 4000, None),  // Medium gas price
+            create_test_tx(2, 500, 21000, 2000, None), // Highest gas price
+            create_test_tx(3, 50, 21000, 3000, None),  // Lowest gas price
+            create_test_tx(4, 300, 21000, 4000, None), // Medium gas price
         ];
-        
+
         let ordered = policy.order_transactions(txs);
-        
+
         // Should be ordered by gas price (highest first)
         assert_eq!(ordered.len(), 4);
         assert_eq!(ordered[0].tx.gas_price, U256::from(500)); // nonce 2
         assert_eq!(ordered[1].tx.gas_price, U256::from(300)); // nonce 4
         assert_eq!(ordered[2].tx.gas_price, U256::from(100)); // nonce 1
-        assert_eq!(ordered[3].tx.gas_price, U256::from(50));  // nonce 3
+        assert_eq!(ordered[3].tx.gas_price, U256::from(50)); // nonce 3
     }
 
     #[test]
@@ -100,17 +104,17 @@ mod tests {
         let policy = TimeBoostPolicy {
             time_window_ms: 5000, // 5-second windows
         };
-        
+
         // Create transactions in different time windows
         let txs = vec![
-            create_test_tx(1, 100, 21000, 1000, None),  // Window 0 (0-4999ms)
-            create_test_tx(2, 200, 21000, 6000, None),  // Window 1 (5000-9999ms)
+            create_test_tx(1, 100, 21000, 1000, None), // Window 0 (0-4999ms)
+            create_test_tx(2, 200, 21000, 6000, None), // Window 1 (5000-9999ms)
             create_test_tx(3, 300, 21000, 12000, None), // Window 2 (10000-14999ms)
-            create_test_tx(4, 150, 21000, 2000, None),  // Window 0 (0-4999ms)
+            create_test_tx(4, 150, 21000, 2000, None), // Window 0 (0-4999ms)
         ];
-        
+
         let ordered = policy.order_transactions(txs);
-        
+
         // Should process window 0 first, then window 1, then window 2
         assert_eq!(ordered.len(), 4);
         assert_eq!(ordered[0].tx.timestamp / 5000, 0); // Window 0
@@ -124,23 +128,23 @@ mod tests {
         let policy = TimeBoostPolicy {
             time_window_ms: 5000,
         };
-        
+
         // Create transactions in same time window with different boost bids
         let txs = vec![
-            create_test_tx(1, 100, 21000, 1000, None),       // No boost
-            create_test_tx(2, 100, 21000, 2000, Some(500)),  // High boost
-            create_test_tx(3, 100, 21000, 3000, Some(200)),  // Medium boost
-            create_test_tx(4, 100, 21000, 4000, Some(800)),  // Highest boost
+            create_test_tx(1, 100, 21000, 1000, None),      // No boost
+            create_test_tx(2, 100, 21000, 2000, Some(500)), // High boost
+            create_test_tx(3, 100, 21000, 3000, Some(200)), // Medium boost
+            create_test_tx(4, 100, 21000, 4000, Some(800)), // Highest boost
         ];
-        
+
         let ordered = policy.order_transactions(txs);
-        
+
         // Within same window, should order by boost_bid (highest first)
         assert_eq!(ordered.len(), 4);
         assert_eq!(ordered[0].tx.boost_bid, Some(U256::from(800))); // nonce 4
         assert_eq!(ordered[1].tx.boost_bid, Some(U256::from(500))); // nonce 2
         assert_eq!(ordered[2].tx.boost_bid, Some(U256::from(200))); // nonce 3
-        assert_eq!(ordered[3].tx.boost_bid, None);                  // nonce 1
+        assert_eq!(ordered[3].tx.boost_bid, None); // nonce 1
     }
 
     #[test]
@@ -148,16 +152,16 @@ mod tests {
         let policy = TimeBoostPolicy {
             time_window_ms: 5000,
         };
-        
+
         // Create transactions with same boost bid but different gas prices
         let txs = vec![
             create_test_tx(1, 100, 21000, 1000, Some(500)),
             create_test_tx(2, 300, 21000, 2000, Some(500)), // Same boost, higher gas
             create_test_tx(3, 200, 21000, 3000, Some(500)), // Same boost, medium gas
         ];
-        
+
         let ordered = policy.order_transactions(txs);
-        
+
         // Should fall back to gas_price when boost_bid is equal
         assert_eq!(ordered.len(), 3);
         assert_eq!(ordered[0].tx.gas_price, U256::from(300)); // nonce 2
@@ -168,16 +172,16 @@ mod tests {
     #[test]
     fn test_fair_bft_orders_by_timestamp() {
         let policy = FairBftPolicy;
-        
+
         // Create transactions with different timestamps
         let txs = vec![
-            create_test_tx(1, 500, 21000, 5000, None),  // Later timestamp
-            create_test_tx(2, 100, 21000, 1000, None),  // Earliest
-            create_test_tx(3, 300, 21000, 3000, None),  // Middle
+            create_test_tx(1, 500, 21000, 5000, None), // Later timestamp
+            create_test_tx(2, 100, 21000, 1000, None), // Earliest
+            create_test_tx(3, 300, 21000, 3000, None), // Middle
         ];
-        
+
         let ordered = policy.order_transactions(txs);
-        
+
         // Should be ordered by timestamp (earliest first)
         assert_eq!(ordered.len(), 3);
         assert_eq!(ordered[0].tx.timestamp, 1000); // nonce 2
@@ -189,20 +193,17 @@ mod tests {
     fn test_scheduler_forced_transactions_always_first() {
         let policy = create_policy(SchedulingPolicyType::FeePriority);
         let scheduler = Scheduler::new(policy);
-        
+
         // Create forced and normal transactions
-        let forced = vec![
-            create_forced_tx(100, 21000),
-            create_forced_tx(101, 21000),
-        ];
-        
+        let forced = vec![create_forced_tx(100, 21000), create_forced_tx(101, 21000)];
+
         let normal = vec![
             create_test_tx(1, 1000, 21000, 1000, None), // Very high gas price
             create_test_tx(2, 500, 21000, 2000, None),
         ];
-        
+
         let ordered = scheduler.schedule(forced, normal);
-        
+
         // Verify forced transactions come first
         assert_eq!(ordered.len(), 4);
         match &ordered[0] {
@@ -213,7 +214,7 @@ mod tests {
             Transaction::Forced(tx) => assert_eq!(tx.nonce, 101),
             _ => panic!("Expected forced transaction second"),
         }
-        
+
         // Normal transactions should follow, ordered by gas price
         match &ordered[2] {
             Transaction::Normal(ptx) => assert_eq!(ptx.tx.gas_price, U256::from(1000)),
@@ -230,18 +231,24 @@ mod tests {
         // Test FCFS creation
         let fcfs = create_policy(SchedulingPolicyType::Fcfs);
         assert_eq!(fcfs.name(), "FCFS");
-        
+
         // Test FeePriority creation
         let fee = create_policy(SchedulingPolicyType::FeePriority);
         assert_eq!(fee.name(), "FeePriority");
-        
+
         // Test TimeBoost creation
-        let time_boost = create_policy(SchedulingPolicyType::TimeBoost { time_window_ms: 3000 });
+        let time_boost = create_policy(SchedulingPolicyType::TimeBoost {
+            time_window_ms: 3000,
+        });
         assert_eq!(time_boost.name(), "TimeBoost");
-        
+
         // Test FairBFT creation
         let fair_bft = create_policy(SchedulingPolicyType::FairBft);
         assert_eq!(fair_bft.name(), "FairBFT");
+
+        // Test BlobPackingBestFit creation
+        let best_fit = create_policy(SchedulingPolicyType::BlobPackingBestFit);
+        assert_eq!(best_fit.name(), "BlobPackingBestFit");
     }
 
     #[test]
@@ -252,17 +259,17 @@ mod tests {
             create_test_tx(2, 500, 21000, 2000, None),
             create_test_tx(3, 50, 21000, 3000, None),
         ];
-        
+
         // Test with FCFS policy
         let fcfs_policy = create_policy(SchedulingPolicyType::Fcfs);
         let fcfs_ordered = fcfs_policy.order_transactions(txs.clone());
         assert_eq!(fcfs_ordered[0].tx.nonce, 1); // Original order
-        
+
         // Test with FeePriority policy
         let fee_policy = create_policy(SchedulingPolicyType::FeePriority);
         let fee_ordered = fee_policy.order_transactions(txs.clone());
         assert_eq!(fee_ordered[0].tx.gas_price, U256::from(500)); // Highest fee first
-        
+
         // Test with FairBFT policy
         let bft_policy = create_policy(SchedulingPolicyType::FairBft);
         let bft_ordered = bft_policy.order_transactions(txs.clone());
@@ -279,7 +286,9 @@ mod tests {
 
     #[test]
     fn test_single_transaction() {
-        let policy = TimeBoostPolicy { time_window_ms: 5000 };
+        let policy = TimeBoostPolicy {
+            time_window_ms: 5000,
+        };
         let txs = vec![create_test_tx(1, 100, 21000, 1000, None)];
         let ordered = policy.order_transactions(txs);
         assert_eq!(ordered.len(), 1);

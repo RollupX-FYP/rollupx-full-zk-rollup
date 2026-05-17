@@ -14,8 +14,8 @@
 use crate::{AccountState, StateCacheMetrics};
 use ethers::types::{Address, U256};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use tokio::sync::RwLock;
 
 /// In-memory state cache for account data
@@ -142,11 +142,14 @@ impl StateCache {
         } else {
             // Account doesn't exist — initialize with nonce 1
             // This handles the case where the first transaction from an account is processed
-            accounts.insert(*address, AccountState {
-                address: *address,
-                balance: U256::zero(),
-                nonce: 1, // First transaction processed, so nonce becomes 1
-            });
+            accounts.insert(
+                *address,
+                AccountState {
+                    address: *address,
+                    balance: U256::zero(),
+                    nonce: 1, // First transaction processed, so nonce becomes 1
+                },
+            );
         }
     }
 
@@ -189,7 +192,7 @@ impl StateCache {
         // Acquire write lock (exclusive access)
         let mut accounts = self.accounts.write().await;
         accounts.insert(state.address, state);
-        
+
         // Update sync timestamp
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -208,7 +211,7 @@ impl StateCache {
         let hits = self.cache_hits.load(Ordering::Relaxed);
         let misses = self.cache_misses.load(Ordering::Relaxed);
         let total = hits + misses;
-        
+
         let hit_rate = if total == 0 {
             0.0
         } else {
@@ -220,7 +223,7 @@ impl StateCache {
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
             .as_millis() as u64;
-        
+
         let age = if last_sync == 0 {
             0
         } else {
@@ -262,7 +265,13 @@ mod tests {
         assert_eq!(m.cache_hit_rate, 0.0); // 0 hits, 1 miss
 
         // Seed and record a hit
-        cache.update(AccountState { address: addr, balance: U256::from(100), nonce: 1 }).await;
+        cache
+            .update(AccountState {
+                address: addr,
+                balance: U256::from(100),
+                nonce: 1,
+            })
+            .await;
         cache.get_or_init_account(&addr).await;
         let m = cache.collect_metrics();
         // 1 hit, 1 miss = 0.5 hit rate
@@ -273,4 +282,4 @@ mod tests {
         let m = cache.collect_metrics();
         assert_eq!(m.stale_nonce_rejections, 1);
     }
-}
+}

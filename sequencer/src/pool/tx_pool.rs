@@ -12,6 +12,7 @@ use crate::PooledTransaction;
 use ethers::types::Address;
 use std::collections::HashMap;
 use std::collections::VecDeque;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::RwLock;
 
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -39,6 +40,8 @@ pub struct BlobPackSelection {
     pub ineligible_nonce_gap_count: usize,
     pub nonce_chain_truncated_senders: usize,
     pub low_fill_reason: Option<String>,
+    pub age_guard_triggered_count: usize,
+    pub best_fit_selected_count: usize,
 }
 
 impl TransactionPool {
@@ -100,10 +103,14 @@ impl TransactionPool {
     ) -> BlobPackSelection {
         let mut txs = self.transactions.write().await;
         let drained: Vec<_> = txs.drain(..).enumerate().collect();
-        let mut per_sender: HashMap<Address, Vec<(usize, PooledTransaction, usize)>> = HashMap::new();
+        let mut per_sender: HashMap<Address, Vec<(usize, PooledTransaction, usize)>> =
+            HashMap::new();
         for (idx, tx) in drained {
             let size = tx.estimated_encoded_bytes();
-            per_sender.entry(tx.tx.from).or_default().push((idx, tx, size));
+            per_sender
+                .entry(tx.tx.from)
+                .or_default()
+                .push((idx, tx, size));
         }
 
         let mut eligible: Vec<(usize, PooledTransaction, usize)> = Vec::new();
@@ -143,7 +150,8 @@ impl TransactionPool {
                     }
                     _ => {
                         saw_gap = true;
-                        nonce_chain_truncated_senders = nonce_chain_truncated_senders.saturating_add(1);
+                        nonce_chain_truncated_senders =
+                            nonce_chain_truncated_senders.saturating_add(1);
                         ineligible_nonce_gap_count = ineligible_nonce_gap_count.saturating_add(1);
                         ineligible.push(entry);
                     }
@@ -154,17 +162,15 @@ impl TransactionPool {
         let eligible_tx_count = eligible.len();
         let eligible_bytes = eligible.iter().map(|(_, _, s)| *s).sum::<usize>();
 
-        eligible.sort_by(|a, b| {
-            match b.2.cmp(&a.2) {
-                std::cmp::Ordering::Equal => match b.1.tx.gas_price.cmp(&a.1.tx.gas_price) {
-                    std::cmp::Ordering::Equal => match a.1.arrived_at.cmp(&b.1.arrived_at) {
-                        std::cmp::Ordering::Equal => a.0.cmp(&b.0),
-                        other => other,
-                    },
+        eligible.sort_by(|a, b| match b.2.cmp(&a.2) {
+            std::cmp::Ordering::Equal => match b.1.tx.gas_price.cmp(&a.1.tx.gas_price) {
+                std::cmp::Ordering::Equal => match a.1.arrived_at.cmp(&b.1.arrived_at) {
+                    std::cmp::Ordering::Equal => a.0.cmp(&b.0),
                     other => other,
                 },
                 other => other,
-            }
+            },
+            other => other,
         });
 
         let mut selected = Vec::new();
@@ -209,6 +215,247 @@ impl TransactionPool {
             ineligible_nonce_gap_count,
             nonce_chain_truncated_senders,
             low_fill_reason,
+            age_guard_triggered_count: 0,
+            best_fit_selected_count: 0,
+        }
+    }
+
+    /// Retrieve a nonce-safe subset using best-fit blob packing with an age guard.
+    ///
+    /// At each step, only the next nonce-safe transaction from each sender is
+    /// selectable. Old candidates can override best-fit selection to avoid
+    /// starvation, while still respecting byte and count limits.
+    pub async fn take_blob_packed_best_fit_age_guard(
+        &self,
+        max_count: usize,
+        max_bytes: usize,
+        expected_nonces: HashMap<Address, u64>,
+        age_guard_ms: u64,
+    ) -> BlobPackSelection {
+        let mut txs = self.transactions.write().await;
+        let drained: Vec<_> = txs.drain(..).enumerate().collect();
+        let mut per_sender: HashMap<Address, Vec<(usize, PooledTransaction, usize)>> =
+            HashMap::new();
+        for (idx, tx) in drained {
+            let size = tx.estimated_encoded_bytes();
+            per_sender
+                .entry(tx.tx.from)
+                .or_default()
+                .push((idx, tx, size));
+        }
+
+        let mut chains: HashMap<Address, Vec<(usize, PooledTransaction, usize)>> = HashMap::new();
+        let mut ineligible: Vec<(usize, PooledTransaction, usize)> = Vec::new();
+        let mut ineligible_nonce_gap_count = 0usize;
+        let mut nonce_chain_truncated_senders = 0usize;
+
+        for (sender, mut sender_txs) in per_sender {
+            sender_txs.sort_by(|a, b| match a.1.tx.nonce.cmp(&b.1.tx.nonce) {
+                std::cmp::Ordering::Equal => a.0.cmp(&b.0),
+                other => other,
+            });
+            let earliest_pending_nonce = sender_txs
+                .first()
+                .map(|(_, tx, _)| tx.tx.nonce)
+                .unwrap_or_else(|| expected_nonces.get(&sender).copied().unwrap_or(0));
+            let mut expected = expected_nonces
+                .get(&sender)
+                .copied()
+                .unwrap_or(earliest_pending_nonce)
+                .min(earliest_pending_nonce);
+            let mut saw_gap = false;
+            let mut chain = Vec::new();
+
+            for entry in sender_txs {
+                if saw_gap {
+                    ineligible.push(entry);
+                    continue;
+                }
+                match entry.1.tx.nonce.cmp(&expected) {
+                    std::cmp::Ordering::Equal => {
+                        expected = expected.saturating_add(1);
+                        chain.push(entry);
+                    }
+                    _ => {
+                        saw_gap = true;
+                        nonce_chain_truncated_senders =
+                            nonce_chain_truncated_senders.saturating_add(1);
+                        ineligible_nonce_gap_count = ineligible_nonce_gap_count.saturating_add(1);
+                        ineligible.push(entry);
+                    }
+                }
+            }
+            if !chain.is_empty() {
+                chains.insert(sender, chain);
+            }
+        }
+
+        let eligible_tx_count = chains.values().map(|chain| chain.len()).sum::<usize>();
+        let eligible_bytes = chains
+            .values()
+            .flat_map(|chain| chain.iter())
+            .map(|(_, _, size)| *size)
+            .sum::<usize>();
+        let now_ms = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|duration| duration.as_millis() as u64)
+            .unwrap_or(0);
+
+        let mut selected: Vec<(usize, PooledTransaction, usize)> = Vec::new();
+        let mut selected_bytes = 0usize;
+        let mut chain_pos: HashMap<Address, usize> = HashMap::new();
+        let mut age_guard_triggered_count = 0usize;
+        let mut best_fit_selected_count = 0usize;
+        let mut count_blocked = false;
+
+        loop {
+            if selected.len() >= max_count {
+                count_blocked = true;
+                break;
+            }
+            let remaining_bytes = max_bytes.saturating_sub(selected_bytes);
+            let mut candidates: Vec<(Address, usize, u64, usize)> = Vec::new();
+            for (sender, chain) in chains.iter() {
+                let pos = *chain_pos.get(sender).unwrap_or(&0);
+                if let Some((_, tx, size)) = chain.get(pos) {
+                    if *size <= remaining_bytes {
+                        let age_ms = now_ms.saturating_sub(tx.arrived_at);
+                        candidates.push((*sender, *size, age_ms, pos));
+                    }
+                }
+            }
+            if candidates.is_empty() {
+                break;
+            }
+
+            if let Some((sender, _, _, _)) = candidates
+                .iter()
+                .filter(|(_, _, age_ms, _)| *age_ms >= age_guard_ms)
+                .max_by(|a, b| match a.2.cmp(&b.2) {
+                    std::cmp::Ordering::Equal => b.1.cmp(&a.1),
+                    other => other,
+                })
+            {
+                age_guard_triggered_count = age_guard_triggered_count.saturating_add(1);
+                let pos = *chain_pos.get(sender).unwrap_or(&0);
+                if let Some(entry) = chains.get(sender).and_then(|chain| chain.get(pos)).cloned() {
+                    selected_bytes = selected_bytes.saturating_add(entry.2);
+                    selected.push(entry);
+                    chain_pos.insert(*sender, pos.saturating_add(1));
+                } else {
+                    break;
+                }
+            } else {
+                // Bounded subset fill over currently nonce-safe heads. This avoids
+                // the classic greedy trap where one large tx leaves a gap that two
+                // smaller txs could have filled exactly.
+                let count_limit = max_count.saturating_sub(selected.len());
+                let mut dp: Vec<Option<(usize, Vec<usize>)>> = vec![None; remaining_bytes + 1];
+                dp[0] = Some((0, Vec::new()));
+
+                for (candidate_idx, (_, size, _, _)) in candidates.iter().enumerate() {
+                    for bytes in (*size..=remaining_bytes).rev() {
+                        let Some((prev_count, mut prev_indices)) = dp[bytes - *size].clone() else {
+                            continue;
+                        };
+                        if prev_count >= count_limit {
+                            continue;
+                        }
+                        prev_indices.push(candidate_idx);
+                        let next = (prev_count + 1, prev_indices);
+                        let should_replace = match &dp[bytes] {
+                            Some((existing_count, _)) => next.0 > *existing_count,
+                            None => true,
+                        };
+                        if should_replace {
+                            dp[bytes] = Some(next);
+                        }
+                    }
+                }
+
+                let best = dp
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(bytes, entry)| {
+                        entry
+                            .as_ref()
+                            .map(|(count, indices)| (bytes, *count, indices.clone()))
+                    })
+                    .max_by(|a, b| match a.0.cmp(&b.0) {
+                        std::cmp::Ordering::Equal => a.1.cmp(&b.1),
+                        other => other,
+                    });
+
+                let Some((_, _, mut chosen_indices)) = best else {
+                    break;
+                };
+                if chosen_indices.is_empty() {
+                    break;
+                }
+
+                chosen_indices.sort_by_key(|idx| {
+                    let sender = candidates[*idx].0;
+                    let pos = *chain_pos.get(&sender).unwrap_or(&0);
+                    chains
+                        .get(&sender)
+                        .and_then(|chain| chain.get(pos))
+                        .map(|entry| entry.0)
+                        .unwrap_or(usize::MAX)
+                });
+
+                for candidate_idx in chosen_indices {
+                    let sender = candidates[candidate_idx].0;
+                    let pos = *chain_pos.get(&sender).unwrap_or(&0);
+                    if let Some(entry) = chains
+                        .get(&sender)
+                        .and_then(|chain| chain.get(pos))
+                        .cloned()
+                    {
+                        selected_bytes = selected_bytes.saturating_add(entry.2);
+                        selected.push(entry);
+                        chain_pos.insert(sender, pos.saturating_add(1));
+                        best_fit_selected_count = best_fit_selected_count.saturating_add(1);
+                    }
+                }
+            }
+        }
+
+        let mut remainder = ineligible;
+        for (sender, chain) in chains {
+            let pos = *chain_pos.get(&sender).unwrap_or(&0);
+            for entry in chain.into_iter().skip(pos) {
+                remainder.push(entry);
+            }
+        }
+
+        selected.sort_by(|a, b| a.0.cmp(&b.0));
+        remainder.sort_by(|a, b| a.0.cmp(&b.0));
+        for (_, tx, _) in remainder {
+            txs.push_back(tx);
+        }
+
+        let low_fill_reason = if ineligible_nonce_gap_count > 0 {
+            Some("nonce_gaps".to_string())
+        } else if count_blocked {
+            Some("count_cap".to_string())
+        } else if selected_bytes < max_bytes && eligible_bytes < max_bytes {
+            Some("insufficient_eligible_bytes".to_string())
+        } else if selected_bytes < max_bytes {
+            Some("insufficient_fit".to_string())
+        } else {
+            None
+        };
+
+        BlobPackSelection {
+            selected: selected.into_iter().map(|(_, tx, _)| tx).collect(),
+            selected_bytes,
+            eligible_tx_count,
+            eligible_bytes,
+            ineligible_nonce_gap_count,
+            nonce_chain_truncated_senders,
+            low_fill_reason,
+            age_guard_triggered_count,
+            best_fit_selected_count,
         }
     }
 
@@ -249,10 +496,15 @@ impl TransactionPool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{UserTransaction, PooledTransaction};
+    use crate::{PooledTransaction, UserTransaction};
     use ethers::types::{Address, Signature, U256};
 
-    fn make_tx(gas_price: u64, value: u64, timestamp: u64, boost_bid: Option<U256>) -> PooledTransaction {
+    fn make_tx(
+        gas_price: u64,
+        value: u64,
+        timestamp: u64,
+        boost_bid: Option<U256>,
+    ) -> PooledTransaction {
         let tx = UserTransaction {
             from: Address::random(),
             to: Address::random(),
@@ -260,7 +512,11 @@ mod tests {
             nonce: 1,
             gas_limit: 21_000,
             gas_price: U256::from(gas_price),
-            signature: Signature { r: U256::zero(), s: U256::zero(), v: 27 },
+            signature: Signature {
+                r: U256::zero(),
+                s: U256::zero(),
+                v: 27,
+            },
             timestamp,
             boost_bid,
         };
@@ -268,6 +524,35 @@ mod tests {
             tx,
             arrived_at: timestamp,
             pool_entry_at: timestamp + 1,
+            validation_latency_ms: 1,
+        }
+    }
+
+    fn make_sender_tx(
+        sender: Address,
+        nonce: u64,
+        value: u64,
+        arrived_at: u64,
+    ) -> PooledTransaction {
+        let tx = UserTransaction {
+            from: sender,
+            to: Address::random(),
+            value: U256::from(value),
+            nonce,
+            gas_limit: 21_000,
+            gas_price: U256::from(1),
+            signature: Signature {
+                r: U256::zero(),
+                s: U256::zero(),
+                v: 27,
+            },
+            timestamp: arrived_at,
+            boost_bid: None,
+        };
+        PooledTransaction {
+            tx,
+            arrived_at,
+            pool_entry_at: arrived_at,
             validation_latency_ms: 1,
         }
     }
@@ -284,7 +569,11 @@ mod tests {
             nonce: 1,
             gas_limit: 21000,
             gas_price: U256::from(10),
-            signature: Signature { r: U256::zero(), s: U256::zero(), v: 0 },
+            signature: Signature {
+                r: U256::zero(),
+                s: U256::zero(),
+                v: 0,
+            },
             timestamp: 1000,
             boost_bid: None,
         };
@@ -298,7 +587,7 @@ mod tests {
         pool.add(ptx).await;
         assert_eq!(pool.total_received(), 1);
         assert_eq!(pool.pending_count().await, 1);
-        
+
         // Draining shouldn't reset total_received
         pool.get_pending(1).await;
         assert_eq!(pool.total_received(), 1);
@@ -314,10 +603,12 @@ mod tests {
             3,
             10,
             3,
-            Some(U256::from_dec_str(
-                "1000000000000000000000000000000000000000000000000000000000000000",
-            )
-            .unwrap()),
+            Some(
+                U256::from_dec_str(
+                    "1000000000000000000000000000000000000000000000000000000000000000",
+                )
+                .unwrap(),
+            ),
         );
         small.tx.nonce = 0;
         medium.tx.nonce = 0;
@@ -333,14 +624,28 @@ mod tests {
         expected.insert(small.tx.from, 0);
         expected.insert(medium.tx.from, 0);
         expected.insert(large.tx.from, 0);
-        let selection = pool.take_blob_packed_nonce_safe(2, usize::MAX, expected).await;
+        let selection = pool
+            .take_blob_packed_nonce_safe(2, usize::MAX, expected)
+            .await;
         let selected = selection.selected;
 
         assert_eq!(selected.len(), 2);
         assert!(selection.selected_bytes > 0);
-        assert!(selected.iter().any(|tx| tx.tx.gas_price == large.tx.gas_price));
-        assert!(selected.iter().any(|tx| tx.tx.gas_price == medium.tx.gas_price));
-        assert!(selected.iter().all(|tx| tx.tx.gas_price != small.tx.gas_price));
+        assert!(
+            selected
+                .iter()
+                .any(|tx| tx.tx.gas_price == large.tx.gas_price)
+        );
+        assert!(
+            selected
+                .iter()
+                .any(|tx| tx.tx.gas_price == medium.tx.gas_price)
+        );
+        assert!(
+            selected
+                .iter()
+                .all(|tx| tx.tx.gas_price != small.tx.gas_price)
+        );
 
         let remaining = pool.get_pending(10).await;
         assert_eq!(remaining.len(), 1);
@@ -362,7 +667,9 @@ mod tests {
 
         let mut expected = HashMap::new();
         expected.insert(sender, 0);
-        let selection = pool.take_blob_packed_nonce_safe(10, usize::MAX, expected).await;
+        let selection = pool
+            .take_blob_packed_nonce_safe(10, usize::MAX, expected)
+            .await;
         assert_eq!(selection.selected.len(), 1);
         assert_eq!(selection.selected[0].tx.nonce, 0);
         assert_eq!(selection.ineligible_nonce_gap_count, 1);
@@ -386,7 +693,9 @@ mod tests {
 
         let mut expected = HashMap::new();
         expected.insert(sender, 0);
-        let selection = pool.take_blob_packed_nonce_safe(10, usize::MAX, expected).await;
+        let selection = pool
+            .take_blob_packed_nonce_safe(10, usize::MAX, expected)
+            .await;
         assert_eq!(selection.selected.len(), 3);
         assert_eq!(selection.selected[0].tx.nonce, 0);
         assert_eq!(selection.selected[1].tx.nonce, 1);
@@ -416,7 +725,9 @@ mod tests {
         let mut expected = HashMap::new();
         expected.insert(sender_a, 0);
         expected.insert(sender_b, 0);
-        let selection = pool.take_blob_packed_nonce_safe(10, usize::MAX, expected).await;
+        let selection = pool
+            .take_blob_packed_nonce_safe(10, usize::MAX, expected)
+            .await;
         assert_eq!(selection.selected.len(), 3);
         assert_eq!(selection.ineligible_nonce_gap_count, 0);
     }
@@ -431,10 +742,12 @@ mod tests {
             50,
             10,
             1,
-            Some(U256::from_dec_str(
-                "1000000000000000000000000000000000000000000000000000000000000000",
-            )
-            .unwrap()),
+            Some(
+                U256::from_dec_str(
+                    "1000000000000000000000000000000000000000000000000000000000000000",
+                )
+                .unwrap(),
+            ),
         );
         large.tx.from = sender_a;
         large.tx.nonce = 0;
@@ -464,5 +777,104 @@ mod tests {
         let remaining = pool.get_pending(10).await;
         assert_eq!(remaining.len(), 1);
         assert_eq!(remaining[0].tx.from, sender_a);
+    }
+
+    #[tokio::test]
+    async fn take_blob_packed_best_fit_uses_age_guard_for_old_candidate() {
+        let pool = TransactionPool::new();
+        let old_sender = Address::random();
+        let new_sender = Address::random();
+        let old_tx = make_sender_tx(old_sender, 0, 1, 1);
+        let new_tx = make_sender_tx(new_sender, 0, 1000000000000000000, u64::MAX);
+
+        pool.add(new_tx).await;
+        pool.add(old_tx).await;
+
+        let mut expected = HashMap::new();
+        expected.insert(old_sender, 0);
+        expected.insert(new_sender, 0);
+
+        let selection = pool
+            .take_blob_packed_best_fit_age_guard(1, usize::MAX, expected, 1)
+            .await;
+
+        assert_eq!(selection.selected.len(), 1);
+        assert_eq!(selection.selected[0].tx.from, old_sender);
+        assert_eq!(selection.age_guard_triggered_count, 1);
+    }
+
+    #[tokio::test]
+    async fn take_blob_packed_best_fit_fills_gap_better_than_largest_first() {
+        let pool = TransactionPool::new();
+        let large_sender = Address::random();
+        let medium_sender = Address::random();
+        let small_sender = Address::random();
+
+        let mut large = make_tx(
+            30,
+            1,
+            u64::MAX - 10,
+            Some(
+                U256::from_dec_str(
+                    "1000000000000000000000000000000000000000000000000000000000000000",
+                )
+                .unwrap(),
+            ),
+        );
+        let mut medium = make_tx(
+            20,
+            1,
+            u64::MAX - 10,
+            Some(U256::from_dec_str("100000000000000000000000000000").unwrap()),
+        );
+        let mut small = make_tx(10, 1, u64::MAX - 10, None);
+        large.tx.from = large_sender;
+        medium.tx.from = medium_sender;
+        small.tx.from = small_sender;
+        large.tx.nonce = 0;
+        medium.tx.nonce = 0;
+        small.tx.nonce = 0;
+
+        let large_bytes = large.estimated_encoded_bytes();
+        let medium_bytes = medium.estimated_encoded_bytes();
+        let small_bytes = small.estimated_encoded_bytes();
+        let max_bytes = medium_bytes.saturating_add(small_bytes);
+        assert!(large_bytes <= max_bytes);
+        assert!(max_bytes.saturating_sub(large_bytes) < small_bytes);
+
+        pool.add(large.clone()).await;
+        pool.add(medium.clone()).await;
+        pool.add(small.clone()).await;
+
+        let mut expected = HashMap::new();
+        expected.insert(large_sender, 0);
+        expected.insert(medium_sender, 0);
+        expected.insert(small_sender, 0);
+
+        let selection = pool
+            .take_blob_packed_best_fit_age_guard(3, max_bytes, expected, u64::MAX)
+            .await;
+
+        assert_eq!(selection.selected.len(), 2);
+        assert_eq!(selection.selected_bytes, max_bytes);
+        assert!(
+            selection
+                .selected
+                .iter()
+                .any(|tx| tx.tx.from == medium_sender)
+        );
+        assert!(
+            selection
+                .selected
+                .iter()
+                .any(|tx| tx.tx.from == small_sender)
+        );
+        assert!(
+            !selection
+                .selected
+                .iter()
+                .any(|tx| tx.tx.from == large_sender)
+        );
+        assert_eq!(selection.best_fit_selected_count, 2);
     }
 }

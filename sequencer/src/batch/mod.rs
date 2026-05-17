@@ -7,9 +7,9 @@
 //! - `BatchOrchestrator`: Coordinates the full batch production pipeline
 
 mod engine;
-pub mod trigger;
 pub mod orchestrator;
+pub mod trigger;
 
 pub use engine::BatchEngine;
-pub use trigger::BatchTrigger;
 pub use orchestrator::BatchOrchestrator;
+pub use trigger::BatchTrigger;

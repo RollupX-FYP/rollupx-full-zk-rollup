@@ -94,7 +94,9 @@ impl Validator {
 
         // Recover the signer's address from the signature
         // This uses ECDSA recovery which is a standard cryptographic operation
-        let recovered_address = tx.signature.recover(tx_hash)
+        let recovered_address = tx
+            .signature
+            .recover(tx_hash)
             .map_err(|_| ValidationError::InvalidSignature)?;
 
         // Verify that the recovered address matches the claimed sender

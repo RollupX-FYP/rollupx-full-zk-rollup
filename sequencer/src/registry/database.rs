@@ -60,8 +60,7 @@ impl Registry {
         info!("Initializing batch registry at {}", database_url);
 
         // Configure options to create the database file if it doesn't exist
-        let options = SqliteConnectOptions::from_str(database_url)?
-            .create_if_missing(true);
+        let options = SqliteConnectOptions::from_str(database_url)?.create_if_missing(true);
 
         // Create a connection pool with sensible defaults for a sequencer
         // - max_connections: 5 is sufficient since we have a single writer
@@ -80,7 +79,7 @@ impl Registry {
                 forced_tx_count  INTEGER NOT NULL,
                 timestamp        INTEGER NOT NULL,
                 scheduling_policy TEXT NOT NULL
-            )"
+            )",
         )
         .execute(&pool)
         .await?;
@@ -129,7 +128,7 @@ impl Registry {
     pub async fn get_batch(&self, batch_id: u64) -> anyhow::Result<Option<BatchMetadata>> {
         let row = sqlx::query_as::<_, BatchRow>(
             "SELECT batch_id, tx_count, forced_tx_count, timestamp, scheduling_policy
-             FROM batches WHERE batch_id = ?"
+             FROM batches WHERE batch_id = ?",
         )
         .bind(batch_id as i64)
         .fetch_optional(&self.pool)
@@ -151,7 +150,7 @@ impl Registry {
     pub async fn get_latest_batches(&self, limit: u32) -> anyhow::Result<Vec<BatchMetadata>> {
         let rows = sqlx::query_as::<_, BatchRow>(
             "SELECT batch_id, tx_count, forced_tx_count, timestamp, scheduling_policy
-             FROM batches ORDER BY batch_id DESC LIMIT ?"
+             FROM batches ORDER BY batch_id DESC LIMIT ?",
         )
         .bind(limit as i64)
         .fetch_all(&self.pool)

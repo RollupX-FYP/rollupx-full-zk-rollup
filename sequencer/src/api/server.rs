@@ -20,21 +20,19 @@
 //! This prevents double-spend attacks from concurrent submissions.
 
 use crate::{
-    config::Config,
-    validation::Validator,
-    pool::TransactionPool,
-    state::StateCache,
-    UserTransaction,
-    PooledTransaction,
-    SoftConfirmation,
-    ConfirmationStatus,
+    ConfirmationStatus, PooledTransaction, SoftConfirmation, UserTransaction, config::Config,
+    pool::TransactionPool, state::StateCache, validation::Validator,
 };
-use axum::{Router, routing::{get, post}, Json, extract::State};
+use axum::{
+    Json, Router,
+    extract::State,
+    routing::{get, post},
+};
 use ethers::types::U256;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 /// Shared application state that is accessible across all request handlers
 ///
@@ -74,11 +72,7 @@ impl Server {
     ///
     /// # Returns
     /// A new `Server` instance with initialized components
-    pub fn new(
-        config: Config,
-        state_cache: StateCache,
-        tx_pool: Arc<TransactionPool>,
-    ) -> Self {
+    pub fn new(config: Config, state_cache: StateCache, tx_pool: Arc<TransactionPool>) -> Self {
         // Initialize the transaction validator with access to state
         let validator = Arc::new(Validator::new(state_cache.clone()));
 
@@ -359,24 +353,27 @@ async fn handle_rest_tx(
         .unwrap()
         .as_millis() as u64;
     let tx_hash = tx.hash();
-    info!("Processing REST transaction {:?} from {:?}", tx_hash, tx.from);
+    info!(
+        "Processing REST transaction {:?} from {:?}",
+        tx_hash, tx.from
+    );
 
     match state.validator.validate(&tx).await {
         Ok(()) => {
             info!("Transaction {:?} validated successfully", tx_hash);
-            
+
             let gas_cost = tx.gas_price * U256::from(tx.gas_limit);
             let total_cost = tx.value + gas_cost;
             state.state_cache.deduct_balance(&tx.from, total_cost).await;
             state.state_cache.increment_nonce(&tx.from).await;
-            
+
             let pool_entry_at = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_millis() as u64;
             let pooled_tx = PooledTransaction::new(tx, arrived_at, pool_entry_at);
             state.tx_pool.add(pooled_tx).await;
-            
+
             Json(SoftConfirmation {
                 tx_hash,
                 status: ConfirmationStatus::Accepted,
@@ -387,7 +384,10 @@ async fn handle_rest_tx(
             })
         }
         Err(validation_error) => {
-            warn!("Transaction {:?} validation failed: {}", tx_hash, validation_error);
+            warn!(
+                "Transaction {:?} validation failed: {}",
+                tx_hash, validation_error
+            );
             Json(SoftConfirmation {
                 tx_hash,
                 status: ConfirmationStatus::Rejected {

@@ -1,24 +1,24 @@
 //! Scheduling Policies Module
-//! 
+//!
 //! This module implements the Strategy design pattern for transaction scheduling.
 //! Each policy determines how normal transactions are ordered within a batch.
-//! 
+//!
 //! # Available Policies
-//! 
+//!
 //! ## 1. FCFS (First-Come-First-Served)
 //! - Orders transactions by arrival time
 //! - Maintains submission order (no reordering)
 //! - **Advantage**: Simple, fair, predictable
 //! - **Disadvantage**: No incentive for higher fees
 //! - **Best for**: Systems prioritizing simplicity and time-based fairness
-//! 
+//!
 //! ## 2. Fee Priority
 //! - Orders transactions by gas price (highest first)
 //! - Incentivizes users to pay higher fees
 //! - **Advantage**: Revenue maximization, faster confirmation for willing payers
 //! - **Disadvantage**: Unfair to low-fee transactions, prone to fee wars
 //! - **Best for**: Systems prioritizing throughput and revenue
-//! 
+//!
 //! ## 3. Time-Boost
 //! - Divides time into discrete windows (e.g., 5-second slots)
 //! - Users bid for priority within their submission window via `boost_bid`
@@ -26,7 +26,7 @@
 //! - **Advantage**: Predictable latency guarantees, granular fairness
 //! - **Disadvantage**: Complex, still favors wealthy users, strategic gaming
 //! - **Best for**: Systems needing SLA guarantees with balanced fairness
-//! 
+//!
 //! ## 4. Fair BFT Ordering
 //! - Emphasizes timestamp fairness using distributed agreement
 //! - Orders strictly by transaction timestamp (earliest first)
@@ -41,7 +41,7 @@
 //! - Falls back to gas price and FCFS tie-breaking
 //! - **Advantage**: Better blob fill ratio and lower DA waste on mixed payloads
 //! - **Disadvantage**: Slightly more scheduling complexity
-//! 
+//!
 //! # Important Rule
 //! All policies only affect **normal user transactions**. Forced transactions
 //! from L1 ALWAYS come first, regardless of the selected policy.
@@ -54,7 +54,7 @@ use crate::PooledTransaction;
 pub trait SchedulingPolicy: Send + Sync {
     /// Order transactions according to this policy's rules
     fn order_transactions(&self, transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction>;
-    
+
     /// Get the policy name for logging and metadata
     fn name(&self) -> &str;
 
@@ -65,7 +65,7 @@ pub trait SchedulingPolicy: Send + Sync {
 }
 
 /// FCFS (First-Come-First-Served) Policy
-/// 
+///
 /// Maintains the original submission order. No reordering is performed.
 /// This is the simplest and most predictable policy.
 pub struct FcfsPolicy;
@@ -75,36 +75,39 @@ impl SchedulingPolicy for FcfsPolicy {
         // FCFS: maintain original order, no sorting needed
         transactions
     }
-    
+
     fn name(&self) -> &str {
         "FCFS"
     }
 }
 
 /// Fee Priority Policy
-/// 
+///
 /// Orders transactions by gas price in descending order (highest fee first).
 /// This maximizes sequencer revenue and gives priority to users willing to pay more.
 pub struct FeePriorityPolicy;
 
 impl SchedulingPolicy for FeePriorityPolicy {
-    fn order_transactions(&self, mut transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction> {
+    fn order_transactions(
+        &self,
+        mut transactions: Vec<PooledTransaction>,
+    ) -> Vec<PooledTransaction> {
         // Sort by gas_price in descending order (highest fee first)
         transactions.sort_by(|a, b| b.tx.gas_price.cmp(&a.tx.gas_price));
         transactions
     }
-    
+
     fn name(&self) -> &str {
         "FeePriority"
     }
 }
 
 /// Time-Boost Policy
-/// 
+///
 /// Divides time into discrete windows and allows users to bid for priority
 /// within their submission window. Provides more granular fairness than pure
 /// fee-priority while still allowing premium payments for faster confirmation.
-/// 
+///
 /// # Ordering Rules (within each time window)
 /// 1. Sort by `boost_bid` (if present) - descending
 /// 2. If no boost_bid or tied, sort by `gas_price` - descending  
@@ -115,29 +118,33 @@ pub struct TimeBoostPolicy {
 }
 
 impl SchedulingPolicy for TimeBoostPolicy {
-    fn order_transactions(&self, mut transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction> {
+    fn order_transactions(
+        &self,
+        mut transactions: Vec<PooledTransaction>,
+    ) -> Vec<PooledTransaction> {
         // Group transactions by time window
         // Time window = floor(timestamp / window_size)
-        
+
         // Sort by multiple criteria:
         // 1. Time window (ascending - earlier windows first)
         // 2. Within same window: boost_bid (descending)
         // 3. Within same boost_bid: gas_price (descending)
         // 4. Maintain stable sort for FCFS tie-breaking
-        
+
         transactions.sort_by(|a, b| {
             // Calculate time windows
             let window_a = a.tx.timestamp / self.time_window_ms;
             let window_b = b.tx.timestamp / self.time_window_ms;
-            
+
             // First, compare by time window
             match window_a.cmp(&window_b) {
                 std::cmp::Ordering::Equal => {
                     // Same window: compare by boost_bid
                     let boost_a = a.tx.boost_bid.unwrap_or_default();
                     let boost_b = b.tx.boost_bid.unwrap_or_default();
-                    
-                    match boost_b.cmp(&boost_a) { // Descending (b vs a)
+
+                    match boost_b.cmp(&boost_a) {
+                        // Descending (b vs a)
                         std::cmp::Ordering::Equal => {
                             // Same boost: compare by gas_price
                             b.tx.gas_price.cmp(&a.tx.gas_price) // Descending
@@ -148,10 +155,10 @@ impl SchedulingPolicy for TimeBoostPolicy {
                 other => other,
             }
         });
-        
+
         transactions
     }
-    
+
     fn name(&self) -> &str {
         "TimeBoost"
     }
@@ -164,45 +171,48 @@ impl SchedulingPolicy for TimeBoostPolicy {
 }
 
 /// Fair BFT Ordering Policy
-/// 
+///
 /// Orders transactions strictly by timestamp to provide time-based fairness.
 /// This is a simplified implementation for single-node sequencers.
-/// 
+///
 /// # Multi-Node BFT Extension
 /// For a full Byzantine Fault Tolerant implementation with multiple sequencer nodes:
-/// 
+///
 /// 1. **Distributed Timestamp Agreement**:
 ///    - Use a BFT consensus protocol (e.g., HotStuff, Tendermint, PBFT)
 ///    - Validator set agrees on canonical transaction timestamps
 ///    - Requires 2f+1 validators to tolerate f Byzantine faults
-/// 
+///
 /// 2. **Transaction Gossip**:
 ///    - Transactions broadcast to all validator nodes
 ///    - Each validator assigns local timestamp on receipt
 ///    - Consensus round determines canonical timestamp
-/// 
+///
 /// 3. **Ordering Consensus**:
 ///    - Validators propose transaction batches with timestamps
 ///    - BFT consensus determines final ordering
 ///    - Threshold signatures prove agreement
-/// 
+///
 /// 4. **MEV Resistance**:
 ///    - Time-based ordering reduces front-running opportunities
 ///    - No single sequencer can manipulate order
 ///    - Encrypted mempool can further enhance fairness
-/// 
+///
 /// # Current Implementation
 /// Orders by transaction timestamp field (single-node, no consensus).
 pub struct FairBftPolicy;
 
 impl SchedulingPolicy for FairBftPolicy {
-    fn order_transactions(&self, mut transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction> {
+    fn order_transactions(
+        &self,
+        mut transactions: Vec<PooledTransaction>,
+    ) -> Vec<PooledTransaction> {
         // Sort strictly by timestamp (ascending - earliest first)
         // This provides time-based fairness
         transactions.sort_by(|a, b| a.tx.timestamp.cmp(&b.tx.timestamp));
         transactions
     }
-    
+
     fn name(&self) -> &str {
         "FairBFT"
     }
@@ -216,7 +226,10 @@ impl SchedulingPolicy for FairBftPolicy {
 pub struct BlobPackingPolicy;
 
 impl SchedulingPolicy for BlobPackingPolicy {
-    fn order_transactions(&self, mut transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction> {
+    fn order_transactions(
+        &self,
+        mut transactions: Vec<PooledTransaction>,
+    ) -> Vec<PooledTransaction> {
         transactions.sort_by(|a, b| {
             let size_a = a.estimated_encoded_bytes();
             let size_b = b.estimated_encoded_bytes();
@@ -242,9 +255,38 @@ impl SchedulingPolicy for BlobPackingPolicy {
     }
 }
 
+/// Blob Packing Best-Fit Policy
+///
+/// The orchestrator uses a nonce-safe best-fit selector for this policy. The
+/// trait implementation remains useful for tests and non-orchestrator callers.
+pub struct BlobPackingBestFitPolicy;
+
+impl SchedulingPolicy for BlobPackingBestFitPolicy {
+    fn order_transactions(
+        &self,
+        mut transactions: Vec<PooledTransaction>,
+    ) -> Vec<PooledTransaction> {
+        transactions.sort_by(|a, b| match a.tx.timestamp.cmp(&b.tx.timestamp) {
+            std::cmp::Ordering::Equal => b.tx.gas_price.cmp(&a.tx.gas_price),
+            other => other,
+        });
+        transactions
+    }
+
+    fn name(&self) -> &str {
+        "BlobPackingBestFit"
+    }
+
+    fn config_params(&self) -> serde_json::Value {
+        serde_json::json!({
+            "objective": "blob_best_fit_with_age_guard",
+            "age_guard_ms": 15000
+        })
+    }
+}
 
 /// Policy type enum for configuration
-/// 
+///
 /// Allows easy policy selection via configuration files or API.
 /// Used by the factory function to create policy instances.
 #[derive(Debug, Clone)]
@@ -254,28 +296,30 @@ pub enum SchedulingPolicyType {
     /// Fee Priority (highest gas price first)
     FeePriority,
     /// Time-Boost with configurable time window
-    TimeBoost { 
+    TimeBoost {
         /// Time window size in milliseconds
-        time_window_ms: u64 
+        time_window_ms: u64,
     },
     /// Fair BFT Ordering (timestamp-based)
     FairBft,
     /// Blob Packing (size-aware blob fill optimization)
     BlobPacking,
+    /// Blob Packing Best-Fit with age guard
+    BlobPackingBestFit,
 }
 
 /// Factory function to create policy instances
-/// 
+///
 /// # Arguments
 /// * `policy_type` - The type of policy to create
-/// 
+///
 /// # Returns
 /// A boxed trait object implementing `SchedulingPolicy`
-/// 
+///
 /// # Example
 /// ```ignore
 /// use sequencer::scheduler::{create_policy, SchedulingPolicyType};
-/// 
+///
 /// let policy = create_policy(SchedulingPolicyType::FeePriority);
 /// let ordered = policy.order_transactions(transactions);
 /// ```
@@ -288,6 +332,7 @@ pub fn create_policy(policy_type: SchedulingPolicyType) -> Box<dyn SchedulingPol
         }
         SchedulingPolicyType::FairBft => Box::new(FairBftPolicy),
         SchedulingPolicyType::BlobPacking => Box::new(BlobPackingPolicy),
+        SchedulingPolicyType::BlobPackingBestFit => Box::new(BlobPackingBestFitPolicy),
     }
 }
 
@@ -305,7 +350,11 @@ mod tests {
             nonce: 1,
             gas_limit: 21_000,
             gas_price: U256::from(gas_price),
-            signature: Signature { r: U256::zero(), s: U256::zero(), v: 27 },
+            signature: Signature {
+                r: U256::zero(),
+                s: U256::zero(),
+                v: 27,
+            },
             timestamp,
             boost_bid: None,
         };

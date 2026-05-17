@@ -16,16 +16,16 @@
 //! # Graceful Shutdown
 //! The sequencer handles `Ctrl+C` signals to shut down gracefully.
 
+use ethers::types::{Address, U256};
 use sequencer::{
+    AccountState,
     api::Server,
     config::Config,
-    state::StateCache,
-    pool::{ForcedQueue, TransactionPool},
     l1::L1Listener,
+    pool::{ForcedQueue, TransactionPool},
     registry::Registry,
-    AccountState,
+    state::StateCache,
 };
-use ethers::types::{Address, U256};
 use std::sync::Arc;
 use tracing::info;
 
@@ -42,9 +42,13 @@ async fn main() -> anyhow::Result<()> {
 
     // ── Step 2: Load Configuration ─────────────────────────────────────
     // Parse the TOML configuration file into structured config types.
-    let config_path = std::env::var("ROLLUPX_CONFIG").unwrap_or_else(|_| "config/default.toml".to_string());
+    let config_path =
+        std::env::var("ROLLUPX_CONFIG").unwrap_or_else(|_| "config/default.toml".to_string());
     let config = Config::load(&config_path)?;
-    info!("Sequencer starting with config from {}: {:?}", config_path, config);
+    info!(
+        "Sequencer starting with config from {}: {:?}",
+        config_path, config
+    );
 
     // ── Step 3: Initialize Shared Resources ────────────────────────────
     // All shared state is created here and passed to components that need it.
@@ -62,9 +66,7 @@ async fn main() -> anyhow::Result<()> {
     // ── Step 4: Initialize Batch Metadata Registry ─────────────────────
     // Opens a SQLite database and creates the schema if needed.
     // The registry persists batch metadata for auditing and monitoring.
-    let registry = Arc::new(
-        Registry::new(&config.database.url).await?
-    );
+    let registry = Arc::new(Registry::new(&config.database.url).await?);
     info!("Batch registry initialized");
 
     // ── Step 5: Start L1 Event Listener ────────────────────────────────
@@ -133,12 +135,14 @@ async fn seed_local_dev_state(state_cache: &StateCache) {
         return;
     }
 
-    let addresses_raw = std::env::var("SEQUENCER_DEV_SEED_ADDRS").unwrap_or_else(|_| {
-        "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string()
-    });
-    let balance = U256::from_dec_str("10000000000000000000000")
-        .expect("valid seeded balance"); // 10_000 ETH
-    for raw in addresses_raw.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+    let addresses_raw = std::env::var("SEQUENCER_DEV_SEED_ADDRS")
+        .unwrap_or_else(|_| "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266".to_string());
+    let balance = U256::from_dec_str("10000000000000000000000").expect("valid seeded balance"); // 10_000 ETH
+    for raw in addresses_raw
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
         if let Ok(addr) = raw.parse::<Address>() {
             state_cache
                 .update(AccountState {

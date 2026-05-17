@@ -16,19 +16,19 @@
 //!                                            [Executor Component]
 //! ```
 
-pub mod types;       // Defines common data structures and types used throughout the system.
-pub mod api;         // Handles external API definitions and interfaces.
-pub mod validation;  // Contains logic for validating transactions.
-pub mod state;       // Manages the in-memory state cache for fast validation.
-pub mod pool;        // Implements transaction pools for pending normal and forced transactions.
-pub mod l1;          // Provides utilities for monitoring L1 blockchain events.
-pub mod scheduler;   // Manages configurable transaction ordering policies.
-pub mod batch;       // Handles batch creation, triggering, and orchestration.
-pub mod registry;    // Manages persistent batch metadata storage.
-pub mod config;      // Defines and loads system configuration.
-pub mod proto;       // gRPC protobuf client bindings.
+pub mod api; // Handles external API definitions and interfaces.
+pub mod batch; // Handles batch creation, triggering, and orchestration.
+pub mod config; // Defines and loads system configuration.
+pub mod l1; // Provides utilities for monitoring L1 blockchain events.
+pub mod pool; // Implements transaction pools for pending normal and forced transactions.
+pub mod proto;
+pub mod registry; // Manages persistent batch metadata storage.
+pub mod scheduler; // Manages configurable transaction ordering policies.
+pub mod state; // Manages the in-memory state cache for fast validation.
+pub mod types; // Defines common data structures and types used throughout the system.
+pub mod validation; // Contains logic for validating transactions. // gRPC protobuf client bindings.
 
 // Re-export commonly used types and configurations for easier access.
-pub use types::*;
-pub use config::Config;
 pub use batch::BatchOrchestrator;
+pub use config::Config;
+pub use types::*;

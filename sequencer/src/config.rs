@@ -1,5 +1,5 @@
 //! Configuration Module
-//! 
+//!
 //! This module defines all configuration structures for the sequencer.
 //! Configuration is loaded from TOML files and parsed using serde.
 
@@ -7,20 +7,20 @@ use serde::Deserialize;
 use std::fs;
 
 /// Main configuration structure
-/// 
+///
 /// Contains all configuration sections for the sequencer.
 /// Loaded from a TOML file (e.g., config/default.toml).
-/// 
+///
 /// # Example TOML
 /// ```toml
 /// [batch]
 /// max_batch_size = 100
 /// timeout_interval_ms = 5000
 /// min_batch_size = 10
-/// 
+///
 /// [scheduling]
 /// policy_type = "FCFS"
-/// 
+///
 /// [api]
 /// host = "127.0.0.1"
 /// port = 8545
@@ -55,9 +55,9 @@ impl Default for ExecutorConfig {
 }
 
 /// Batch creation configuration
-/// 
+///
 /// Controls when and how batches are created.
-/// 
+///
 /// # Fields
 /// - `max_batch_size`: Maximum number of transactions per batch
 /// - `timeout_interval_ms`: How long to wait before sealing a partial batch (in milliseconds)
@@ -120,16 +120,17 @@ fn default_blob_fill_target() -> f64 {
 }
 
 /// Transaction scheduling configuration
-/// 
+///
 /// Determines which scheduling policy to use when creating batches.
-/// 
+///
 /// # Supported Policies
 /// - `"FCFS"`: First-Come-First-Served (transactions ordered by arrival time)
 /// - `"FeePriority"`: Fee-based priority (highest gas price first)
 /// - `"TimeBoost"`: Time-windowed ordering with premium bids
 /// - `"FairBFT"`: Fair Byzantine Fault Tolerant ordering (timestamp-based)
 /// - `"BlobPacking"`: Size-aware ordering that favors blob utilization
-/// 
+/// - `"BlobPackingBestFit"`: Nonce-safe best-fit packing with an age guard
+///
 /// # TimeBoost Configuration
 /// For TimeBoost policy, you can specify the time window:
 /// ```toml
@@ -139,7 +140,8 @@ fn default_blob_fill_target() -> f64 {
 /// ```
 #[derive(Debug, Clone, Deserialize)]
 pub struct SchedulingConfig {
-    /// Policy type: "FCFS", "FeePriority", "TimeBoost", or "FairBFT"
+    /// Policy type: "FCFS", "FeePriority", "TimeBoost", "FairBFT", "BlobPacking",
+    /// or "BlobPackingBestFit"
     policy_type: String,
     /// Time window in milliseconds (only used for TimeBoost policy)
     #[serde(default = "default_time_window")]
@@ -154,7 +156,7 @@ impl SchedulingConfig {
     /// Parse the configuration into a SchedulingPolicyType enum
     pub fn to_policy_type(&self) -> crate::scheduler::SchedulingPolicyType {
         use crate::scheduler::SchedulingPolicyType;
-        
+
         match self.policy_type.as_str() {
             "FCFS" => SchedulingPolicyType::Fcfs,
             "FeePriority" => SchedulingPolicyType::FeePriority,
@@ -163,15 +165,19 @@ impl SchedulingConfig {
             },
             "FairBFT" => SchedulingPolicyType::FairBft,
             "BlobPacking" => SchedulingPolicyType::BlobPacking,
-            _ => panic!("Invalid scheduling policy type: {}. Must be one of: FCFS, FeePriority, TimeBoost, FairBFT, BlobPacking", self.policy_type),
+            "BlobPackingBestFit" => SchedulingPolicyType::BlobPackingBestFit,
+            _ => panic!(
+                "Invalid scheduling policy type: {}. Must be one of: FCFS, FeePriority, TimeBoost, FairBFT, BlobPacking, BlobPackingBestFit",
+                self.policy_type
+            ),
         }
     }
 }
 
 /// API server configuration
-/// 
+///
 /// Controls the JSON-RPC API endpoint settings.
-/// 
+///
 /// # Fields
 /// - `host`: IP address to bind to (e.g., "127.0.0.1" or "0.0.0.0")
 /// - `port`: TCP port to listen on (e.g., 8545)
@@ -182,9 +188,9 @@ pub struct ApiConfig {
 }
 
 /// Layer 1 connection configuration
-/// 
+///
 /// Settings for monitoring the L1 blockchain for forced transactions.
-/// 
+///
 /// # Fields
 /// - `rpc_url`: Ethereum L1 RPC endpoint (e.g., "https://eth-mainnet.g.alchemy.com/v2/...")
 /// - `bridge_address`: Address of the L1 bridge contract to monitor
@@ -197,9 +203,9 @@ pub struct L1Config {
 }
 
 /// Database configuration
-/// 
+///
 /// Settings for the batch metadata registry database.
-/// 
+///
 /// # Fields
 /// - `url`: Database connection URL (e.g., "sqlite://registry.db")
 #[derive(Debug, Clone, Deserialize)]
@@ -209,14 +215,14 @@ pub struct DatabaseConfig {
 
 impl Config {
     /// Load configuration from a TOML file
-    /// 
+    ///
     /// # Arguments
     /// * `path` - Path to the TOML configuration file
-    /// 
+    ///
     /// # Returns
     /// * `Ok(Config)` if the file was successfully loaded and parsed
     /// * `Err` if the file couldn't be read or the TOML is invalid
-    /// 
+    ///
     /// # Example
     /// ```ignore
     /// let config = Config::load("config/default.toml")?;
@@ -224,10 +230,10 @@ impl Config {
     pub fn load(path: &str) -> anyhow::Result<Self> {
         // Read the file contents as a string
         let content = fs::read_to_string(path)?;
-        
+
         // Parse the TOML into our Config structure
         let config: Config = toml::from_str(&content)?;
-        
+
         Ok(config)
     }
 }
