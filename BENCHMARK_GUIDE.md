@@ -350,7 +350,20 @@ The plan runner supports three execution profiles.
 
 ---
 
-## 4. Implemented Baseline
+## 4. Proof Methodology
+
+The benchmark plan uses a mixed methodology on purpose.
+
+- `baseline` and exploratory sweep stages default to `REQUIRE_REAL_PROOFS=false` with `ALLOW_PROOF_FALLBACK=1`.
+- This keeps `stage1`, `stage2`, `stage3`, `stage4`, `stage6`, and `stage7` focused on batching, scheduling, DA, gas, and reliability behavior instead of prover backlog.
+- `stage5` contains the proof-focused comparisons and explicitly turns real proofs on for the real-proof cases.
+- `stage8` includes a final strict real-proof comparison through the `best_realproof` cases.
+
+This gives broader and cleaner comparisons for non-prover questions, while still preserving real-proof measurements where proof cost and end-to-end finality are part of the research claim.
+
+---
+
+## 5. Implemented Baseline
 
 The benchmark runner starts from a baseline environment and then applies per-case overrides.
 
@@ -371,7 +384,7 @@ The benchmark runner starts from a baseline environment and then applies per-cas
 - `DA_MODE=calldata`
 - `PROVER=groth16`
 - `PROVER_BACKEND=risc0`
-- `REQUIRE_REAL_PROOFS=true`
+- `REQUIRE_REAL_PROOFS=false`
 - `ALLOW_PROOF_FALLBACK=1`
 - `ALLOW_UNSIGNED_USER_TXS=0`
 - `ETH_PRICE_USD=3000`
@@ -390,7 +403,7 @@ The benchmark runner starts from a baseline environment and then applies per-cas
 
 ---
 
-## 5. Implemented Stages
+## 6. Implemented Stages
 
 The plan runner supports the written plan stages `stage0` through `stage8`, plus the reusable `baseline`.
 
@@ -515,7 +528,7 @@ Note: `stage8` uses representative best configurations based on the plan default
 
 ---
 
-## 6. What Actually Runs Per Experiment
+## 7. What Actually Runs Per Experiment
 
 Each experiment case uses the same core harness:
 
@@ -538,7 +551,7 @@ That script performs:
 
 ---
 
-## 7. Workload Shape
+## 8. Workload Shape
 
 The workload generator uses:
 
@@ -578,7 +591,7 @@ Burst cases use a timed workload where the generator switches between base `RATE
 
 ---
 
-## 8. What Is Measured
+## 9. What Is Measured
 
 The implementation collects metrics at several levels.
 
@@ -684,7 +697,7 @@ Includes:
 
 ---
 
-## 9. Derived Analytics Generated
+## 10. Derived Analytics Generated
 
 The analytics pipeline derives higher-level benchmark outputs from the raw run directories.
 
@@ -754,7 +767,7 @@ The updated aggregation layer computes or carries forward:
 
 ---
 
-## 10. Plots Generated
+## 11. Plots Generated
 
 When analytics are enabled, the artifact script generates plots into the session `figures/` directory.
 
@@ -794,7 +807,7 @@ Actual output depends on which experiment groups were run and which columns are 
 
 ---
 
-## 11. Reports Generated
+## 12. Reports Generated
 
 ### Per-run report
 
@@ -832,7 +845,7 @@ This report summarizes:
 
 ---
 
-## 12. Where Results Are Saved
+## 13. Where Results Are Saved
 
 Every `run_plan_benchmark.sh` session creates a new session directory:
 
@@ -890,7 +903,7 @@ Each run directory typically contains:
 
 ---
 
-## 13. Manifest File
+## 14. Manifest File
 
 Each session writes:
 
@@ -909,7 +922,7 @@ This is useful for reproducibility and for mapping result directories back to th
 
 ---
 
-## 14. Analytics Modes
+## 15. Analytics Modes
 
 The plan runner supports:
 
@@ -943,7 +956,7 @@ bash scripts/run_plan_benchmark.sh --profile pilot --stage minimum --analytics -
 
 ---
 
-## 15. Important Notes
+## 16. Important Notes
 
 ### 1. The runner uses env overrides, not `experiments.toml`
 
@@ -1005,7 +1018,7 @@ If your repository already has unrelated local changes, those are outside this b
 
 ---
 
-## 16. Recommended Usage
+## 17. Recommended Usage
 
 ### Quick validation
 
@@ -1037,7 +1050,7 @@ bash scripts/generate_plan_artifacts.sh metrics/plan_pilot_20260515_120000 local
 
 ---
 
-## 17. Summary
+## 18. Summary
 
 The implemented benchmark plan provides:
 

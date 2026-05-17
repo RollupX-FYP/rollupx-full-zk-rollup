@@ -74,7 +74,8 @@ BASE_ENV = {
     "DA_MODE": "calldata",
     "PROVER": "groth16",
     "PROVER_BACKEND": "risc0",
-    "REQUIRE_REAL_PROOFS": "true",
+    # Keep exploratory stages focused on batching/policy/DA behavior.
+    "REQUIRE_REAL_PROOFS": "false",
     "ALLOW_PROOF_FALLBACK": "1",
     "ALLOW_UNSIGNED_USER_TXS": "0",
     "ETH_PRICE_USD": "3000",
