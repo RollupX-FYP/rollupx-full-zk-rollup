@@ -131,6 +131,26 @@ baseline = cfg["baseline"]
 seeds = baseline["seeds"]
 repeats = r_override if r_override is not None else baseline["repeats"]
 
+def resolve_proof_mode(duration_s: int, repeats: int):
+    prover_override = os.environ.get("PROVER_OVERRIDE")
+    require_real_override = os.environ.get("REQUIRE_REAL_PROOFS")
+
+    # For short screening runs, default to fast local proof mode unless
+    # explicitly overridden by the caller.
+    if prover_override in (None, ""):
+        if duration_s <= 90 and repeats <= 3:
+            prover_override = "mock"
+        else:
+            prover_override = None
+
+    if require_real_override in (None, ""):
+        if prover_override in ("mock", "dev"):
+            require_real_override = "false"
+        else:
+            require_real_override = "true"
+
+    return prover_override, require_real_override
+
 experiments_to_run = [{"factor": "baseline", **baseline}]
 for exp in cfg["experiments"]:
     factor = exp.get("factor")
@@ -193,7 +213,12 @@ for index, exp in enumerate(experiments_to_run, start=1):
 
     for i, seed in enumerate(seeds[:repeats], start=1):
         run_id = f"{exp_id}_r{i:02d}"
+        prover_override, require_real_override = resolve_proof_mode(duration_s, repeats)
+        effective_prover = prover_override if prover_override else exp["prover"]
         print(f"\n  -- Run {i}/{repeats} seed={seed} run_id={run_id}")
+        print(
+            f"     proof_mode: prover={effective_prover} require_real_proofs={require_real_override}"
+        )
 
         env = os.environ.copy()
         env.update({
@@ -210,8 +235,8 @@ for index, exp in enumerate(experiments_to_run, start=1):
             "BLOB_FILL_TARGET": str(exp.get("blob_fill_target", baseline.get("blob_fill_target", 0.90))),
             "POLICY": exp["policy"],
             "DA_MODE": exp["da_mode"],
-            "PROVER": os.environ.get("PROVER_OVERRIDE", exp["prover"]),
-            "REQUIRE_REAL_PROOFS": os.environ.get("REQUIRE_REAL_PROOFS", "true"),
+            "PROVER": effective_prover,
+            "REQUIRE_REAL_PROOFS": require_real_override,
             "ETH_PRICE_USD": str(exp.get("eth_price_usd", baseline.get("eth_price_usd", 2500))),
             "REGULAR_GAS_PRICE_GWEI": str(exp.get("regular_gas_price_gwei", baseline.get("regular_gas_price_gwei", 2))),
             "BLOB_GAS_PRICE_GWEI": str(exp.get("blob_gas_price_gwei", baseline.get("blob_gas_price_gwei", 0.001))),
