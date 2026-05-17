@@ -480,6 +480,15 @@ impl TransactionPool {
         txs.len()
     }
 
+    /// Estimate total encoded bytes currently pending in the pool.
+    ///
+    /// Used by blob-aware batch triggers so payload-heavy transactions can seal
+    /// on DA fill rather than only on transaction count.
+    pub async fn pending_estimated_bytes(&self) -> usize {
+        let txs = self.transactions.read().await;
+        txs.iter().map(|tx| tx.estimated_encoded_bytes()).sum()
+    }
+
     /// Check if the pool is empty
     ///
     /// Convenience method used by the orchestrator to skip batch production

@@ -44,6 +44,9 @@ pub enum TriggerReason {
     /// This is the normal high-throughput trigger.
     SizeThreshold,
 
+    /// Batch sealed because pending estimated bytes reached the blob fill target.
+    BlobFillThreshold,
+
     /// Batch sealed because the timeout interval expired.
     /// Ensures batches are produced even during low activity.
     Timeout,
@@ -54,6 +57,7 @@ impl std::fmt::Display for TriggerReason {
         match self {
             TriggerReason::ForcedTransactions => write!(f, "ForcedTransactions"),
             TriggerReason::SizeThreshold => write!(f, "SizeThreshold"),
+            TriggerReason::BlobFillThreshold => write!(f, "BlobFillThreshold"),
             TriggerReason::Timeout => write!(f, "Timeout"),
         }
     }
@@ -129,7 +133,20 @@ impl BatchTrigger {
             return Some(TriggerReason::SizeThreshold);
         }
 
-        // Priority 3: Timeout expired → seal partial batch
+        // Priority 3: blob fill threshold -> seal when payload bytes are
+        // already high enough, even if transaction count is below target.
+        if self.config.blob_target_bytes > 0 && self.config.blob_fill_target > 0.0 {
+            let fill_target = self.config.blob_fill_target.clamp(0.0, 1.0);
+            let target_bytes = (self.config.blob_target_bytes as f64 * fill_target).ceil() as usize;
+            if target_bytes > 0 {
+                let pending_bytes = self.tx_pool.pending_estimated_bytes().await;
+                if pending_bytes >= target_bytes {
+                    return Some(TriggerReason::BlobFillThreshold);
+                }
+            }
+        }
+
+        // Priority 4: Timeout expired -> seal partial batch
         // Only if we have at least `min_batch_size` transactions to avoid
         // producing near-empty batches during very low traffic
         let timeout_ms = self.config.timeout_interval_ms;
@@ -161,17 +178,20 @@ impl BatchTrigger {
                 self.config
                     .adaptive_small_batch_size
                     .min(self.config.max_batch_size)
+                    .max(1)
             } else if pending_count <= self.config.adaptive_medium_load_threshold {
                 self.config
                     .adaptive_medium_batch_size
                     .min(self.config.max_batch_size)
+                    .max(1)
             } else {
                 self.config
                     .adaptive_large_batch_size
                     .min(self.config.max_batch_size)
+                    .max(1)
             }
         } else {
-            self.config.max_batch_size
+            self.config.max_batch_size.max(1)
         }
     }
 
@@ -210,6 +230,10 @@ mod tests {
     }
 
     fn pooled_tx() -> PooledTransaction {
+        pooled_tx_with_calldata_bytes(0)
+    }
+
+    fn pooled_tx_with_calldata_bytes(calldata_bytes: usize) -> PooledTransaction {
         PooledTransaction {
             tx: UserTransaction {
                 from: Address::random(),
@@ -225,7 +249,11 @@ mod tests {
                 },
                 timestamp: 1_000,
                 boost_bid: None,
-                calldata: None,
+                calldata: if calldata_bytes == 0 {
+                    None
+                } else {
+                    Some(format!("0x{}", "00".repeat(calldata_bytes)))
+                },
             },
             arrived_at: 1_000,
             pool_entry_at: 1_001,
@@ -269,5 +297,40 @@ mod tests {
 
         let reason = trigger.should_seal(Instant::now()).await;
         assert!(matches!(reason, Some(TriggerReason::SizeThreshold)));
+    }
+
+    #[tokio::test]
+    async fn blob_fill_threshold_seals_payload_heavy_batch_below_count_target() {
+        let pool = Arc::new(TransactionPool::new());
+        let forced = Arc::new(ForcedQueue::new());
+        let mut config = adaptive_config();
+        config.max_batch_size = 100;
+        config.adaptive_small_batch_size = 100;
+        config.blob_target_bytes = 256;
+        config.blob_fill_target = 0.50;
+
+        pool.add(pooled_tx_with_calldata_bytes(256)).await;
+        let trigger = BatchTrigger::new(config, pool, forced);
+
+        let reason = trigger.should_seal(Instant::now()).await;
+        assert!(matches!(reason, Some(TriggerReason::BlobFillThreshold)));
+    }
+
+    #[tokio::test]
+    async fn target_batch_size_is_never_zero() {
+        let mut config = adaptive_config();
+        config.max_batch_size = 0;
+        config.adaptive_small_batch_size = 0;
+        config.adaptive_medium_batch_size = 0;
+        config.adaptive_large_batch_size = 0;
+        let trigger = BatchTrigger::new(
+            config,
+            Arc::new(TransactionPool::new()),
+            Arc::new(ForcedQueue::new()),
+        );
+
+        assert_eq!(trigger.target_batch_size_for_depth(0), 1);
+        assert_eq!(trigger.target_batch_size_for_depth(100), 1);
+        assert_eq!(trigger.target_batch_size_for_depth(500), 1);
     }
 }
