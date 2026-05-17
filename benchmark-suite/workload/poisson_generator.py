@@ -63,6 +63,7 @@ class PoissonWorkloadGenerator:
         account_count: int = 1,
         phase: str = "measured",
         start_nonce: int = 0,
+        start_nonces: list[int] | None = None,
     ):
         self.rate          = rate
         self.duration      = duration
@@ -78,6 +79,15 @@ class PoissonWorkloadGenerator:
         self.account_count = max(1, account_count)
         self.phase         = phase
         self.start_nonce   = max(0, start_nonce)
+        if start_nonces is not None:
+            if len(start_nonces) != self.account_count:
+                raise ValueError(
+                    f"start_nonces length {len(start_nonces)} does not match "
+                    f"account_count {self.account_count}"
+                )
+            self.start_nonces = [max(0, int(n)) for n in start_nonces]
+        else:
+            self.start_nonces = [self.start_nonce for _ in range(self.account_count)]
 
         # seeded RNG — separate instance for type sampling vs inter-arrival
         self.rng_arrival = random.Random(seed)
@@ -89,7 +99,7 @@ class PoissonWorkloadGenerator:
             seed=seed + 2000 if seed is not None else None,  # independent stream
         )
         self.sender_nonce: dict[int, int] = {
-            i: self.start_nonce for i in range(self.account_count)
+            i: self.start_nonces[i] for i in range(self.account_count)
         }
 
         # stats storage
@@ -385,6 +395,7 @@ class PoissonWorkloadGenerator:
             "phase":         self.phase,
             "account_count": self.account_count,
             "start_nonce":   self.start_nonce,
+            "start_nonces":  self.start_nonces,
             "tx_mix":        {
                 "A": self.tx_mix[0],
                 "B": self.tx_mix[1],
@@ -502,6 +513,8 @@ def parse_args():
                    help="Benchmark phase label")
     p.add_argument("--start_nonce", type=int, default=0,
                    help="Initial nonce for each sender account")
+    p.add_argument("--start_nonces", type=str, default=None,
+                   help="Comma-separated initial nonce per sender account; overrides --start_nonce")
 
     # tx mix
     mix_group = p.add_argument_group("Transaction mix")
@@ -527,6 +540,13 @@ def main():
     tx_mix = resolve_mix(preset, args.mix_a, args.mix_b, args.mix_c)
 
     run_id = args.run_id or f"{args.experiment_id}_r00"
+    start_nonces = None
+    if args.start_nonces:
+        start_nonces = [
+            int(part.strip())
+            for part in args.start_nonces.split(",")
+            if part.strip() != ""
+        ]
 
     gen = PoissonWorkloadGenerator(
         rate          = args.rate,
@@ -544,6 +564,7 @@ def main():
         account_count = args.account_count,
         phase         = args.phase,
         start_nonce   = args.start_nonce,
+        start_nonces  = start_nonces,
     )
     gen.run()
 

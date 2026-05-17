@@ -783,6 +783,7 @@ if [[ "$WARMUP_S" -gt 0 ]]; then
 fi
 
 WARMUP_TXS=0
+MEASURED_START_NONCES=""
 if [[ -f "${METRICS_ROOT}/warmup/workload_${EXP_ID}.json" ]]; then
     WARMUP_TXS=$(python3 - "${METRICS_ROOT}/warmup/workload_${EXP_ID}.json" <<'PY'
 import json
@@ -793,7 +794,38 @@ print(payload.get("details", {}).get("total_txs", 0))
 PY
 )
 fi
-echo "[workload] warmup complete (total_txs=${WARMUP_TXS}); resetting measured metric files"
+if [[ -f "${METRICS_ROOT}/warmup/tx_log_${RUN_ID}_warmup.csv" ]]; then
+    MEASURED_START_NONCES=$(python3 - "${METRICS_ROOT}/warmup/tx_log_${RUN_ID}_warmup.csv" "$WORKLOAD_ACCOUNT_COUNT" <<'PY'
+import csv
+import sys
+
+path = sys.argv[1]
+account_count = int(sys.argv[2])
+next_nonces = [0 for _ in range(account_count)]
+
+with open(path, newline="", encoding="utf-8") as fh:
+    for row in csv.DictReader(fh):
+        if row.get("status") != "success":
+            continue
+        try:
+            sender = int(row.get("sender_index", ""))
+            nonce = int(row.get("sender_nonce", ""))
+        except ValueError:
+            continue
+        if 0 <= sender < account_count:
+            next_nonces[sender] = max(next_nonces[sender], nonce + 1)
+
+print(",".join(str(n) for n in next_nonces))
+PY
+)
+else
+    MEASURED_START_NONCES=$(python3 - "$WORKLOAD_ACCOUNT_COUNT" <<'PY'
+import sys
+print(",".join("0" for _ in range(int(sys.argv[1]))))
+PY
+)
+fi
+echo "[workload] warmup complete (total_txs=${WARMUP_TXS}, measured_start_nonces=${MEASURED_START_NONCES}); resetting measured metric files"
 rm -f "${METRICS_ROOT}/sequencer_batch_metrics.jsonl" \
       "${METRICS_ROOT}/executor_batch_metrics.jsonl" \
       "${METRICS_ROOT}/submitter_metrics.json" \
@@ -820,7 +852,8 @@ python3 "${ROOT_DIR}/benchmark-suite/workload/poisson_generator.py" \
     --target_txs    "$WORKLOAD_TARGET_TXS" \
     --account_count "$WORKLOAD_ACCOUNT_COUNT" \
     --phase         measured \
-    --start_nonce   "$WARMUP_TXS"
+    --start_nonce   0 \
+    --start_nonces  "$MEASURED_START_NONCES"
 
 # ── 6. Wait for submitter to flush final batch ────────────────────────────────
 # Poll component metrics until executor/submitter have caught up and files stop growing.
