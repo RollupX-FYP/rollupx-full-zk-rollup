@@ -246,9 +246,47 @@ mod tests {
         let fair_bft = create_policy(SchedulingPolicyType::FairBft);
         assert_eq!(fair_bft.name(), "FairBFT");
 
+        // Test BlobPacking creation
+        let blob_packing = create_policy(SchedulingPolicyType::BlobPacking);
+        assert_eq!(blob_packing.name(), "BlobPacking");
+
         // Test BlobPackingBestFit creation
         let best_fit = create_policy(SchedulingPolicyType::BlobPackingBestFit);
         assert_eq!(best_fit.name(), "BlobPackingBestFit");
+    }
+
+    #[test]
+    fn test_time_boost_uses_arrival_time_windows_not_client_timestamp() {
+        let policy = TimeBoostPolicy {
+            time_window_ms: 5000,
+        };
+
+        let mut later_arrival = create_test_tx(1, 100, 21000, 1, None);
+        later_arrival.arrived_at = 6000;
+        let mut earlier_arrival = create_test_tx(2, 100, 21000, 999999, None);
+        earlier_arrival.arrived_at = 1000;
+
+        let ordered = policy.order_transactions(vec![later_arrival, earlier_arrival]);
+
+        assert_eq!(ordered[0].tx.nonce, 2);
+        assert_eq!(ordered[1].tx.nonce, 1);
+    }
+
+    #[test]
+    fn test_fair_bft_uses_arrival_time_not_client_timestamp() {
+        let policy = FairBftPolicy;
+
+        let mut later_arrival = create_test_tx(1, 100, 21000, 1, None);
+        later_arrival.arrived_at = 5000;
+        later_arrival.pool_entry_at = 5001;
+        let mut earlier_arrival = create_test_tx(2, 100, 21000, 999999, None);
+        earlier_arrival.arrived_at = 1000;
+        earlier_arrival.pool_entry_at = 1001;
+
+        let ordered = policy.order_transactions(vec![later_arrival, earlier_arrival]);
+
+        assert_eq!(ordered[0].tx.nonce, 2);
+        assert_eq!(ordered[1].tx.nonce, 1);
     }
 
     #[test]

@@ -6,7 +6,7 @@
 //! # Available Policies
 //!
 //! ## 1. FCFS (First-Come-First-Served)
-//! - Orders transactions by arrival time
+//! - Orders transactions by sequencer-observed arrival time
 //! - Maintains submission order (no reordering)
 //! - **Advantage**: Simple, fair, predictable
 //! - **Disadvantage**: No incentive for higher fees
@@ -29,7 +29,7 @@
 //!
 //! ## 4. Fair BFT Ordering
 //! - Emphasizes timestamp fairness using distributed agreement
-//! - Orders strictly by transaction timestamp (earliest first)
+//! - Orders strictly by sequencer-observed arrival time (earliest first)
 //! - **Note**: Current implementation is simplified for single-node sequencer
 //! - **Advantage**: MEV-resistant, decentralized, time-fair
 //! - **Disadvantage**: Higher overhead, increased latency (in multi-node setup)
@@ -66,7 +66,7 @@ pub trait SchedulingPolicy: Send + Sync {
 
 /// FCFS (First-Come-First-Served) Policy
 ///
-/// Maintains the original submission order. No reordering is performed.
+/// Maintains the pool submission order. No reordering is performed.
 /// This is the simplest and most predictable policy.
 pub struct FcfsPolicy;
 
@@ -122,8 +122,11 @@ impl SchedulingPolicy for TimeBoostPolicy {
         &self,
         mut transactions: Vec<PooledTransaction>,
     ) -> Vec<PooledTransaction> {
-        // Group transactions by time window
-        // Time window = floor(timestamp / window_size)
+        // Group transactions by sequencer-observed arrival time window.
+        // The user-supplied transaction timestamp is signed data and may be
+        // second-granularity or client-controlled, so it is not suitable for
+        // local scheduling fairness.
+        let window_ms = self.time_window_ms.max(1);
 
         // Sort by multiple criteria:
         // 1. Time window (ascending - earlier windows first)
@@ -132,9 +135,8 @@ impl SchedulingPolicy for TimeBoostPolicy {
         // 4. Maintain stable sort for FCFS tie-breaking
 
         transactions.sort_by(|a, b| {
-            // Calculate time windows
-            let window_a = a.tx.timestamp / self.time_window_ms;
-            let window_b = b.tx.timestamp / self.time_window_ms;
+            let window_a = a.arrived_at / window_ms;
+            let window_b = b.arrived_at / window_ms;
 
             // First, compare by time window
             match window_a.cmp(&window_b) {
@@ -172,7 +174,8 @@ impl SchedulingPolicy for TimeBoostPolicy {
 
 /// Fair BFT Ordering Policy
 ///
-/// Orders transactions strictly by timestamp to provide time-based fairness.
+/// Orders transactions strictly by sequencer-observed arrival time to provide
+/// local time-based fairness.
 /// This is a simplified implementation for single-node sequencers.
 ///
 /// # Multi-Node BFT Extension
@@ -199,7 +202,7 @@ impl SchedulingPolicy for TimeBoostPolicy {
 ///    - Encrypted mempool can further enhance fairness
 ///
 /// # Current Implementation
-/// Orders by transaction timestamp field (single-node, no consensus).
+/// Orders by local sequencer arrival time (single-node, no consensus).
 pub struct FairBftPolicy;
 
 impl SchedulingPolicy for FairBftPolicy {
@@ -207,9 +210,10 @@ impl SchedulingPolicy for FairBftPolicy {
         &self,
         mut transactions: Vec<PooledTransaction>,
     ) -> Vec<PooledTransaction> {
-        // Sort strictly by timestamp (ascending - earliest first)
-        // This provides time-based fairness
-        transactions.sort_by(|a, b| a.tx.timestamp.cmp(&b.tx.timestamp));
+        transactions.sort_by(|a, b| match a.arrived_at.cmp(&b.arrived_at) {
+            std::cmp::Ordering::Equal => a.pool_entry_at.cmp(&b.pool_entry_at),
+            other => other,
+        });
         transactions
     }
 
@@ -235,7 +239,7 @@ impl SchedulingPolicy for BlobPackingPolicy {
             let size_b = b.estimated_encoded_bytes();
             match size_b.cmp(&size_a) {
                 std::cmp::Ordering::Equal => match b.tx.gas_price.cmp(&a.tx.gas_price) {
-                    std::cmp::Ordering::Equal => a.tx.timestamp.cmp(&b.tx.timestamp),
+                    std::cmp::Ordering::Equal => a.arrived_at.cmp(&b.arrived_at),
                     other => other,
                 },
                 other => other,
@@ -266,7 +270,7 @@ impl SchedulingPolicy for BlobPackingBestFitPolicy {
         &self,
         mut transactions: Vec<PooledTransaction>,
     ) -> Vec<PooledTransaction> {
-        transactions.sort_by(|a, b| match a.tx.timestamp.cmp(&b.tx.timestamp) {
+        transactions.sort_by(|a, b| match a.arrived_at.cmp(&b.arrived_at) {
             std::cmp::Ordering::Equal => b.tx.gas_price.cmp(&a.tx.gas_price),
             other => other,
         });

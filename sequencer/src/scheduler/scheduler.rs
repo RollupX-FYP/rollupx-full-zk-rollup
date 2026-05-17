@@ -8,6 +8,8 @@
 //! - **FeePriority**: Transactions ordered by gas price (highest first)
 //! - **TimeBoost**: Time-windowed ordering with premium bids
 //! - **FairBFT**: Timestamp-based fair ordering (Byzantine Fault Tolerant)
+//! - **BlobPacking**: Size-aware ordering for DA blob utilization
+//! - **BlobPackingBestFit**: Nonce-safe best-fit blob packing with an age guard
 //!
 //! # Important Rule
 //! Forced transactions from L1 ALWAYS come first, regardless of policy.
