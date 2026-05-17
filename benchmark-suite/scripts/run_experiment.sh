@@ -70,15 +70,31 @@ export HARDHAT_MINING_INTERVAL=${HARDHAT_MINING_INTERVAL:-12000}
 export SEQUENCER_EXECUTOR_PUBLISH_RETRIES=${SEQUENCER_EXECUTOR_PUBLISH_RETRIES:-5}
 export SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS=${SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS:-10000}
 export HARDHAT_DEV_ADDRESSES=${HARDHAT_DEV_ADDRESSES:-"0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266,0x70997970C51812dc3A010C7d01b50e0d17dc79C8,0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC,0x90F79bf6EB2c4f870365E785982E1f101E93b906,0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65,0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc,0x976EA74026e726554db657fa54763AbBf14479A3,0x14dC79964da2C08b23698b3D3cc7Ca32193d9955,0x23618e81e3E31A58A0A5fF5C9D8f6F2368D4F2c6,0xa0Ee7A142d267C1f36714e4a8F75612F20a79720"}
+export HARDHAT_DEV_MNEMONIC=${HARDHAT_DEV_MNEMONIC:-"test test test test test test test test test test test junk"}
 
 sender_addresses_for_count() {
     local count="${1:-1}"
-    python3 - "$count" "$HARDHAT_DEV_ADDRESSES" <<'PY'
+    python3 - "$count" "$HARDHAT_DEV_ADDRESSES" "$HARDHAT_DEV_MNEMONIC" <<'PY'
 import sys
 count = max(1, int(sys.argv[1]))
 addresses = [s.strip() for s in sys.argv[2].split(",") if s.strip()]
+mnemonic = sys.argv[3]
+
 if count > len(addresses):
-    raise SystemExit(f"WORKLOAD_ACCOUNT_COUNT={count} exceeds available seeded addresses={len(addresses)}")
+    try:
+        from eth_account import Account
+
+        Account.enable_unaudited_hdwallet_features()
+        for index in range(len(addresses), count):
+            acct = Account.from_mnemonic(
+                mnemonic,
+                account_path=f"m/44'/60'/0'/0/{index}",
+            )
+            addresses.append(acct.address)
+    except Exception as exc:
+        raise SystemExit(
+            f"Unable to derive {count} hardhat dev addresses from mnemonic: {exc}"
+        )
 print(",".join(addresses[:count]))
 PY
 }
