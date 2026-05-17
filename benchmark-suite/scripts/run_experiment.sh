@@ -48,6 +48,7 @@ export WARMUP_S=${WARMUP_S:-15}
 export WORKLOAD_CONCURRENCY=${WORKLOAD_CONCURRENCY:-1}
 export WORKLOAD_TARGET_TXS=${WORKLOAD_TARGET_TXS:-0}
 export WORKLOAD_ACCOUNT_COUNT=${WORKLOAD_ACCOUNT_COUNT:-1}
+export WORKLOAD_HTTP_TIMEOUT_S=${WORKLOAD_HTTP_TIMEOUT_S:-30}
 export TX_MIX=${TX_MIX:-balanced}
 export SEED=${SEED:-42}
 export SEQ_HOST=${SEQ_HOST:-localhost}
@@ -793,6 +794,7 @@ if [[ "$WARMUP_S" -gt 0 ]]; then
         --concurrency   "$WORKLOAD_CONCURRENCY" \
         --target_txs    0 \
         --account_count "$WORKLOAD_ACCOUNT_COUNT" \
+        --http_timeout_s "$WORKLOAD_HTTP_TIMEOUT_S" \
         --phase         warmup \
         --start_nonce   0
     wait_for_component_metrics_flush
@@ -867,6 +869,7 @@ python3 "${ROOT_DIR}/benchmark-suite/workload/poisson_generator.py" \
     --concurrency   "$WORKLOAD_CONCURRENCY" \
     --target_txs    "$WORKLOAD_TARGET_TXS" \
     --account_count "$WORKLOAD_ACCOUNT_COUNT" \
+    --http_timeout_s "$WORKLOAD_HTTP_TIMEOUT_S" \
     --phase         measured \
     --start_nonce   0 \
     --start_nonces  "$MEASURED_START_NONCES"

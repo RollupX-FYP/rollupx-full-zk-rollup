@@ -64,6 +64,7 @@ class PoissonWorkloadGenerator:
         phase: str = "measured",
         start_nonce: int = 0,
         start_nonces: list[int] | None = None,
+        http_timeout_s: float = 5.0,
     ):
         self.rate          = rate
         self.duration      = duration
@@ -79,6 +80,7 @@ class PoissonWorkloadGenerator:
         self.account_count = max(1, account_count)
         self.phase         = phase
         self.start_nonce   = max(0, start_nonce)
+        self.http_timeout_s = max(0.1, float(http_timeout_s))
         if start_nonces is not None:
             if len(start_nonces) != self.account_count:
                 raise ValueError(
@@ -354,7 +356,7 @@ class PoissonWorkloadGenerator:
             url, data=data, headers={"Content-Type": "application/json"}
         )
         try:
-            with urllib.request.urlopen(req, timeout=5) as resp:
+            with urllib.request.urlopen(req, timeout=self.http_timeout_s) as resp:
                 body = resp.read()
                 try:
                     decoded = json.loads(body.decode("utf-8"))
@@ -515,6 +517,8 @@ def parse_args():
                    help="Initial nonce for each sender account")
     p.add_argument("--start_nonces", type=str, default=None,
                    help="Comma-separated initial nonce per sender account; overrides --start_nonce")
+    p.add_argument("--http_timeout_s", type=float, default=5.0,
+                   help="HTTP timeout in seconds for each /tx submission")
 
     # tx mix
     mix_group = p.add_argument_group("Transaction mix")
@@ -565,6 +569,7 @@ def main():
         phase         = args.phase,
         start_nonce   = args.start_nonce,
         start_nonces  = start_nonces,
+        http_timeout_s = args.http_timeout_s,
     )
     gen.run()
 
