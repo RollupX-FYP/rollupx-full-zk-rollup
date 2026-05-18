@@ -113,6 +113,8 @@ def _load_run(run_dir: str) -> dict | None:
                 "workload_burst_enabled": cfg.get("workload_burst_enabled", "0"),
                 "workload_burst_rate_tps": _to_float(cfg.get("workload_burst_rate_tps")),
                 "hardhat_mining_interval": _to_float(cfg.get("hardhat_mining_interval")),
+                "sequencer_executor_publish_retries": _to_float(cfg.get("SEQUENCER_EXECUTOR_PUBLISH_RETRIES", cfg.get("sequencer_executor_publish_retries"))),
+                "sequencer_executor_publish_timeout_ms": _to_float(cfg.get("SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS", cfg.get("sequencer_executor_publish_timeout_ms"))),
                 "tx_mix": cfg.get("tx_mix", ""),
                 "seed": cfg.get("seed", ""),
             }

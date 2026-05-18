@@ -47,6 +47,7 @@ run_plot "latency_boxplot"  python3 data-tools/plots/latency_boxplot.py --input 
 run_plot "fairness"         python3 data-tools/plots/fairness.py --input "$METRICS_ROOT/all_results.csv" --output_dir "$FIGURES_DIR"
 run_plot "cost_heatmap"     python3 data-tools/plots/cost_heatmap.py --input "$METRICS_ROOT/all_results.csv" --output_dir "$FIGURES_DIR"
 run_plot "sensitivity"      python3 data-tools/plots/sensitivity.py --input "$METRICS_ROOT/all_results.csv" --output_dir "$FIGURES_DIR"
+run_plot "final_report"     python3 data-tools/plots/final_report_graphs.py --results "$METRICS_ROOT/all_results.csv" --batch_results "$METRICS_ROOT/all_batch_results.csv" --output_dir "$FIGURES_DIR"
 
 if [ "$PLOT_ERRORS" -gt 0 ]; then
     echo "  [NOTE] $PLOT_ERRORS plot(s) had warnings (likely insufficient data for that chart type)"

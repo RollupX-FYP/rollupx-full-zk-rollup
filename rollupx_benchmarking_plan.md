@@ -863,7 +863,402 @@ Prepare a table like this:
 
 ---
 
-## 8. Recommended Experiment Matrix
+---
+
+## 8. Stage-wise Graph Generation Plan
+
+This section defines the graphs that must be generated after each benchmark stage. The goal is to avoid collecting metrics without producing useful evidence. Every stage should produce a small set of required graphs, optional diagnostic graphs, and one summary table. The required graphs are the ones that should be considered for the final report. Optional graphs are mainly for debugging, appendix material, or explaining unusual behavior.
+
+### General Graphing Rules
+
+All stage graphs should follow the same naming and formatting conventions so that results are easy to compare across experiment sessions.
+
+Recommended output directory structure:
+
+```text
+metrics/<session_name>/
+  analysis/
+    all_results.csv
+    stats_summary.csv
+    stage_summary_tables/
+  figures/
+    stage0_validation/
+    stage1_batch_timeout/
+    stage2_adaptive/
+    stage3_policy/
+    stage4_da_blob/
+    stage5_prover/
+    stage6_l1_submission/
+    stage7_reliability/
+    stage8_final_comparison/
+```
+
+Every graph should include:
+
+- Experiment ID or stage name
+- Workload profile
+- Number of repeats
+- Whether proof mode is `mock`, `fallback`, or `strict real proof`
+- Whether cost is measured from receipts or estimated from the local cost model
+- Error bars or confidence intervals when repeats are available
+
+For final report-quality graphs, prefer median or mean with 95% confidence intervals, and always include P95 latency rather than only average latency.
+
+---
+
+### Stage 0 — Instrumentation Validation Graphs
+
+Stage 0 is not meant to produce performance claims. It verifies that the benchmark harness is recording consistent data across transaction, batch, executor, submitter, and L1 layers.
+
+#### Required Graphs
+
+| Graph                                | X-axis                | Y-axis                        | Purpose                                                                                                                         |
+| ------------------------------------ | --------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `stage0_pipeline_timeline.png`       | Pipeline step         | Timestamp or relative latency | Shows that a transaction progresses through submission, admission, batching, execution, proof, L1 submission, and finalization. |
+| `stage0_metric_completeness.png`     | Required metric field | Completion percentage         | Confirms that all required fields are present in logs.                                                                          |
+| `stage0_batch_count_consistency.png` | Component             | Batch count                   | Confirms sequencer, executor, and submitter saw the same number of batches.                                                     |
+
+#### Required Summary Table
+
+Generate `stage0_validation_summary.csv` with:
+
+```text
+metric_name,expected_count,actual_count,missing_count,status
+```
+
+#### Acceptance Criteria
+
+Stage 0 should pass before any real benchmark stage is trusted. If batch counts do not match across sequencer, executor, and submitter, do not use later results for thesis graphs.
+
+---
+
+### Stage 1 — Fixed Batch Size and Timeout Graphs
+
+Stage 1 explains the core fixed batching trade-off. It should show how larger batches improve amortization but can increase waiting latency.
+
+#### Required Graphs
+
+| Graph                                       | X-axis                | Y-axis                 | Group/Color                 | Purpose                                                    |
+| ------------------------------------------- | --------------------- | ---------------------- | --------------------------- | ---------------------------------------------------------- |
+| `stage1_batch_size_vs_goodput.png`          | `max_batch_size`      | Goodput TPS            | Workload or traffic rate    | Shows throughput improvement and saturation point.         |
+| `stage1_batch_size_vs_p95_latency.png`      | `max_batch_size`      | P95 end-to-end latency | Workload or traffic rate    | Shows latency penalty of larger batches.                   |
+| `stage1_batch_size_vs_cost_per_tx.png`      | `max_batch_size`      | Cost/tx or gas/tx      | DA mode                     | Shows fixed-cost amortization.                             |
+| `stage1_batch_size_vs_batch_fill_ratio.png` | `max_batch_size`      | Batch fill ratio       | Traffic rate                | Shows whether large batches are actually being filled.     |
+| `stage1_timeout_vs_p95_latency.png`         | `timeout_interval_ms` | P95 latency            | Batch size                  | Shows timeout-driven latency behavior.                     |
+| `stage1_timeout_vs_goodput.png`             | `timeout_interval_ms` | Goodput TPS            | Batch size                  | Shows whether shorter timeouts reduce throughput.          |
+| `stage1_throughput_latency_pareto.png`      | Goodput TPS           | P95 latency            | Batch size / timeout config | Identifies Pareto-efficient fixed batching configurations. |
+
+#### Optional Diagnostic Graphs
+
+| Graph                                  | Purpose                                                               |
+| -------------------------------------- | --------------------------------------------------------------------- |
+| `stage1_mempool_backlog_over_time.png` | Shows whether high latency is caused by queue buildup.                |
+| `stage1_batch_reason_distribution.png` | Shows whether batches were sealed by size trigger or timeout trigger. |
+| `stage1_tx_per_batch_distribution.png` | Shows whether configured batch size matches actual batch size.        |
+
+#### Required Summary Table
+
+Generate `stage1_fixed_batching_summary.csv` with:
+
+```text
+experiment_id,max_batch_size,timeout_ms,workload,goodput_tps,p95_latency_ms,p99_latency_ms,cost_per_tx_usd,batch_fill_ratio,proof_time_ms,pareto_efficient
+```
+
+#### Main Result Expected
+
+This stage should identify the best fixed batching candidates, not necessarily one winner. The output should support a claim such as: larger batches reduce cost/tx but increase P95 latency, and there is a saturation point beyond which goodput does not improve significantly.
+
+---
+
+### Stage 2 — Adaptive Batching Graphs
+
+Stage 2 should show whether adaptive batching performs better than fixed batching under variable traffic. This is one of the most important stages for research value.
+
+#### Required Graphs
+
+| Graph                                       | X-axis              | Y-axis                               | Group/Color                                      | Purpose                                                                  |
+| ------------------------------------------- | ------------------- | ------------------------------------ | ------------------------------------------------ | ------------------------------------------------------------------------ |
+| `stage2_traffic_vs_selected_batch_size.png` | Time                | Traffic rate and selected batch size | Two lines or dual axis                           | Shows whether the adaptive controller responds to load changes.          |
+| `stage2_adaptive_vs_fixed_p95_latency.png`  | Load profile        | P95 latency                          | Fixed-small, fixed-medium, fixed-large, adaptive | Shows adaptive latency benefit across low, medium, high, and burst load. |
+| `stage2_adaptive_vs_fixed_goodput.png`      | Load profile        | Goodput TPS                          | Fixed-small, fixed-medium, fixed-large, adaptive | Shows whether adaptive maintains throughput.                             |
+| `stage2_adaptive_vs_fixed_cost_per_tx.png`  | Load profile        | Cost/tx                              | Fixed-small, fixed-medium, fixed-large, adaptive | Shows whether adaptive preserves cost efficiency.                        |
+| `stage2_burst_backlog_recovery.png`         | Time                | Mempool backlog size                 | Fixed vs adaptive                                | Shows recovery after burst traffic.                                      |
+| `stage2_batch_size_distribution.png`        | Selected batch size | Frequency/count                      | Load profile                                     | Shows how often adaptive chooses small, medium, or large batches.        |
+| `stage2_adaptive_pareto.png`                | Goodput TPS         | P95 latency                          | Fixed and adaptive configs                       | Shows whether adaptive shifts the Pareto frontier.                       |
+
+#### Optional Diagnostic Graphs
+
+| Graph                                       | Purpose                                                    |
+| ------------------------------------------- | ---------------------------------------------------------- |
+| `stage2_threshold_sensitivity_latency.png`  | Shows how low/medium threshold choices affect latency.     |
+| `stage2_threshold_sensitivity_cost.png`     | Shows how threshold choices affect cost/tx.                |
+| `stage2_batch_trigger_reason_over_time.png` | Shows when adaptive batches are sealed by size vs timeout. |
+
+#### Required Summary Table
+
+Generate `stage2_adaptive_summary.csv` with:
+
+```text
+experiment_id,batch_policy,load_profile,selected_small_count,selected_medium_count,selected_large_count,goodput_tps,p95_latency_ms,cost_per_tx_usd,backlog_recovery_time_ms,pareto_efficient
+```
+
+#### Main Result Expected
+
+This stage should show whether adaptive batching gives small-batch latency under low load and large-batch cost efficiency under high load. If adaptive does not improve results, the graph should still be used honestly to explain why the controller thresholds need tuning.
+
+---
+
+### Stage 3 — Sequencer Policy Graphs
+
+Stage 3 should not focus only on throughput. Its main purpose is to show the performance-fairness trade-off of sequencing policies.
+
+#### Required Graphs
+
+| Graph                                             | X-axis      | Y-axis                             | Group/Color         | Purpose                                                                             |
+| ------------------------------------------------- | ----------- | ---------------------------------- | ------------------- | ----------------------------------------------------------------------------------- |
+| `stage3_policy_vs_goodput.png`                    | Policy type | Goodput TPS                        | Workload            | Shows raw throughput impact of each policy.                                         |
+| `stage3_policy_vs_p95_latency_by_class.png`       | Policy type | P95 latency                        | Fee/user class      | Shows whether high-priority classes benefit and low-priority classes are penalized. |
+| `stage3_policy_vs_jain_fairness.png`              | Policy type | Jain fairness index                | Workload            | Shows fairness behavior.                                                            |
+| `stage3_policy_vs_starvation_count.png`           | Policy type | Starvation count                   | Workload            | Shows whether any policy delays valid transactions excessively.                     |
+| `stage3_policy_vs_reordering_distance.png`        | Policy type | Average or P95 reordering distance | Workload            | Shows how far final order deviates from arrival order.                              |
+| `stage3_priority_latency_cdf.png`                 | Latency     | Cumulative probability             | Fee/user class      | Shows full latency distribution, not only P95.                                      |
+| `stage3_blobpacking_vs_fcfs_blob_utilization.png` | Policy type | Blob fill ratio and DA cost/tx     | FCFS vs BlobPacking | Shows whether BlobPacking improves DA efficiency.                                   |
+
+#### Optional Diagnostic Graphs
+
+| Graph                                | Purpose                                                                   |
+| ------------------------------------ | ------------------------------------------------------------------------- |
+| `stage3_wait_time_by_user.png`       | Shows whether specific users suffer unfair waiting.                       |
+| `stage3_fee_priority_benefit.png`    | Shows latency reduction for high-fee users and penalty for low-fee users. |
+| `stage3_time_window_sensitivity.png` | Shows how `time_window_ms` affects FairBFT or TimeBoost.                  |
+
+#### Required Summary Table
+
+Generate `stage3_policy_summary.csv` with:
+
+```text
+policy_type,workload,goodput_tps,p95_latency_low_fee,p95_latency_medium_fee,p95_latency_high_fee,jain_fairness,starvation_count,reordering_distance,cost_per_tx_usd,best_for
+```
+
+#### Main Result Expected
+
+This stage should produce a balanced claim: FeePriority and TimeBoost may improve priority latency, FairBFT may improve fairness, and BlobPacking may improve DA efficiency. Avoid claiming one policy is universally best.
+
+---
+
+### Stage 4 — Data Availability and Blob Packing Graphs
+
+Stage 4 should produce the clearest cost-related results. It should identify when blob mode becomes cheaper than calldata and whether BlobPacking improves utilization.
+
+#### Required Graphs
+
+| Graph                                         | X-axis                          | Y-axis                    | Group/Color       | Purpose                                                    |
+| --------------------------------------------- | ------------------------------- | ------------------------- | ----------------- | ---------------------------------------------------------- |
+| `stage4_da_mode_vs_cost_per_tx.png`           | DA mode                         | Cost/tx                   | Workload          | Compares calldata, blob, and offchain cost.                |
+| `stage4_da_mode_vs_hard_finality_latency.png` | DA mode                         | P95 hard finality latency | Workload          | Shows latency effects of DA mode.                          |
+| `stage4_batch_payload_vs_blob_fill_ratio.png` | Batch payload bytes             | Blob fill ratio           | Policy type       | Shows how efficiently blobs are used.                      |
+| `stage4_blob_fill_target_vs_cost.png`         | Blob fill target                | Cost/tx                   | Workload          | Shows cost benefit of waiting for fuller blobs.            |
+| `stage4_blob_fill_target_vs_p95_latency.png`  | Blob fill target                | P95 latency               | Workload          | Shows latency penalty of waiting for fuller blobs.         |
+| `stage4_calldata_blob_crossover.png`          | Batch payload bytes or tx count | Cost/tx                   | Calldata vs blob  | Identifies the crossover point where blob becomes cheaper. |
+| `stage4_blobpacking_vs_fcfs_cost.png`         | Policy type                     | DA cost/tx                | DA-heavy workload | Shows cost benefit of BlobPacking.                         |
+| `stage4_blob_waste_ratio.png`                 | Blob fill target or batch size  | Blob waste ratio          | Workload          | Shows unused blob capacity.                                |
+
+#### Optional Diagnostic Graphs
+
+| Graph                                  | Purpose                                       |
+| -------------------------------------- | --------------------------------------------- |
+| `stage4_da_bytes_per_tx.png`           | Shows compression/packing impact on DA bytes. |
+| `stage4_offchain_archiver_latency.png` | Shows offchain DA availability overhead.      |
+| `stage4_offchain_failure_rate.png`     | Shows offchain DA reliability risk.           |
+
+#### Required Summary Table
+
+Generate `stage4_da_summary.csv` with:
+
+```text
+da_mode,policy_type,workload,batch_size,blob_target_bytes,blob_fill_target,da_bytes_per_tx,blob_fill_ratio,blob_waste_ratio,cost_per_tx_usd,p95_hard_finality_ms,crossover_point_flag
+```
+
+#### Main Result Expected
+
+This stage should identify the calldata/blob crossover point. That is a high-value research result because it gives practical guidance: blob DA is not always cheaper; it becomes beneficial when payload size and blob utilization are high enough.
+
+---
+
+### Stage 5 — Prover and Real-Proof Graphs
+
+Stage 5 should quantify the cost of using real proofs. This stage should use fewer cases and fewer batches than mock-proof sweeps because real proving can dominate runtime.
+
+#### Required Graphs
+
+| Graph                                        | X-axis                   | Y-axis                     | Group/Color | Purpose                                          |
+| -------------------------------------------- | ------------------------ | -------------------------- | ----------- | ------------------------------------------------ |
+| `stage5_batch_size_vs_proof_time.png`        | Batch size               | Proof generation time      | Workload    | Shows how proof time scales with batch size.     |
+| `stage5_batch_size_vs_proof_time_per_tx.png` | Batch size               | Proof time per transaction | Workload    | Shows amortization of proving overhead.          |
+| `stage5_batch_size_vs_peak_memory.png`       | Batch size               | Peak memory usage          | Workload    | Shows resource bottleneck.                       |
+| `stage5_batch_size_vs_proven_tps.png`        | Batch size               | Proven TPS                 | Workload    | Shows cryptographically proven throughput.       |
+| `stage5_mock_vs_real_finality_latency.png`   | Proof mode               | P95 hard finality latency  | Workload    | Shows how real proof changes end-to-end latency. |
+| `stage5_mock_vs_real_goodput.png`            | Proof mode               | Goodput TPS                | Workload    | Shows throughput impact of real proving.         |
+| `stage5_proof_failure_fallback_count.png`    | Proof mode or batch size | Failure/fallback count     | Workload    | Shows whether proof mode is reliable.            |
+
+#### Optional Diagnostic Graphs
+
+| Graph                                       | Purpose                                                                 |
+| ------------------------------------------- | ----------------------------------------------------------------------- |
+| `stage5_cpu_usage_over_time.png`            | Shows CPU pressure during proving.                                      |
+| `stage5_memory_over_time.png`               | Shows memory spikes during proving.                                     |
+| `stage5_proof_size_vs_batch_size.png`       | Shows whether proof/journal size scales with workload.                  |
+| `stage5_verification_mode_cost_latency.png` | Compares onchain vs offchain-only verification if both are implemented. |
+
+#### Required Summary Table
+
+Generate `stage5_prover_summary.csv` with:
+
+```text
+proof_mode,prover_backend,proof_backend_label,workload,batch_size,proof_time_ms,proof_time_per_tx_ms,proof_size_bytes,journal_size_bytes,peak_memory_mb,proven_tps,p95_hard_finality_ms,fallback_count,prover_failure_count
+```
+
+#### Main Result Expected
+
+This stage should clearly separate mock-proof system behavior from real-proof behavior. Use it to support the claim that real proofs shift the bottleneck toward proving and hard finality.
+
+---
+
+### Stage 6 — L1 Submission and Gas Sensitivity Graphs
+
+Stage 6 should explain the difference between L2 soft confirmation and L1 hard finality. It should also show how gas price assumptions affect cost.
+
+#### Required Graphs
+
+| Graph                                           | X-axis                  | Y-axis                    | Group/Color      | Purpose                                                    |
+| ----------------------------------------------- | ----------------------- | ------------------------- | ---------------- | ---------------------------------------------------------- |
+| `stage6_mining_interval_vs_hard_finality.png`   | Hardhat mining interval | P95 hard finality latency | DA mode          | Shows L1 inclusion impact.                                 |
+| `stage6_mining_interval_vs_finalized_tps.png`   | Hardhat mining interval | Finalized TPS             | Workload         | Shows whether L1 limits finalization.                      |
+| `stage6_regular_gas_price_vs_calldata_cost.png` | Regular gas price       | Cost/tx                   | Calldata configs | Shows calldata cost sensitivity.                           |
+| `stage6_blob_gas_price_vs_blob_cost.png`        | Blob gas price          | Cost/tx                   | Blob configs     | Shows blob cost sensitivity.                               |
+| `stage6_calldata_vs_blob_gas_sensitivity.png`   | Gas price scenario      | Cost/tx                   | Calldata vs blob | Shows when blob remains cheaper under changing gas prices. |
+| `stage6_batch_size_vs_failed_batch_rate.png`    | Batch size or gas limit | Failed batch rate         | DA mode          | Shows whether L1 gas limits cause failures.                |
+
+#### Optional Diagnostic Graphs
+
+| Graph                                   | Purpose                                                 |
+| --------------------------------------- | ------------------------------------------------------- |
+| `stage6_l1_inclusion_latency_cdf.png`   | Shows full distribution of L1 inclusion latency.        |
+| `stage6_gas_per_batch_distribution.png` | Shows variation in gas usage across batches.            |
+| `stage6_soft_vs_hard_latency_gap.png`   | Shows how much hard finality exceeds soft confirmation. |
+
+#### Required Summary Table
+
+Generate `stage6_l1_summary.csv` with:
+
+```text
+mining_interval_ms,regular_gas_price_gwei,blob_gas_price_gwei,da_mode,workload,finalized_tps,p95_soft_latency_ms,p95_hard_finality_ms,cost_per_tx_usd,failed_batch_rate
+```
+
+#### Main Result Expected
+
+This stage should show that sequencer performance and final settlement performance are different. Even with fast soft confirmations, hard finality is limited by proving, DA submission, and L1 inclusion.
+
+---
+
+### Stage 7 — Reliability and Failure Recovery Graphs
+
+Stage 7 should show whether the pipeline remains stable under executor, submitter, communication, or DA failures. This stage is useful for engineering validation and can be included in the appendix if space is limited.
+
+#### Required Graphs
+
+| Graph                                          | X-axis                    | Y-axis                     | Group/Color          | Purpose                                              |
+| ---------------------------------------------- | ------------------------- | -------------------------- | -------------------- | ---------------------------------------------------- |
+| `stage7_publish_timeout_vs_failed_batches.png` | Publish timeout           | Failed batch count         | Workload             | Shows effect of timeout aggressiveness.              |
+| `stage7_retries_vs_success_rate.png`           | Retry count               | Batch publish success rate | Fault type           | Shows reliability benefit of retries.                |
+| `stage7_failure_duration_vs_recovery_time.png` | Injected failure duration | Recovery time              | Fault type           | Shows how quickly the system recovers.               |
+| `stage7_comm_mode_vs_publish_latency.png`      | Communication mode        | Publish latency            | Workload             | Compares gRPC/file/HTTP if supported.                |
+| `stage7_backlog_after_failure.png`             | Time                      | Mempool backlog            | Retry/timeout config | Shows whether backlog clears after recovery.         |
+| `stage7_duplicate_publish_count.png`           | Retry config              | Duplicate publish count    | Fault type           | Ensures retries do not create duplicate submissions. |
+
+#### Optional Diagnostic Graphs
+
+| Graph                                  | Purpose                                                           |
+| -------------------------------------- | ----------------------------------------------------------------- |
+| `stage7_rpc_error_count_over_time.png` | Shows RPC error bursts.                                           |
+| `stage7_component_health_timeline.png` | Shows sequencer/executor/submitter health during fault injection. |
+
+#### Required Summary Table
+
+Generate `stage7_reliability_summary.csv` with:
+
+```text
+fault_type,retries,publish_timeout_ms,comm_mode,batch_success_rate,failed_batch_count,duplicate_publish_count,recovery_time_ms,p95_latency_under_fault_ms,backlog_recovery_time_ms
+```
+
+#### Main Result Expected
+
+This stage should support a reliability-latency trade-off claim: more retries can improve success rate but increase finality latency, while overly short timeouts may create false failures.
+
+---
+
+### Stage 8 — Final Candidate Configuration Graphs
+
+Stage 8 should compare the final candidate configurations against baseline. These are the graphs most likely to appear in the final presentation, poster, and report.
+
+#### Required Graphs
+
+| Graph                                     | X-axis        | Y-axis                    | Group/Color   | Purpose                                               |
+| ----------------------------------------- | ------------- | ------------------------- | ------------- | ----------------------------------------------------- |
+| `stage8_config_vs_goodput.png`            | Configuration | Goodput TPS               | Workload      | Shows throughput improvement over baseline.           |
+| `stage8_config_vs_p95_soft_latency.png`   | Configuration | P95 soft latency          | Workload      | Shows user-facing confirmation latency.               |
+| `stage8_config_vs_p95_hard_finality.png`  | Configuration | P95 hard finality latency | Workload      | Shows full settlement latency.                        |
+| `stage8_config_vs_cost_per_tx.png`        | Configuration | Cost/tx                   | Workload      | Shows cost improvement over baseline.                 |
+| `stage8_config_vs_proof_time.png`         | Configuration | Proof time                | Workload      | Shows proof overhead for final candidates.            |
+| `stage8_config_vs_fairness.png`           | Configuration | Jain fairness index       | Workload      | Shows fairness impact.                                |
+| `stage8_config_vs_failure_rate.png`       | Configuration | Failure rate              | Workload      | Shows operational stability.                          |
+| `stage8_normalized_improvement_radar.png` | Metric        | Normalized improvement    | Configuration | Provides a compact final comparison for presentation. |
+| `stage8_final_pareto_frontier.png`        | Goodput TPS   | P95 latency or cost/tx    | Configuration | Shows which final configs are Pareto-efficient.       |
+
+#### Optional Diagnostic Graphs
+
+| Graph                                     | Purpose                                                        |
+| ----------------------------------------- | -------------------------------------------------------------- |
+| `stage8_improvement_over_baseline.png`    | Shows percentage improvement for TPS, latency, and cost.       |
+| `stage8_workload_sensitivity_heatmap.png` | Shows which configuration works best for each workload.        |
+| `stage8_soft_hard_finality_gap.png`       | Shows difference between user-facing and L1-finalized latency. |
+
+#### Required Summary Table
+
+Generate `stage8_final_comparison_summary.csv` with:
+
+```text
+configuration,workload,goodput_tps,p95_soft_latency_ms,p95_hard_finality_ms,cost_per_tx_usd,proof_time_ms,peak_memory_mb,jain_fairness,failure_rate,improvement_tps_pct,improvement_latency_pct,improvement_cost_pct,best_for
+```
+
+#### Main Result Expected
+
+This stage should produce the final recommendation matrix. The goal is not to say one configuration is always best. The goal is to show which configuration is best for each deployment goal: low latency, high throughput, low DA cost, fairness, or real-proof correctness.
+
+---
+
+### Minimum Graph Set if Time Is Limited
+
+If the full graph set is too large, generate at least the following report-quality graphs:
+
+| Priority | Graph                                       | Stage   | Why It Matters                            |
+| -------- | ------------------------------------------- | ------- | ----------------------------------------- |
+| 1        | `stage1_throughput_latency_pareto.png`      | Stage 1 | Shows fixed batching trade-off.           |
+| 2        | `stage2_adaptive_vs_fixed_p95_latency.png`  | Stage 2 | Shows adaptive batching benefit.          |
+| 3        | `stage2_burst_backlog_recovery.png`         | Stage 2 | Shows adaptive behavior under burst load. |
+| 4        | `stage3_policy_vs_jain_fairness.png`        | Stage 3 | Shows sequencing fairness.                |
+| 5        | `stage3_policy_vs_p95_latency_by_class.png` | Stage 3 | Shows priority/fairness trade-off.        |
+| 6        | `stage4_da_mode_vs_cost_per_tx.png`         | Stage 4 | Shows DA cost difference.                 |
+| 7        | `stage4_calldata_blob_crossover.png`        | Stage 4 | Gives practical blob adoption guidance.   |
+| 8        | `stage5_batch_size_vs_proof_time.png`       | Stage 5 | Shows real-proof bottleneck.              |
+| 9        | `stage5_mock_vs_real_finality_latency.png`  | Stage 5 | Shows why proof mode matters.             |
+| 10       | `stage8_config_vs_cost_per_tx.png`          | Stage 8 | Shows final cost improvement.             |
+| 11       | `stage8_config_vs_goodput.png`              | Stage 8 | Shows final throughput improvement.       |
+| 12       | `stage8_final_pareto_frontier.png`          | Stage 8 | Shows final optimized trade-off.          |
+
+These graphs are enough to support the main thesis argument if time is limited.
+
+## 9. Recommended Experiment Matrix
 
 A full factorial matrix would be too large. Use this reduced staged matrix.
 
@@ -903,7 +1298,7 @@ seeds = [42, 43, 44, 45, 46]
 
 ---
 
-## 9. Statistical Analysis Plan
+## 10. Statistical Analysis Plan
 
 Do not present only a single run. Use repeated runs and confidence intervals.
 
@@ -934,7 +1329,7 @@ For the FYP report, the most important analysis is not the p-value. It is the tr
 
 ---
 
-## 10. Graphs That Should Appear in the Final Report
+## 11. Graphs That Should Appear in the Final Report
 
 These are the graphs most likely to make an impact.
 
@@ -968,9 +1363,9 @@ These are the graphs most likely to make an impact.
 
 ---
 
-## 11. Data Schema to Collect
+## 12. Data Schema to Collect
 
-### 11.1 Transaction-Level CSV
+### 12.1 Transaction-Level CSV
 
 Recommended file: `tx_log_<run_id>.csv`
 
@@ -990,7 +1385,7 @@ l1_latency_ms = l1_included_at - l1_submitted_at
 hard_finality_latency_ms = finalized_at - submitted_at
 ```
 
-### 11.2 Batch-Level CSV
+### 12.2 Batch-Level CSV
 
 Recommended file: `batch_log_<run_id>.csv`
 
@@ -998,7 +1393,7 @@ Recommended file: `batch_log_<run_id>.csv`
 batch_id,run_id,policy_type,batch_policy,tx_count,min_batch_size,max_batch_size,timeout_interval_ms,batch_opened_at,batch_sealed_at,batch_reason,execution_started_at,execution_completed_at,proof_started_at,proof_completed_at,submit_started_at,l1_tx_hash,l1_included_at,finalized_at,da_mode,calldata_bytes,blob_bytes,blob_count,blob_fill_ratio,gas_used,da_gas_used,verify_gas_used,cost_eth,cost_usd,status,error
 ```
 
-### 11.3 Resource Metrics CSV
+### 12.3 Resource Metrics CSV
 
 Recommended file: `resource_log_<run_id>.csv`
 
@@ -1006,7 +1401,7 @@ Recommended file: `resource_log_<run_id>.csv`
 timestamp,run_id,component,cpu_percent,memory_mb,network_rx_bytes,network_tx_bytes,disk_read_bytes,disk_write_bytes,mempool_size,batch_queue_size,proof_queue_size
 ```
 
-### 11.4 Run Metadata JSON
+### 12.4 Run Metadata JSON
 
 Recommended file: `run_metadata.json`
 
@@ -1036,17 +1431,17 @@ Recommended file: `run_metadata.json`
 
 ---
 
-## 12. How to Interpret Results
+## 13. How to Interpret Results
 
-### 12.1 Throughput
+### 13.1 Throughput
 
 Use finalized goodput as the main throughput metric. If submitted TPS is high but finalized TPS is low, the system is overloaded.
 
-### 12.2 Latency
+### 13.2 Latency
 
 Separate soft confirmation latency from hard finality latency. A rollup can give fast soft confirmation while still taking longer for proof generation and L1 settlement.
 
-### 12.3 Cost
+### 13.3 Cost
 
 Always break cost into:
 
@@ -1056,17 +1451,17 @@ cost/tx = DA cost/tx + proof verification cost/tx + fixed L1 submission overhead
 
 This breakdown shows whether optimization should target DA, proof verification, or batching.
 
-### 12.4 Proving
+### 13.4 Proving
 
 Report both proof time per batch and proof time per transaction. A larger batch may have higher total proof time but lower proof overhead per transaction.
 
-### 12.5 Fairness
+### 13.5 Fairness
 
 Do not claim a policy is better only because it has higher TPS. A policy that starves low-fee transactions may have good throughput but poor fairness.
 
 ---
 
-## 13. Recommended Final Claims to Target
+## 14. Recommended Final Claims to Target
 
 These are realistic result claims that would be meaningful if supported by the data.
 
@@ -1096,7 +1491,7 @@ These are realistic result claims that would be meaningful if supported by the d
 
 ---
 
-## 14. Minimum Viable Benchmark Set
+## 15. Minimum Viable Benchmark Set
 
 If time is limited, run these experiments first.
 
@@ -1133,7 +1528,7 @@ If time is limited, run these experiments first.
 
 ---
 
-## 15. Recommended Report Structure for Benchmark Results
+## 16. Recommended Report Structure for Benchmark Results
 
 Use this structure in the final report or paper.
 
@@ -1191,7 +1586,7 @@ Use this structure in the final report or paper.
 
 ---
 
-## 16. Final Recommendation
+## 17. Final Recommendation
 
 For maximum impact, do not present the benchmark as a simple list of parameter changes. Present it as a **multi-objective optimization study**.
 
