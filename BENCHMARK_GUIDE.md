@@ -314,6 +314,12 @@ Inside each per-run directory:
 
 Use this when the raw benchmark runs already exist and you only want to regenerate the session aggregates, plots, and Markdown summary.
 
+Run the commands below from:
+
+```bash
+cd ~/rollupx-full-zk-rollup/benchmark-suite
+```
+
 #### Local Python analytics
 
 ```bash
@@ -330,6 +336,93 @@ bash scripts/generate_plan_artifacts.sh metrics/final_stage4_da local
 
 ```bash
 bash scripts/generate_plan_artifacts.sh metrics/<session-name> docker
+```
+
+#### If the original benchmark was interrupted or some runs failed
+
+If you stopped the benchmark with `Ctrl+C`, or if some runs failed before the session completed, `analysis/all_results.csv` may not exist yet.
+In that case, rebuild the aggregates manually first.
+
+Rebuild using only passing runs:
+
+```bash
+python3 ../data-tools/aggregate.py \
+  --metrics_root metrics/<session-name> \
+  --output metrics/<session-name>/analysis/all_results.csv
+
+python3 ../data-tools/stats.py \
+  --input metrics/<session-name>/analysis/all_results.csv \
+  --output metrics/<session-name>/analysis/stats_summary.csv
+
+python3 ../data-tools/plots/pareto_frontier.py \
+  --input metrics/<session-name>/analysis/all_results.csv \
+  --output_dir metrics/<session-name>/figures
+
+python3 ../data-tools/plots/throughput_bar.py \
+  --input metrics/<session-name>/analysis/all_results.csv \
+  --output_dir metrics/<session-name>/figures
+
+python3 ../data-tools/plots/latency_cdf.py \
+  --metrics_root metrics/<session-name> \
+  --output_dir metrics/<session-name>/figures
+
+python3 ../data-tools/plots/latency_boxplot.py \
+  --input metrics/<session-name>/analysis/all_results.csv \
+  --output_dir metrics/<session-name>/figures
+
+python3 ../data-tools/plots/fairness.py \
+  --input metrics/<session-name>/analysis/all_results.csv \
+  --output_dir metrics/<session-name>/figures
+
+python3 ../data-tools/plots/cost_heatmap.py \
+  --input metrics/<session-name>/analysis/all_results.csv \
+  --output_dir metrics/<session-name>/figures
+
+python3 ../data-tools/plots/sensitivity.py \
+  --input metrics/<session-name>/analysis/all_results.csv \
+  --output_dir metrics/<session-name>/figures
+
+python3 ../data-tools/report/generate_md.py \
+  --input metrics/<session-name>/analysis/all_results.csv \
+  --stats metrics/<session-name>/analysis/stats_summary.csv \
+  --output metrics/<session-name>/analysis/thesis_summary.md \
+  --figures_dir metrics/<session-name>/figures
+```
+
+If you want to include interrupted or failed runs for debugging, add `--include_failed` to the aggregate step:
+
+```bash
+python3 ../data-tools/aggregate.py \
+  --metrics_root metrics/<session-name> \
+  --output metrics/<session-name>/analysis/all_results.csv \
+  --include_failed
+```
+
+If batch-level metrics were produced, you can also regenerate the batch feasibility plots:
+
+```bash
+python3 ../data-tools/plots/batch_feasibility.py \
+  --input metrics/<session-name>/analysis/all_batch_results.csv \
+  --output_dir metrics/<session-name>/figures
+```
+
+Example for an interrupted Stage 1 session:
+
+```bash
+python3 ../data-tools/aggregate.py \
+  --metrics_root metrics/final_stage1_fixed_batching8 \
+  --output metrics/final_stage1_fixed_batching8/analysis/all_results.csv \
+  --include_failed
+
+python3 ../data-tools/stats.py \
+  --input metrics/final_stage1_fixed_batching8/analysis/all_results.csv \
+  --output metrics/final_stage1_fixed_batching8/analysis/stats_summary.csv
+
+python3 ../data-tools/report/generate_md.py \
+  --input metrics/final_stage1_fixed_batching8/analysis/all_results.csv \
+  --stats metrics/final_stage1_fixed_batching8/analysis/stats_summary.csv \
+  --output metrics/final_stage1_fixed_batching8/analysis/thesis_summary.md \
+  --figures_dir metrics/final_stage1_fixed_batching8/figures
 ```
 
 ---
