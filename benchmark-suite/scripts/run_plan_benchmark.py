@@ -462,7 +462,7 @@ def main() -> None:
                 env["ALLOW_PROOF_FALLBACK"] = "1"
                 env["VALIDITY_PROOF_MODE_POLICY"] = "mock_or_fallback_allowed"
                 env["DOCKER_UP_BUILD"] = "1"
-                env.setdefault("SUBMITTER_WAIT_MAX", "120")
+                env.setdefault("SUBMITTER_WAIT_MAX", "600")
             env["SEED"] = str(seeds[(repeat - 1) % len(seeds)])
             env["METRICS_ROOT"] = str(session_dir)
             env["SHARED_METRICS_DIR"] = str(session_dir / "latest")
