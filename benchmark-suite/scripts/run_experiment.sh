@@ -651,9 +651,9 @@ if [[ -z "${SUBMITTER_WAIT_MAX:-}" ]]; then
     # Real proving runs can take several minutes per batch; use a larger default wait
     # so the harness does not declare failure while the async executor queue is draining.
     if [[ "${REQUIRE_REAL_PROOFS:-}" == "1" || "${REQUIRE_REAL_PROOFS:-}" == "true" ]]; then
-        SUBMITTER_WAIT_MAX=600
+        SUBMITTER_WAIT_MAX=10000
     else
-        SUBMITTER_WAIT_MAX=600
+        SUBMITTER_WAIT_MAX=10000
     fi
 fi
 COMPONENT_STABLE_POLLS=${COMPONENT_STABLE_POLLS:-$((TIMEOUT_MS / 3000 + 5))}
