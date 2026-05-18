@@ -268,7 +268,16 @@ class PoissonWorkloadGenerator:
 
     def _post_tx_record(self, tx: dict, nonce: int, tx_type: str, offered_rate: float | None = None) -> dict:
         ts_start = time.time()
-        status, err = self._post_tx(tx)
+        
+        retries = 0
+        while retries < 20:
+            status, err = self._post_tx(tx)
+            if status == "error" and err and "Invalid nonce" in err:
+                retries += 1
+                time.sleep(0.05)
+                continue
+            break
+            
         latency = time.time() - ts_start
         return {
             "tx_id":    nonce,
