@@ -16,6 +16,9 @@ if [[ ! -d "$SESSION_DIR" ]]; then
     exit 1
 fi
 
+# Resolve to absolute path so it stays valid after `cd "$PROJECT_ROOT"` inside the subshell
+SESSION_DIR="$(cd "$SESSION_DIR" && pwd)"
+
 ANALYSIS_DIR="${SESSION_DIR}/analysis"
 FIGURES_DIR="${SESSION_DIR}/figures"
 mkdir -p "$ANALYSIS_DIR" "$FIGURES_DIR"
