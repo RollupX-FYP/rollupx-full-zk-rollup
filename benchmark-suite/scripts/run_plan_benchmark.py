@@ -74,10 +74,10 @@ BASE_ENV = {
     "DA_MODE": "calldata",
     "PROVER": "groth16",
     "PROVER_BACKEND": "risc0",
-    "REQUIRE_REAL_PROOFS": "false",
-    "ALLOW_PROOF_FALLBACK": "1",
+    "REQUIRE_REAL_PROOFS": "true",
+    "ALLOW_PROOF_FALLBACK": "0",
     "ALLOW_UNSIGNED_USER_TXS": "0",
-    "VALIDITY_PROOF_MODE_POLICY": "mock_or_fallback_allowed",
+    "VALIDITY_PROOF_MODE_POLICY": "groth16_only",
     "ETH_PRICE_USD": "3000",
     "REGULAR_GAS_PRICE_GWEI": "10",
     "BLOB_GAS_PRICE_GWEI": "1",
@@ -389,6 +389,7 @@ def _run_case(case: Case, repeat: int, env: dict[str, str]) -> None:
         f"batch={env.get('MAX_BATCH_SIZE')} timeout={env.get('TIMEOUT_MS')} "
         f"batch_policy={env.get('BATCH_POLICY')} policy={env.get('POLICY')} "
         f"da={env.get('DA_MODE')} mix={env.get('TX_MIX')} rate={env.get('RATE_TPS')} "
+        f"prover_backend={env.get('PROVER_BACKEND')} "
         f"burst={env.get('WORKLOAD_BURST_ENABLED')} real_proofs={env.get('REQUIRE_REAL_PROOFS')} "
         f"allow_fallback={env.get('ALLOW_PROOF_FALLBACK')}"
     )
@@ -456,9 +457,11 @@ def main() -> None:
             env.update(PROFILE_DEFAULTS[args.profile])
             env.update(case.overrides)
             if args.mock_proofs:
+                env["PROVER_BACKEND"] = "mock"
                 env["REQUIRE_REAL_PROOFS"] = "false"
                 env["ALLOW_PROOF_FALLBACK"] = "1"
                 env["VALIDITY_PROOF_MODE_POLICY"] = "mock_or_fallback_allowed"
+                env["DOCKER_UP_BUILD"] = "1"
                 env.setdefault("SUBMITTER_WAIT_MAX", "120")
             env["SEED"] = str(seeds[(repeat - 1) % len(seeds)])
             env["METRICS_ROOT"] = str(session_dir)

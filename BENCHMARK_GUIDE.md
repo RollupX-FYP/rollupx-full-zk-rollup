@@ -367,15 +367,15 @@ The plan runner supports three execution profiles.
 
 ## 4. Proof Methodology
 
-The benchmark plan uses a mixed methodology on purpose.
+The benchmark runner is strict-real-proof by default.
 
-- `baseline` and exploratory sweep stages default to `REQUIRE_REAL_PROOFS=false` with `ALLOW_PROOF_FALLBACK=1`.
-- This keeps `stage1`, `stage2`, `stage3`, `stage4`, `stage6`, and `stage7` focused on batching, scheduling, DA, gas, and reliability behavior instead of prover backlog.
-- `stage5` contains the proof-focused comparisons and explicitly turns real proofs on for the real-proof cases.
-- `stage8` includes a final strict real-proof comparison through the `best_realproof` cases.
-- Passing `--mock-proofs` to `run_plan_benchmark.sh` forces the full selected run into mock/fallback proof mode by setting `REQUIRE_REAL_PROOFS=false`, `ALLOW_PROOF_FALLBACK=1`, and `VALIDITY_PROOF_MODE_POLICY=mock_or_fallback_allowed` for every case in that session.
+- Without `--mock-proofs`, `baseline` and ordinary stage cases use `REQUIRE_REAL_PROOFS=true`, `ALLOW_PROOF_FALLBACK=0`, and `VALIDITY_PROOF_MODE_POLICY=groth16_only`.
+- This means the executor rejects non-`groth16` proof artifacts, so failures surface instead of being silently treated as valid real-proof results.
+- Passing `--mock-proofs` to `run_plan_benchmark.sh` forces the full selected run into mock proof mode by setting `PROVER_BACKEND=mock`, `REQUIRE_REAL_PROOFS=false`, `ALLOW_PROOF_FALLBACK=1`, and `VALIDITY_PROOF_MODE_POLICY=mock_or_fallback_allowed` for every case in that session.
+- `--mock-proofs` also overrides proof-focused cases such as `stage5` real-proof variants and `stage8` `best_realproof`, so the whole selected session stays consistently mocked.
+- Mock-proof runs force `DOCKER_UP_BUILD=1` so the executor image includes the mock backend before the benchmark starts.
 
-This gives broader and cleaner comparisons for non-prover questions, while still preserving real-proof measurements where proof cost and end-to-end finality are part of the research claim.
+Use real-proof mode when proof cost, prover latency, and end-to-end finality are part of the research claim. Use `--mock-proofs` when you want to study batching, scheduling, DA, gas, or reliability without the prover dominating the run.
 
 ---
 
@@ -400,8 +400,8 @@ The benchmark runner starts from a baseline environment and then applies per-cas
 - `DA_MODE=calldata`
 - `PROVER=groth16`
 - `PROVER_BACKEND=risc0`
-- `REQUIRE_REAL_PROOFS=false`
-- `ALLOW_PROOF_FALLBACK=1`
+- `REQUIRE_REAL_PROOFS=true`
+- `ALLOW_PROOF_FALLBACK=0`
 - `ALLOW_UNSIGNED_USER_TXS=0`
 - `ETH_PRICE_USD=3000`
 - `REGULAR_GAS_PRICE_GWEI=10`
