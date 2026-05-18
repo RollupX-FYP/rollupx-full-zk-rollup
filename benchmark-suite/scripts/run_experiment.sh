@@ -653,7 +653,7 @@ if [[ -z "${SUBMITTER_WAIT_MAX:-}" ]]; then
     if [[ "${REQUIRE_REAL_PROOFS:-}" == "1" || "${REQUIRE_REAL_PROOFS:-}" == "true" ]]; then
         SUBMITTER_WAIT_MAX=600
     else
-        SUBMITTER_WAIT_MAX=120
+        SUBMITTER_WAIT_MAX=600
     fi
 fi
 COMPONENT_STABLE_POLLS=${COMPONENT_STABLE_POLLS:-$((TIMEOUT_MS / 3000 + 5))}
