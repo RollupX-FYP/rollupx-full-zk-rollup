@@ -650,7 +650,7 @@ STABLE_COUNT=0
 if [[ -z "${SUBMITTER_WAIT_MAX:-}" ]]; then
     # Real proving runs can take several minutes per batch; use a larger default wait
     # so the harness does not declare failure while the async executor queue is draining.
-    if [[ "$PROVER" == "groth16" || "${REQUIRE_REAL_PROOFS:-}" == "1" || "${REQUIRE_REAL_PROOFS:-}" == "true" ]]; then
+    if [[ "${REQUIRE_REAL_PROOFS:-}" == "1" || "${REQUIRE_REAL_PROOFS:-}" == "true" ]]; then
         SUBMITTER_WAIT_MAX=600
     else
         SUBMITTER_WAIT_MAX=120

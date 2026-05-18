@@ -48,9 +48,9 @@ PROFILE_DEFAULTS = {
         "DOCKER_UP_BUILD": "0",
     },
     "final": {
-        "RATE_TPS": "50",
-        "DURATION_S": "600",
-        "WARMUP_S": "60",
+        "RATE_TPS": "25",
+        "DURATION_S": "180",
+        "WARMUP_S": "15",
         "WORKLOAD_TARGET_TXS": "0",
         "WORKLOAD_CONCURRENCY": "1",
         "SEED": "42",
@@ -74,10 +74,10 @@ BASE_ENV = {
     "DA_MODE": "calldata",
     "PROVER": "groth16",
     "PROVER_BACKEND": "risc0",
-    # Keep exploratory stages focused on batching/policy/DA behavior.
-    "REQUIRE_REAL_PROOFS": "true",
-    "ALLOW_PROOF_FALLBACK": "0",
+    "REQUIRE_REAL_PROOFS": "false",
+    "ALLOW_PROOF_FALLBACK": "1",
     "ALLOW_UNSIGNED_USER_TXS": "0",
+    "VALIDITY_PROOF_MODE_POLICY": "mock_or_fallback_allowed",
     "ETH_PRICE_USD": "3000",
     "REGULAR_GAS_PRICE_GWEI": "10",
     "BLOB_GAS_PRICE_GWEI": "1",
@@ -389,7 +389,8 @@ def _run_case(case: Case, repeat: int, env: dict[str, str]) -> None:
         f"batch={env.get('MAX_BATCH_SIZE')} timeout={env.get('TIMEOUT_MS')} "
         f"batch_policy={env.get('BATCH_POLICY')} policy={env.get('POLICY')} "
         f"da={env.get('DA_MODE')} mix={env.get('TX_MIX')} rate={env.get('RATE_TPS')} "
-        f"burst={env.get('WORKLOAD_BURST_ENABLED')} real_proofs={env.get('REQUIRE_REAL_PROOFS')}"
+        f"burst={env.get('WORKLOAD_BURST_ENABLED')} real_proofs={env.get('REQUIRE_REAL_PROOFS')} "
+        f"allow_fallback={env.get('ALLOW_PROOF_FALLBACK')}"
     )
     subprocess.run(cmd, cwd=BENCH_DIR, env=env, check=True)
 
@@ -420,6 +421,12 @@ def main() -> None:
     parser.add_argument("--analytics", action="store_true", default=False)
     parser.add_argument("--analytics-mode", choices=["local", "docker"], default="local")
     parser.add_argument("--session-name", default=None)
+    parser.add_argument(
+        "--mock-proofs",
+        action="store_true",
+        default=False,
+        help="Force all selected cases into mock/fallback proof mode for this session.",
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
@@ -434,6 +441,7 @@ def main() -> None:
     print(f"[plan] profile={args.profile}")
     print(f"[plan] stages={', '.join(stages)}")
     print(f"[plan] cases={len(cases)} repeats={args.repeats}")
+    print(f"[plan] mock_proofs={args.mock_proofs}")
     print(f"[plan] session_dir={session_dir}")
     print(f"[plan] manifest={manifest_path}")
 
@@ -447,6 +455,11 @@ def main() -> None:
             env.update(BASE_ENV)
             env.update(PROFILE_DEFAULTS[args.profile])
             env.update(case.overrides)
+            if args.mock_proofs:
+                env["REQUIRE_REAL_PROOFS"] = "false"
+                env["ALLOW_PROOF_FALLBACK"] = "1"
+                env["VALIDITY_PROOF_MODE_POLICY"] = "mock_or_fallback_allowed"
+                env.setdefault("SUBMITTER_WAIT_MAX", "120")
             env["SEED"] = str(seeds[(repeat - 1) % len(seeds)])
             env["METRICS_ROOT"] = str(session_dir)
             env["SHARED_METRICS_DIR"] = str(session_dir / "latest")

@@ -130,6 +130,14 @@ This is the best starting point if you want usable plots and summaries without c
 bash scripts/run_plan_benchmark.sh --profile pilot --stage stage1 --analytics
 ```
 
+### Run a specific stage with mocked proofs
+
+Use `--mock-proofs` when you want the selected session to force fallback/mock proof mode across every included case.
+
+```bash
+bash scripts/run_plan_benchmark.sh --profile pilot --stage stage1 --analytics --mock-proofs
+```
+
 ### Run multiple stages
 
 ```bash
@@ -189,6 +197,7 @@ Important:
 - Every single-stage command below also includes the `baseline` case automatically.
 - That means `--stage stage1` runs `baseline + stage1`, `--stage stage2` runs `baseline + stage2`, and so on.
 - You do not need to run a separate baseline command before each stage command.
+- Add `--mock-proofs` to any command below if you want the whole selected session, including `baseline`, to run in mock/fallback proof mode.
 
 #### Fast verification run
 
@@ -234,6 +243,12 @@ bash scripts/run_plan_benchmark.sh --profile final --stage stage5 --repeats 3 --
 bash scripts/run_plan_benchmark.sh --profile final --stage stage6 --repeats 3 --analytics --session-name final_stage6_l1
 bash scripts/run_plan_benchmark.sh --profile final --stage stage7 --repeats 3 --analytics --session-name final_stage7_reliability
 bash scripts/run_plan_benchmark.sh --profile final --stage stage8 --repeats 3 --analytics --session-name final_stage8_final_comparison
+```
+
+Example with mocked proofs:
+
+```bash
+bash scripts/run_plan_benchmark.sh --profile final --stage stage1 --repeats 3 --analytics --mock-proofs --session-name final_stage1_fixed_batching_mock
 ```
 
 ### 3. Run the entire plan at once and generate all outputs
@@ -358,6 +373,7 @@ The benchmark plan uses a mixed methodology on purpose.
 - This keeps `stage1`, `stage2`, `stage3`, `stage4`, `stage6`, and `stage7` focused on batching, scheduling, DA, gas, and reliability behavior instead of prover backlog.
 - `stage5` contains the proof-focused comparisons and explicitly turns real proofs on for the real-proof cases.
 - `stage8` includes a final strict real-proof comparison through the `best_realproof` cases.
+- Passing `--mock-proofs` to `run_plan_benchmark.sh` forces the full selected run into mock/fallback proof mode by setting `REQUIRE_REAL_PROOFS=false`, `ALLOW_PROOF_FALLBACK=1`, and `VALIDITY_PROOF_MODE_POLICY=mock_or_fallback_allowed` for every case in that session.
 
 This gives broader and cleaner comparisons for non-prover questions, while still preserving real-proof measurements where proof cost and end-to-end finality are part of the research claim.
 
