@@ -584,13 +584,11 @@ Purpose:
 ### `stage5` — Prover backend and real proof behavior
 
 - Real-proof batch-size cases: `s5_real_bs_0050`, `s5_real_bs_0100`, `s5_real_bs_0200`, `s5_real_bs_0500`
-- Proof-mode cases: `s5_proof_mock`, `s5_proof_real`, `s5_proof_strict`, `s5_heavy_real`
 
 Purpose:
 
-- compare mock/fallback-friendly mode against real proof mode
-- compare strict real-proof requirements against permissive fallback
-- measure proof-time, memory, and finality impact across batch sizes and heavy-state workload
+- measure proof-time, memory, and finality impact across real-proof batch sizes
+- compare how proof overhead scales as more transactions are amortized into a batch
 
 ### `stage6` — Gas limit and L1 submission sensitivity
 

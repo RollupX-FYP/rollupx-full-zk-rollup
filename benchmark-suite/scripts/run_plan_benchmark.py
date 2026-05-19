@@ -226,14 +226,6 @@ def _stage_cases() -> dict[str, list[Case]]:
                 ALLOW_PROOF_FALLBACK="1",
             )
         )
-    stage5.extend(
-        [
-            _case("s5_proof_mock", "stage5", "Mock/fallback proof mode", REQUIRE_REAL_PROOFS="false", ALLOW_PROOF_FALLBACK="1"),
-            _case("s5_proof_real", "stage5", "Real proofs with fallback allowed", REQUIRE_REAL_PROOFS="true", ALLOW_PROOF_FALLBACK="1"),
-            _case("s5_proof_strict", "stage5", "Strict real proofs without fallback", REQUIRE_REAL_PROOFS="true", ALLOW_PROOF_FALLBACK="0"),
-            _case("s5_heavy_real", "stage5", "Real proofs under heavy-state workload", REQUIRE_REAL_PROOFS="true", ALLOW_PROOF_FALLBACK="1", **_workload_overrides("heavy")),
-        ]
-    )
 
     stage6: list[Case] = []
     for interval in (1000, 3000, 12000, 30000):
