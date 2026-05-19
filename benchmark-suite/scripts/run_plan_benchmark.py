@@ -48,8 +48,8 @@ PROFILE_DEFAULTS = {
         "DOCKER_UP_BUILD": "0",
     },
     "final": {
-        "RATE_TPS": "10",
-        "DURATION_S": "80",
+        "RATE_TPS": "5",
+        "DURATION_S": "50",
         "WARMUP_S": "5",
         "WORKLOAD_TARGET_TXS": "0",
         "WORKLOAD_CONCURRENCY": "1",
