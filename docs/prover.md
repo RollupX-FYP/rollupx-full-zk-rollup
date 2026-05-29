@@ -48,3 +48,30 @@ Metadata must satisfy:
 - trace hash agreement
 - expected public input hash agreement
 - proof/journal hash+size agreement
+
+## Proving Pipeline
+
+```mermaid
+flowchart LR
+    TRACE[BlockTrace JSON] --> WIT[Witness Gen]
+    WIT -->|Env| VM[RISC0 zkVM]
+    GUEST[Guest ELF] --> VM
+    
+    VM -->|Cycles/Segments| REC[Receipt]
+    REC -->|Groth16| SNARK[SNARK Proof]
+    REC -->|Journal| JRN[Journal]
+    
+    SNARK --> META[ProofRunMetadata]
+    JRN --> META
+```
+**Explanation:** The prover host orchestrates the zkVM lifecycle. It extracts resource metrics (cycles) and timing (witness vs. execution) to provide a complete picture of the proving overhead.
+
+## Research & Metrics Mapping
+
+| Research Goal | Prover Metric | Interpretation |
+| :--- | :--- | :--- |
+| **Computational Cost**| `total_cycles` | Complexity of the state transition logic in ZK. |
+| **Proof Efficiency** | `proof_compression_ms` | Overhead of SNARK generation after VM execution. |
+| **Resource Usage** | `total_segments` | Memory and parallelization pressure during proving. |
+| **System Liveness** | `total_prover_wall_ms`| The primary delay in the "Proving -> Settlement" path. |
+| **Integrity** | `public_inputs_hash` | Cryptographic link between L1 roots and the ZK circuit. |

@@ -18,9 +18,17 @@ The benchmark orchestration automates configuration matrix testing by seamlessly
 ### Runtime Boundaries
 The runtime components communicate across clear boundaries:
 - **Workload -> Sequencer:** JSON-RPC over HTTP (`POST /tx`).
+- **L1 Contracts -> Sequencer:** WebSocket Events. The Sequencer's `L1 Listener` monitors the Bridge contract for `Deposit` and `ForcedTransaction` events to populate the high-priority `Forced Queue`.
 - **Sequencer -> Executor:** gRPC (`PublishBatch`). The Sequencer batches transactions and pushes the payload forward.
 - **Executor -> Submitter:** gRPC (`StreamBatches`). The Submitter polls the Executor's broadcast channel to ingest pending payloads.
 - **Submitter -> L1 Contracts:** Standard Web3 RPC (`eth_sendRawTransaction`).
+
+## Metrics Synchronization & Stabilization
+
+For high-accuracy benchmarking, the system employs a **stabilization loop** within `run_experiment.sh`:
+1. **Poll Metrics:** The orchestrator polls the `sequencer_batches_<exp>.jsonl`, `executor_metrics.jsonl`, and `submitter_metrics.json` files.
+2. **Verify Integrity:** It ensures that every `batch_id` produced by the Sequencer has a corresponding execution entry in the Executor and a settlement receipt in the Submitter.
+3. **Wait for Quiescence:** The experiment only exits when the metrics files stop growing for a configurable number of seconds (`COMPONENT_STABLE_POLLS`), ensuring that late-arriving settlement data is captured.
 
 ## Important Runtime Distinctions
 

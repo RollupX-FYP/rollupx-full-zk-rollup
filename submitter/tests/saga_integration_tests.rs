@@ -64,7 +64,7 @@ async fn test_4_2_b_mid_flight_crash_recovery() {
     outbox.insert_or_ignore(batch_id, &batch_data, proof).unwrap();
     
     // Manually progress to COMPRESSED (which simulates a crash after compressing but before sending to L1)
-    let pre_compressed_json = r#"{"compressed": "payload"}"#;
+    let _pre_compressed_json = r#"{"compressed": "payload"}"#;
     
     // In `saga.rs`, changing state and updating the payload for COMPRESSED isn't a single `update_compression` function.
     // It's usually `update_state` combined with `update_batch_data`. Let's verify or use update_state directly.

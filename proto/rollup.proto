@@ -48,8 +48,18 @@ message SubmitTxsResponse {
   uint64 accepted = 1; // number of txs accepted into the pool
 }
 
+message ResetStateRequest {
+  string experiment_id = 1;
+}
+
+message ResetStateResponse {
+  bool success = 1;
+  string message = 2;
+}
+
 service RollupService {
   rpc StreamBatches (StreamRequest) returns (stream BatchPayload);
   rpc SubmitTransactions (SubmitTxsRequest) returns (SubmitTxsResponse);
   rpc PublishBatch (BatchPayload) returns (PublishBatchResponse);
+  rpc ResetState (ResetStateRequest) returns (ResetStateResponse);
 }

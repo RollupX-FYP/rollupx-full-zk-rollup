@@ -16,11 +16,28 @@ pub enum ProverBackendKind {
         guest_elf: Option<PathBuf>,
         work_dir: PathBuf,
     },
+    Mock,
 }
 
 pub struct ProofArtifacts {
     pub proof: Vec<u8>,
     pub da_commitment: Vec<u8>,
+    pub journal_bytes: usize,
+    pub proof_bytes: usize,
+    pub metadata: ProofMetadataMetrics,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ProofMetadataMetrics {
+    pub witness_generation_ms: u64,
+    pub zkvm_execution_ms: u64,
+    pub proof_compression_ms: u64,
+    pub total_prover_wall_ms: u64,
+    pub trace_read_ms: u64,
+    pub output_write_ms: u64,
+    pub total_cycles: u64,
+    pub total_segments: usize,
+    pub proof_mode: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -34,13 +51,30 @@ struct ProofRunMetadata {
     proof_sha256: String,
     journal_bytes: usize,
     proof_bytes: usize,
+
+    // Timing breakdown (ms)
+    witness_generation_ms: u64,
+    zkvm_execution_ms: u64,
+    proof_compression_ms: u64,
+    total_prover_wall_ms: u64,
+    trace_read_ms: u64,
+    output_write_ms: u64,
+
+    // RISC0-specific metrics
+    total_cycles: u64,
+    total_segments: usize,
 }
 
 pub fn backend_from_env() -> anyhow::Result<ProverBackend> {
     let backend_kind = std::env::var("PROVER_BACKEND").unwrap_or_else(|_| "risc0".to_string());
+    if backend_kind.eq_ignore_ascii_case("mock") {
+        return Ok(ProverBackend {
+            kind: ProverBackendKind::Mock,
+        });
+    }
     if !backend_kind.eq_ignore_ascii_case("risc0") {
         anyhow::bail!(
-            "unsupported PROVER_BACKEND '{}': only 'risc0' is supported",
+            "unsupported PROVER_BACKEND '{}': supported values are 'risc0' and 'mock'",
             backend_kind
         );
     }
@@ -75,13 +109,46 @@ pub fn generate_artifacts(
             guest_elf,
             work_dir,
         } => generate_risc0_artifacts(trace, host_binary, guest_elf, work_dir),
+        ProverBackendKind::Mock => generate_mock_artifacts(trace),
     }
 }
 
 pub fn backend_label(backend: &ProverBackend) -> &'static str {
-    match backend.kind {
+    match &backend.kind {
         ProverBackendKind::Risc0 { .. } => "risc0",
+        ProverBackendKind::Mock => "mock",
     }
+}
+
+fn generate_mock_artifacts(trace: &ExecutionTraceV1) -> anyhow::Result<ProofArtifacts> {
+    let core_trace = to_rollup_core_trace(trace);
+    let core_trace_bytes = serde_json::to_vec(&core_trace)?;
+    let proof =
+        Sha256::digest([b"rollupx-mock-proof".as_slice(), &core_trace_bytes].concat()).to_vec();
+    let journal = [
+        trace.public_inputs.initial_root.as_slice(),
+        trace.public_inputs.final_root.as_slice(),
+    ]
+    .concat();
+    let da_commitment = sha256_hash(&journal).to_vec();
+
+    Ok(ProofArtifacts {
+        proof_bytes: proof.len(),
+        journal_bytes: journal.len(),
+        proof,
+        da_commitment,
+        metadata: ProofMetadataMetrics {
+            witness_generation_ms: 0,
+            zkvm_execution_ms: 0,
+            proof_compression_ms: 0,
+            total_prover_wall_ms: 0,
+            trace_read_ms: 0,
+            output_write_ms: 0,
+            total_cycles: 0,
+            total_segments: 0,
+            proof_mode: "mock".to_string(),
+        },
+    })
 }
 
 fn generate_risc0_artifacts(
@@ -167,6 +234,19 @@ fn generate_risc0_artifacts(
     Ok(ProofArtifacts {
         proof,
         da_commitment,
+        journal_bytes: meta.journal_bytes,
+        proof_bytes: meta.proof_bytes,
+        metadata: ProofMetadataMetrics {
+            witness_generation_ms: meta.witness_generation_ms,
+            zkvm_execution_ms: meta.zkvm_execution_ms,
+            proof_compression_ms: meta.proof_compression_ms,
+            total_prover_wall_ms: meta.total_prover_wall_ms,
+            trace_read_ms: meta.trace_read_ms,
+            output_write_ms: meta.output_write_ms,
+            total_cycles: meta.total_cycles,
+            total_segments: meta.total_segments,
+            proof_mode,
+        },
     })
 }
 

@@ -124,7 +124,8 @@ impl BatchTrigger {
 
         // Priority 2: Pool size threshold → seal when full
         let normal_count = self.tx_pool.pending_count().await;
-        if normal_count >= self.config.max_batch_size {
+        let target_batch_size = self.target_batch_size_for_depth(normal_count);
+        if normal_count >= target_batch_size {
             return Some(TriggerReason::SizeThreshold);
         }
 
@@ -150,11 +151,122 @@ impl BatchTrigger {
         None
     }
 
+    /// Compute the active target batch size for the current mempool depth.
+    ///
+    /// Adaptive batching uses smaller targets under light load and larger
+    /// targets once the mempool passes the configured depth thresholds.
+    pub fn target_batch_size_for_depth(&self, pending_count: usize) -> usize {
+        if self.config.batch_policy.eq_ignore_ascii_case("adaptive") {
+            if pending_count < self.config.adaptive_low_load_threshold {
+                self.config
+                    .adaptive_small_batch_size
+                    .min(self.config.max_batch_size)
+            } else if pending_count <= self.config.adaptive_medium_load_threshold {
+                self.config
+                    .adaptive_medium_batch_size
+                    .min(self.config.max_batch_size)
+            } else {
+                self.config
+                    .adaptive_large_batch_size
+                    .min(self.config.max_batch_size)
+            }
+        } else {
+            self.config.max_batch_size
+        }
+    }
+
     /// Reset the batch timer after producing a batch
     ///
     /// # Arguments
     /// * `last_batch_time` - Mutable reference to the timer to reset
-    pub fn reset(&self, last_batch_time: &mut Instant) {
+pub fn reset(&self, last_batch_time: &mut Instant) {
         *last_batch_time = Instant::now();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::pool::ForcedQueue;
+    use crate::types::{PooledTransaction, UserTransaction};
+    use ethers::types::{Address, Signature, U256};
+    use std::sync::Arc;
+
+    fn adaptive_config() -> BatchConfig {
+        BatchConfig {
+            max_batch_size: 400,
+            timeout_interval_ms: 1_000,
+            min_batch_size: 1,
+            max_gas_limit: 30_000_000,
+            batch_policy: "adaptive".to_string(),
+            adaptive_low_load_threshold: 50,
+            adaptive_medium_load_threshold: 200,
+            adaptive_small_batch_size: 25,
+            adaptive_medium_batch_size: 100,
+            adaptive_large_batch_size: 500,
+            blob_target_bytes: 131_072,
+            blob_fill_target: 0.90,
+        }
+    }
+
+    fn pooled_tx() -> PooledTransaction {
+        PooledTransaction {
+            tx: UserTransaction {
+                from: Address::random(),
+                to: Address::random(),
+                value: U256::from(1),
+                nonce: 1,
+                gas_limit: 21_000,
+                gas_price: U256::from(1),
+                signature: Signature {
+                    r: U256::zero(),
+                    s: U256::zero(),
+                    v: 27,
+                },
+                timestamp: 1_000,
+                boost_bid: None,
+            },
+            arrived_at: 1_000,
+            pool_entry_at: 1_001,
+            validation_latency_ms: 1,
+        }
+    }
+
+    #[tokio::test]
+    async fn adaptive_target_batch_size_changes_with_depth() {
+        let trigger = BatchTrigger::new(
+            adaptive_config(),
+            Arc::new(TransactionPool::new()),
+            Arc::new(ForcedQueue::new()),
+        );
+
+        assert_eq!(trigger.target_batch_size_for_depth(0), 25);
+        assert_eq!(trigger.target_batch_size_for_depth(50), 100);
+        assert_eq!(trigger.target_batch_size_for_depth(201), 400);
+    }
+
+    #[tokio::test]
+    async fn size_threshold_uses_adaptive_target() {
+        let pool = Arc::new(TransactionPool::new());
+        let forced = Arc::new(ForcedQueue::new());
+        let config = BatchConfig {
+            max_batch_size: 1,
+            timeout_interval_ms: 1_000,
+            min_batch_size: 1,
+            max_gas_limit: 30_000_000,
+            batch_policy: "adaptive".to_string(),
+            adaptive_low_load_threshold: 50,
+            adaptive_medium_load_threshold: 200,
+            adaptive_small_batch_size: 1,
+            adaptive_medium_batch_size: 1,
+            adaptive_large_batch_size: 1,
+            blob_target_bytes: 131_072,
+            blob_fill_target: 0.90,
+        };
+        pool.add(pooled_tx()).await;
+        let trigger = BatchTrigger::new(config, pool, forced);
+
+        let reason = trigger.should_seal(Instant::now()).await;
+        assert!(matches!(reason, Some(TriggerReason::SizeThreshold)));
     }
 }

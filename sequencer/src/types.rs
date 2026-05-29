@@ -9,7 +9,7 @@
 
 use ethers::types::{Address, U256, Signature, H256};
 use ethers::utils::keccak256;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::str::FromStr;
 
 /// User transaction submitted to L2
@@ -153,17 +153,65 @@ pub enum ForcedEventType {
     ForcedExit,
 }
 
+/// Normal transaction with pooling metadata
+/// 
+/// Wraps a UserTransaction with additional timestamps and latency info
+/// recorded during the ingestion process. This is used for precise
+/// performance and fairness measurements.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PooledTransaction {
+    pub tx: UserTransaction,
+    /// Unix epoch ms when the transaction hit the API server
+    pub arrived_at: u64,
+    /// Unix epoch ms when the transaction was added to the pool after validation
+    pub pool_entry_at: u64,
+    /// Time spent in validation logic (ms)
+    pub validation_latency_ms: u64,
+}
+
+impl PooledTransaction {
+    pub fn new(tx: UserTransaction, arrived_at: u64, pool_entry_at: u64) -> Self {
+        Self {
+            tx,
+            arrived_at,
+            pool_entry_at,
+            validation_latency_ms: pool_entry_at.saturating_sub(arrived_at),
+        }
+    }
+
+    /// Approximate serialized size used by blob-aware packing heuristics.
+    pub fn estimated_encoded_bytes(&self) -> usize {
+        fn u256_digits(value: &U256) -> usize {
+            value.to_string().len()
+        }
+
+        let mut size = 20 + 20 + 32 + 8 + 32 + 8 + 65;
+        size += u256_digits(&self.tx.value);
+        size += u256_digits(&self.tx.gas_price);
+        size += self.tx.nonce.to_string().len();
+        size += self.tx.gas_limit.to_string().len();
+        size += self.tx.timestamp.to_string().len();
+        size += self
+            .tx
+            .boost_bid
+            .as_ref()
+            .map(u256_digits)
+            .unwrap_or(4);
+        size
+    }
+}
+
 /// Generic transaction (can be normal or forced)
 /// 
 /// A unified type that can represent either:
-/// - Normal user transactions submitted via the RPC API
+/// - Normal user transactions submitted via the RPC API (with metadata)
 /// - Forced transactions originating from L1
 /// 
 /// This enum allows batches to contain a mix of both transaction types.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Transaction {
-    /// Standard user transaction from the RPC API
-    Normal(UserTransaction),
+    /// Standard user transaction from the RPC API with pooling metadata
+    Normal(PooledTransaction),
     /// Forced transaction from L1 (deposit or forced exit)
     Forced(ForcedTransaction),
 }
@@ -175,10 +223,79 @@ impl Transaction {
     /// Used for cumulative gas tracking in batch creation.
     pub fn gas_limit(&self) -> u64 {
         match self {
-            Transaction::Normal(tx) => tx.gas_limit,
+            Transaction::Normal(ptx) => ptx.tx.gas_limit,
             Transaction::Forced(tx) => tx.gas_limit,
         }
     }
+
+    /// Get the arrival timestamp in milliseconds
+    pub fn arrival_timestamp_ms(&self) -> u64 {
+        match self {
+            Transaction::Normal(ptx) => ptx.arrived_at,
+            Transaction::Forced(tx) => tx.timestamp.saturating_mul(1000), // L1 ts is usually seconds
+        }
+    }
+
+    /// Approximate serialized size used by metrics and blob packing.
+    pub fn estimated_encoded_bytes(&self) -> usize {
+        match self {
+            Transaction::Normal(ptx) => ptx.estimated_encoded_bytes(),
+            Transaction::Forced(tx) => {
+                let mut size = 20 + 20 + 32 + 8 + 32 + 8 + 8;
+                size += tx.value.to_string().len();
+                size += tx.nonce.to_string().len();
+                size += tx.gas_limit.to_string().len();
+                size += tx.l1_block_number.to_string().len();
+                size += tx.timestamp.to_string().len();
+                size
+            }
+        }
+    }
+}
+
+
+/// Wait time distribution metrics for a batch
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WaitTimeDistribution {
+    pub p50_wait_ms: u64,
+    pub p95_wait_ms: u64,
+    pub p99_wait_ms: u64,
+    pub max_wait_ms: u64,
+    pub min_wait_ms: u64,
+    pub mean_wait_ms: f64,
+    pub std_dev_wait_ms: f64,
+    /// Jain's fairness index across all tx wait times in the batch (0.0 to 1.0)
+    pub jains_fairness_index: f64,
+}
+
+/// MEV-related metrics for a batch
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MevMetrics {
+    pub actual_batch_fee_wei: U256,
+    pub optimal_batch_fee_wei: U256,
+    /// actual / optimal - 1.0 means max revenue captured
+    pub ordering_efficiency: f64,
+    pub reordering_events: u32,
+    pub max_reorder_distance: usize,
+}
+
+/// Mempool state snapshot at batch seal time
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PoolSnapshot {
+    pub depth_at_seal: usize,
+    pub depth_after_seal: usize,
+    pub forced_queue_depth: usize,
+    pub pool_growth_rate_tps: f64,
+    pub time_since_last_seal_ms: u64,
+}
+
+/// State cache diagnostic metrics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StateCacheMetrics {
+    pub cache_hit_rate: f64,
+    pub stale_nonce_rejections: u32,
+    pub balance_check_failures: u32,
+    pub cache_age_ms: u64,
 }
 
 /// Account state
@@ -294,4 +411,64 @@ pub enum ConfirmationStatus {
     Accepted,
     /// Transaction failed validation (includes reason for rejection)
     Rejected { reason: String },
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pooled_transaction_latency() {
+        let tx = UserTransaction {
+            from: Address::random(),
+            to: Address::random(),
+            value: U256::from(100),
+            nonce: 1,
+            gas_limit: 21000,
+            gas_price: U256::from(10),
+            signature: Signature { r: U256::zero(), s: U256::zero(), v: 0 },
+            timestamp: 1000,
+            boost_bid: None,
+        };
+        
+        let arrived_at = 1000;
+        let pool_entry_at = 1050;
+        let ptx = PooledTransaction::new(tx, arrived_at, pool_entry_at);
+        
+        assert_eq!(ptx.arrived_at, 1000);
+        assert_eq!(ptx.pool_entry_at, 1050);
+        assert_eq!(ptx.validation_latency_ms, 50);
+    }
+
+    #[test]
+    fn test_transaction_arrival_timestamp_ms() {
+        let tx = UserTransaction {
+            from: Address::random(),
+            to: Address::random(),
+            value: U256::from(100),
+            nonce: 1,
+            gas_limit: 21000,
+            gas_price: U256::from(10),
+            signature: Signature { r: U256::zero(), s: U256::zero(), v: 0 },
+            timestamp: 1234,
+            boost_bid: None,
+        };
+        let ptx = PooledTransaction::new(tx, 1234, 1235);
+        let normal = Transaction::Normal(ptx);
+        assert_eq!(normal.arrival_timestamp_ms(), 1234);
+
+        let forced = Transaction::Forced(ForcedTransaction {
+            tx_hash: H256::zero(),
+            from: Address::random(),
+            to: Address::random(),
+            value: U256::from(500),
+            nonce: 0,
+            gas_limit: 100000,
+            l1_tx_hash: H256::zero(),
+            l1_block_number: 1,
+            event_type: ForcedEventType::Deposit,
+            timestamp: 1700000000, // seconds
+        });
+        assert_eq!(forced.arrival_timestamp_ms(), 1700000000000); // ms
+    }
 }

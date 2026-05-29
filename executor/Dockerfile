@@ -1,10 +1,12 @@
 FROM public.ecr.aws/docker/library/rust:1.90-bookworm AS builder
 WORKDIR /app
+ARG RISC0_R0VM_VERSION=2.3.1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     clang \
     cmake \
+    curl \
     git \
     libssl-dev \
     nasm \
@@ -14,6 +16,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 RUN rustup toolchain install nightly-2024-08-01 && \
     rustup component add rustfmt --toolchain nightly-2024-08-01
+
+RUN curl -L https://risczero.com/install | bash
+ENV PATH="/root/.risc0/bin:${PATH}"
+RUN rzup install
+RUN rzup install r0vm "${RISC0_R0VM_VERSION}"
 
 COPY executor ./executor
 COPY proto ./proto
@@ -26,18 +33,30 @@ RUN cargo +nightly-2024-08-01 build --release \
     -p zksync_state_machine \
     --ignore-rust-version
 
-RUN RISC0_SKIP_BUILD=1 cargo build --release \
-    --manifest-path risc0_prover/host/Cargo.toml
+# Build the RISC Zero host through the workspace so risc0-build compiles and
+# embeds a real guest ELF. Do not set RISC0_SKIP_BUILD here: an empty embedded
+# method image causes the runtime "Elf parse error" seen during proof generation.
+RUN cargo build --release \
+    --manifest-path risc0_prover/Cargo.toml \
+    -p rollup_host
 
 FROM public.ecr.aws/docker/library/debian:bookworm-slim
 WORKDIR /app
+ARG RISC0_R0VM_VERSION=2.3.1
+ARG DOCKER_CLI_VERSION=27.5.1
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     openssl \
     procps \
+    tar \
     && rm -rf /var/lib/apt/lists/*
+
+RUN curl -fsSL "https://download.docker.com/linux/static/stable/x86_64/docker-${DOCKER_CLI_VERSION}.tgz" \
+    | tar -xz -C /tmp docker/docker --strip-components=1 \
+    && mv /tmp/docker /usr/local/bin/docker \
+    && chmod +x /usr/local/bin/docker
 
 RUN mkdir -p /var/lib/rollupx/executor/traces \
     /var/lib/rollupx/executor/state_db \
@@ -45,12 +64,19 @@ RUN mkdir -p /var/lib/rollupx/executor/traces \
 
 COPY --from=builder /app/executor/target/release/zksync_state_machine /usr/local/bin/zksync_state_machine
 COPY --from=builder /app/risc0_prover/target/release/rollup_host /usr/local/bin/rollup_host
+COPY --from=builder /root/.risc0 /root/.risc0
 COPY executor/docker-entrypoint.sh /usr/local/bin/executor-entrypoint
 
-RUN chmod +x /usr/local/bin/executor-entrypoint
+RUN set -eux; \
+    risc0_ext="$(find /root/.risc0/extensions -maxdepth 1 -type d -name "v${RISC0_R0VM_VERSION}-cargo-risczero*" | head -n1)"; \
+    test -n "$risc0_ext"; \
+    ln -sf "$risc0_ext/r0vm" /root/.risc0/bin/r0vm; \
+    ln -sf "$risc0_ext/cargo-risczero" /root/.risc0/bin/cargo-risczero; \
+    chmod +x /usr/local/bin/executor-entrypoint
 
 ENV PROVER_BACKEND=risc0
 ENV RISC0_HOST_BIN=/usr/local/bin/rollup_host
+ENV PATH="/root/.risc0/bin:${PATH}"
 ENV EXECUTOR_GRPC_ADDR=0.0.0.0:50051
 ENV TRACE_ROOT=/var/lib/rollupx/executor/traces
 ENV STATE_DB_PATH=/var/lib/rollupx/executor/state_db

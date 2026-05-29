@@ -275,7 +275,7 @@ mod tests {
             if self.should_fail {
                 Err(DomainError::Prover("fail".into()))
             } else {
-                Ok(ProofResponse { proof: "p".into() })
+                Ok(ProofResponse { proof: "p".into(), proof_generation_ms: None, witness_size: None })
             }
         }
     }

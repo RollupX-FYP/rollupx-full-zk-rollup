@@ -89,6 +89,7 @@ async fn main() -> anyhow::Result<()> {
     let orchestrator = sequencer::BatchOrchestrator::new(
         forced_queue.clone(),
         tx_pool.clone(),
+        state_cache.clone(),
         config.batch.clone(),
         config.scheduling.to_policy_type(),
         registry.clone(),

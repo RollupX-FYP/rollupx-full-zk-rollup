@@ -80,9 +80,14 @@ The service runs a dedicated HTTP server on port `9000` exposing `/metrics`.
 *   `batch_transitions_total`: Logs state changes (e.g., `Discovered` -> `Proving`). Labels: `from`, `to`.
 *   `batches_completed_total`: Total successful batches confirmed on L1.
 *   `batch_failures_total`: Total error events. Label: `batch_id`.
-*   `batches_failed_permanent_total`: Batches that exceeded retry limits.
+*   `batches_failed_permanent_total`: Batches that exceeded retry limits. Label: `reason`.
+*   `tx_submitted_total`: Total transactions broadcasted to L1. Label: `mode` (`calldata`, `blob`).
+*   `prover_requests_total`: Counts prover HTTP requests. Label: `result` (`success`, `error`).
+*   `prover_circuit_tripped_total`: Count of times the circuit breaker opened.
+*   `prover_circuit_open_hits_total`: Count of requests rejected while circuit was open.
 
 ### Histograms
-*   `prove_duration_seconds`: Time taken by the ProofProvider.
-*   `submit_tx_duration_seconds`: Time taken to construct and broadcast the transaction.
-*   `batch_e2e_duration_seconds`: Total time from `Discovered` to `Confirmed`.
+*   `prove_duration_seconds`: Total end-to-end proving time (request + generation).
+*   `prover_request_duration_seconds`: Network RTT for the prover HTTP request.
+*   `submit_tx_duration_seconds`: Time taken for L1 broadcasting and inclusion.
+*   `batch_e2e_duration_seconds`: Total system finality latency (Ingestion -> Confirmation).

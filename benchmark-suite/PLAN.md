@@ -167,6 +167,9 @@ tx_mix        = "balanced"
 repeats       = 5
 seeds         = [42, 43, 44, 45, 46]
 
+# Note: The IDs below are examples; see config/experiments.toml for the actual
+# exp_XXX numbering used by run_matrix.sh.
+
 # ── F1: Batch Size ────────────────────────────────────────────────────────────
 [[experiments]]
 factor = "batch_size"; id = "bs_010"; batch_size = 10
@@ -242,6 +245,8 @@ benchmark-suite/
 ├── scripts/
 │   ├── run_experiment.sh             ← full lifecycle for one experiment
 │   ├── run_matrix.sh                 ← sweep all rows
+│   ├── run_cost_curve_quick.sh       ← quick economic data collection
+│   ├── analyze_cost_curve.py         ← economic modeling tool
 │   ├── wait_for_sequencer.sh         ← health-check with timeout
 │   └── collect_env.sh                ← snapshot hw/sw metadata
 ├── workload/

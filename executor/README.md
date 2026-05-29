@@ -26,6 +26,46 @@ Common:
 - `TRACE_ROOT=executor/tmp/traces`
 - `STATE_DB_PATH=executor/tmp/state_db`
 - `RISC0_WORK_DIR=executor/tmp/risc0` (optional)
+- `REQUIRE_REAL_PROOFS=1` (Strictly enforce Groth16 proofs)
+- `ALLOW_UNSIGNED_USER_TXS=1` (For synthetic research experiments)
+
+---
+
+## Observability & Metrics
+
+The executor tracks granular performance data for state transition execution and zero-knowledge proving.
+
+### Metrics Storage
+
+Metrics are persisted to the `METRICS_ROOT` directory:
+- **`executor_batch_metrics.jsonl`**: Per-batch breakdown of execution phases and prover metadata.
+- **`executor_{EXPERIMENT_ID}.json`**: Aggregate session stats including Mean/Min/Max latencies.
+
+### Execution Phase Breakdown
+
+Every batch execution times the following phases (recorded in `ms`):
+- `signature_verify_ms`: ECDSA recovery and address matching.
+- `nonce_balance_check_ms`: State lookups and validity rules.
+- `state_transition_ms`: Balance arithmetic and nonce increments.
+- `merkle_update_ms`: Sparse Merkle Tree (SMT) path updates and root recomputation.
+- `state_diff_computation_ms`: Serialization of state changes for DA.
+
+### Prover Metrics
+
+If `PROVER_BACKEND=risc0` is used, the executor records:
+- `total_prover_wall_ms`: End-to-end latency of the RISC0 host.
+- `proof_mode`: `groth16` (real) or `fake` (mock).
+- `proof_bytes`: Size of the resulting SNARK artifact.
+
+---
+
+## Benchmarking Suite Integration
+
+The executor is a core target for the `RollupX Benchmark Suite`.
+
+1. **State Isolation**: The runner (`run_matrix.sh`) ensures `STATE_DB_PATH` is unique or cleared between experiment variants to avoid cache poisoning.
+2. **Prover Enforcement**: The `REQUIRE_REAL_PROOFS` flag is used during "Production Baseline" experiments to ensure timing results reflect actual ZK overhead.
+3. **Trace Verification**: The suite uses the `TRACE_ROOT/index.jsonl` to verify that every batch submitted to L1 has a corresponding, verified execution trace.
 
 ## Run
 
