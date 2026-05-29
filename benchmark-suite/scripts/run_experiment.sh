@@ -38,7 +38,10 @@ export BLOB_FILL_TARGET=${BLOB_FILL_TARGET:-0.90}
 export POLICY=${POLICY:-FCFS}
 export DA_MODE=${DA_MODE:-calldata}
 export PROVER=${PROVER:-groth16}
+export PROVER_BACKEND=${PROVER_BACKEND:-risc0}
 export REQUIRE_REAL_PROOFS=${REQUIRE_REAL_PROOFS:-true}
+export ALLOW_PROOF_FALLBACK=${ALLOW_PROOF_FALLBACK:-1}
+export ALLOW_UNSIGNED_USER_TXS=${ALLOW_UNSIGNED_USER_TXS:-0}
 export ETH_PRICE_USD=${ETH_PRICE_USD:-2500}
 export REGULAR_GAS_PRICE_GWEI=${REGULAR_GAS_PRICE_GWEI:-2}
 export BLOB_GAS_PRICE_GWEI=${BLOB_GAS_PRICE_GWEI:-0.001}
@@ -47,6 +50,10 @@ export DURATION_S=${DURATION_S:-120}
 export WARMUP_S=${WARMUP_S:-15}
 export WORKLOAD_CONCURRENCY=${WORKLOAD_CONCURRENCY:-1}
 export WORKLOAD_TARGET_TXS=${WORKLOAD_TARGET_TXS:-0}
+export WORKLOAD_BURST_ENABLED=${WORKLOAD_BURST_ENABLED:-0}
+export WORKLOAD_BURST_RATE_TPS=${WORKLOAD_BURST_RATE_TPS:-0}
+export WORKLOAD_BURST_PERIOD_S=${WORKLOAD_BURST_PERIOD_S:-30}
+export WORKLOAD_BURST_DUTY_CYCLE=${WORKLOAD_BURST_DUTY_CYCLE:-0.25}
 export TX_MIX=${TX_MIX:-balanced}
 export SEED=${SEED:-42}
 export SEQ_HOST=${SEQ_HOST:-localhost}
@@ -68,6 +75,7 @@ export USE_DOCKER_STACK=${USE_DOCKER_STACK:-1}
 export HARDHAT_MINING_INTERVAL=${HARDHAT_MINING_INTERVAL:-12000}
 export SEQUENCER_EXECUTOR_PUBLISH_RETRIES=${SEQUENCER_EXECUTOR_PUBLISH_RETRIES:-5}
 export SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS=${SEQUENCER_EXECUTOR_PUBLISH_TIMEOUT_MS:-10000}
+export COMM_MODE=${COMM_MODE:-grpc}
 
 METRICS_ROOT="${METRICS_ROOT:-metrics}/${EXP_ID}/${RUN_ID_WITH_TIMESTAMP}"
 export METRICS_ROOT
@@ -111,7 +119,11 @@ restart_docker_stack_for_run() {
         SEQUENCER_POLICY="$POLICY" \
         SUBMITTER_DA_MODE="$DA_MODE" \
         SUBMITTER_PROOF_BACKEND="$PROVER" \
+        PROVER_BACKEND="$PROVER_BACKEND" \
         REQUIRE_REAL_PROOFS="$REQUIRE_REAL_PROOFS" \
+        ALLOW_PROOF_FALLBACK="$ALLOW_PROOF_FALLBACK" \
+        ALLOW_UNSIGNED_USER_TXS="$ALLOW_UNSIGNED_USER_TXS" \
+        COMM_MODE="$COMM_MODE" \
         ETH_PRICE_USD="$ETH_PRICE_USD" \
         REGULAR_GAS_PRICE_GWEI="$REGULAR_GAS_PRICE_GWEI" \
         BLOB_GAS_PRICE_GWEI="$BLOB_GAS_PRICE_GWEI" \
@@ -138,7 +150,11 @@ restart_docker_stack_for_run() {
             SEQUENCER_POLICY="$POLICY" \
             SUBMITTER_DA_MODE="$DA_MODE" \
             SUBMITTER_PROOF_BACKEND="$PROVER" \
+            PROVER_BACKEND="$PROVER_BACKEND" \
             REQUIRE_REAL_PROOFS="$REQUIRE_REAL_PROOFS" \
+            ALLOW_PROOF_FALLBACK="$ALLOW_PROOF_FALLBACK" \
+            ALLOW_UNSIGNED_USER_TXS="$ALLOW_UNSIGNED_USER_TXS" \
+            COMM_MODE="$COMM_MODE" \
             ETH_PRICE_USD="$ETH_PRICE_USD" \
             REGULAR_GAS_PRICE_GWEI="$REGULAR_GAS_PRICE_GWEI" \
             BLOB_GAS_PRICE_GWEI="$BLOB_GAS_PRICE_GWEI" \
@@ -164,7 +180,11 @@ restart_docker_stack_for_run() {
             SEQUENCER_POLICY="$POLICY" \
             SUBMITTER_DA_MODE="$DA_MODE" \
             SUBMITTER_PROOF_BACKEND="$PROVER" \
+            PROVER_BACKEND="$PROVER_BACKEND" \
             REQUIRE_REAL_PROOFS="$REQUIRE_REAL_PROOFS" \
+            ALLOW_PROOF_FALLBACK="$ALLOW_PROOF_FALLBACK" \
+            ALLOW_UNSIGNED_USER_TXS="$ALLOW_UNSIGNED_USER_TXS" \
+            COMM_MODE="$COMM_MODE" \
             ETH_PRICE_USD="$ETH_PRICE_USD" \
             REGULAR_GAS_PRICE_GWEI="$REGULAR_GAS_PRICE_GWEI" \
             BLOB_GAS_PRICE_GWEI="$BLOB_GAS_PRICE_GWEI" \
@@ -615,7 +635,11 @@ python3 workload/poisson_generator.py \
     --host          "$SEQ_HOST" \
     --port          "$SEQ_PORT" \
     --concurrency   "$WORKLOAD_CONCURRENCY" \
-    --target_txs    "$WORKLOAD_TARGET_TXS"
+    --target_txs    "$WORKLOAD_TARGET_TXS" \
+    --burst_enabled "$WORKLOAD_BURST_ENABLED" \
+    --burst_rate    "$WORKLOAD_BURST_RATE_TPS" \
+    --burst_period  "$WORKLOAD_BURST_PERIOD_S" \
+    --burst_duty_cycle "$WORKLOAD_BURST_DUTY_CYCLE"
 
 # ── 6. Wait for submitter to flush final batch ────────────────────────────────
 # Poll component metrics until executor/submitter have caught up and files stop growing.
@@ -626,10 +650,10 @@ STABLE_COUNT=0
 if [[ -z "${SUBMITTER_WAIT_MAX:-}" ]]; then
     # Real proving runs can take several minutes per batch; use a larger default wait
     # so the harness does not declare failure while the async executor queue is draining.
-    if [[ "$PROVER" == "groth16" || "${REQUIRE_REAL_PROOFS:-}" == "1" || "${REQUIRE_REAL_PROOFS:-}" == "true" ]]; then
-        SUBMITTER_WAIT_MAX=600
+    if [[ "${REQUIRE_REAL_PROOFS:-}" == "1" || "${REQUIRE_REAL_PROOFS:-}" == "true" ]]; then
+        SUBMITTER_WAIT_MAX=10000
     else
-        SUBMITTER_WAIT_MAX=120
+        SUBMITTER_WAIT_MAX=10000
     fi
 fi
 COMPONENT_STABLE_POLLS=${COMPONENT_STABLE_POLLS:-$((TIMEOUT_MS / 3000 + 5))}
