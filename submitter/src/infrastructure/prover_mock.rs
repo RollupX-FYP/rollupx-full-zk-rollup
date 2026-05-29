@@ -34,6 +34,10 @@ impl ProofProvider for MockProofProvider {
         // Just using zeroes is fine for a mock
         let valid_proof = "00".repeat(256);
 
-        Ok(ProofResponse { proof: valid_proof })
+        Ok(ProofResponse {
+            proof: valid_proof,
+            proof_generation_ms: Some(self.delay_ms),
+            witness_size: None,
+        })
     }
 }

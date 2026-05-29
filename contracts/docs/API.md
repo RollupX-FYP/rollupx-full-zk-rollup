@@ -10,11 +10,13 @@ The entry point for L2 Sequencers and Users.
 
 | Type | Name | Description |
 | :--- | :--- | :--- |
-| `IVerifier` | `verifier` | Immutable address of the Groth16 Verifier contract. |
-| `bytes32` | `stateRoot` | The current Merkle Root of the L2 state. |
+| `mapping(uint8 => IVerifier)` | `verifiers` | Registry of supported proof systems. |
+| `bytes32` | `latestStateRoot` | The current Merkle Root of the L2 state. |
 | `address` | `sequencer` | The authorized sequencer. If `address(0)`, the bridge is in **Permissionless Mode**. |
 | `uint256` | `nextBatchId` | Counter for batches (starts at 1). |
 | `uint256` | `forcedInclusionDelay` | Immutable configuration (blocks) defining the censorship resistance window. |
+| `bool` | `isFrozen` | Indicates if the bridge is currently frozen due to censorship. |
+| `bool` | `optimisticMode` | Indicates if the bridge is in Optimistic Fallback mode. |
 
 ### Data Structures
 
@@ -36,10 +38,11 @@ Submits a state transition proof and Data Availability commitment.
 ```solidity
 function commitBatch(
     uint8 daId,
+    uint8 verifierId,
     bytes calldata batchData,
     bytes calldata daMeta,
     bytes32 newRoot,
-    Groth16Proof calldata proof
+    bytes calldata proof
 ) external
 ```
 
@@ -73,7 +76,8 @@ function setDAProvider(uint8 daId, address provider, bool enabled) external only
 
 | Name | Signature | Description |
 | :--- | :--- | :--- |
-| `BatchFinalized` | `event BatchFinalized(uint256 indexed batchId, bytes32 indexed daCommitment, bytes32 oldRoot, bytes32 newRoot, uint8 daMode)` | Emitted when a batch is successfully verified and settled. |
+| `BatchCommitted` | `event BatchCommitted(uint256 indexed batchId, uint8 daId, uint8 verifierId, bytes32 daCommitment, bytes32 oldRoot, bytes32 newRoot)` | Emitted when a batch is successfully committed (or enqueued in optimistic mode). |
+| `BatchDataPointer` | `event BatchDataPointer(uint256 indexed batchId, bytes daMeta)` | Emitted to provide metadata for locating batch data on the DA layer. |
 | `ForcedTransactionEnqueued` | `event ForcedTransactionEnqueued(bytes32 indexed txHash, uint256 deadlineBlock)` | Emitted when a user initiates a forced inclusion. |
 | `SequencerUpdated` | `event SequencerUpdated(address indexed newSequencer)` | Emitted when the sequencer address changes. |
 | `DAProviderSet` | `event DAProviderSet(uint8 indexed daId, address provider, bool enabled)` | Emitted when a DA strategy is configured. |

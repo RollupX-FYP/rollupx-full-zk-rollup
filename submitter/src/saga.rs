@@ -45,6 +45,7 @@ pub struct BatchSagaRecord {
     pub batch_data: Option<String>, // Serialized JSON of domain::batch::Batch
     pub proof_hex: Option<String>, // The proof needed to resume
     pub original_gas_price: Option<String>,
+    pub gas_bump_count: i64,
 }
 
 #[derive(Clone)]
@@ -65,10 +66,16 @@ impl SagaOutbox {
                 last_updated INTEGER NOT NULL,
                 batch_data TEXT,
                 proof_hex TEXT,
-                original_gas_price TEXT
+                original_gas_price TEXT,
+                gas_bump_count INTEGER NOT NULL DEFAULT 0,
+                experiment_id TEXT
             )",
             [],
         )?;
+
+        // Safe migration: add columns if they were missing from an older DB file
+        let _ = conn.execute("ALTER TABLE batch_outbox ADD COLUMN gas_bump_count INTEGER NOT NULL DEFAULT 0", []);
+        let _ = conn.execute("ALTER TABLE batch_outbox ADD COLUMN experiment_id TEXT", []);
 
         info!("Saga outbox initialized at {}", db_path);
 
@@ -117,13 +124,33 @@ impl SagaOutbox {
         Ok(())
     }
 
+    /// Record a gas bump: increment gas_bump_count and update tx_hash.
+    /// Does NOT overwrite original_gas_price (that must remain from first submission).
+    pub fn update_gas_bump(&self, batch_id: &str, new_tx_hash: &str, nonce: Option<i64>) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        let now = chrono::Utc::now().timestamp_millis();
+        conn.execute(
+            "UPDATE batch_outbox \
+             SET state = ?1, tx_hash = ?2, nonce = ?3, last_updated = ?4, \
+                 gas_bump_count = gas_bump_count + 1 \
+             WHERE batch_id = ?5",
+            params![SagaState::SubmittedToL1.as_str(), new_tx_hash, nonce, now, batch_id],
+        )?;
+        Ok(())
+    }
+
     pub fn get_unconfirmed_batches(&self) -> Result<Vec<BatchSagaRecord>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT batch_id, state, tx_hash, nonce, last_updated, batch_data, proof_hex, original_gas_price FROM batch_outbox WHERE state != ?1"
+            "SELECT batch_id, state, tx_hash, nonce, last_updated, batch_data, proof_hex, original_gas_price, gas_bump_count \
+             FROM batch_outbox WHERE state IN (?1, ?2, ?3) ORDER BY last_updated ASC"
         )?;
         
-        let batch_iter = stmt.query_map(params![SagaState::ConfirmedOnL1.as_str()], |row| {
+        let batch_iter = stmt.query_map(params![
+            SagaState::ReceivedFromExecutor.as_str(),
+            SagaState::Compressed.as_str(),
+            SagaState::SubmittedToL1.as_str()
+        ], |row| {
             let state_str: String = row.get(1)?;
             Ok(BatchSagaRecord {
                 batch_id: row.get(0)?,
@@ -134,6 +161,7 @@ impl SagaOutbox {
                 batch_data: row.get(5)?,
                 proof_hex: row.get(6)?,
                 original_gas_price: row.get(7)?,
+                gas_bump_count: row.get(8)?,
             })
         })?;
 
@@ -148,7 +176,8 @@ impl SagaOutbox {
     pub fn get_record(&self, batch_id: &str) -> Result<Option<BatchSagaRecord>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT batch_id, state, tx_hash, nonce, last_updated, batch_data, proof_hex, original_gas_price FROM batch_outbox WHERE batch_id = ?1"
+            "SELECT batch_id, state, tx_hash, nonce, last_updated, batch_data, proof_hex, original_gas_price, gas_bump_count \
+             FROM batch_outbox WHERE batch_id = ?1"
         )?;
         
         let mut batch_iter = stmt.query_map(params![batch_id], |row| {
@@ -162,6 +191,7 @@ impl SagaOutbox {
                 batch_data: row.get(5)?,
                 proof_hex: row.get(6)?,
                 original_gas_price: row.get(7)?,
+                gas_bump_count: row.get(8)?,
             })
         })?;
 
@@ -170,6 +200,43 @@ impl SagaOutbox {
         } else {
             Ok(None)
         }
+    }
+
+    /// Archive the current outbox DB and clear all pending rows.
+    ///
+    /// Call this at the start of each experiment run to guarantee isolation:
+    /// ```
+    /// outbox.reset_for_experiment("exp_batch50_calldata_run1", "./experiment_archives")?;
+    /// ```
+    ///
+    /// The archive is a full copy of the SQLite file, so you can inspect it later.
+    /// After reset, the outbox is empty and ready for a fresh run.
+    pub fn reset_for_experiment(&self, experiment_id: &str, archive_dir: &str) -> Result<()> {
+        use std::path::Path;
+
+        // 1. Ensure archive directory exists
+        std::fs::create_dir_all(archive_dir)?;
+
+        // 2. Copy the current DB to the archive using SQLite's backup API
+        let conn = self.conn.lock().unwrap();
+        let archive_path = Path::new(archive_dir)
+            .join(format!("{}.db", experiment_id));
+        let mut dst = rusqlite::Connection::open(&archive_path)?;
+        let backup = rusqlite::backup::Backup::new(&conn, &mut dst)?;
+        backup.run_to_completion(100, std::time::Duration::from_millis(100), None)?;
+        drop(backup);
+        drop(dst);
+        tracing::info!(
+            "Archived outbox for experiment '{}' to {}",
+            experiment_id,
+            archive_path.display()
+        );
+
+        // 3. Delete all rows from the live outbox (leave schema intact)
+        conn.execute("DELETE FROM batch_outbox", [])?;
+        tracing::info!("Outbox cleared — ready for experiment '{}'", experiment_id);
+
+        Ok(())
     }
 }
 
@@ -241,14 +308,40 @@ mod tests {
 
         let batch_id = "stuck_batch";
         outbox.insert_or_ignore(batch_id, "{}", "0x").unwrap();
+        // First submission — sets original_gas_price
         outbox.update_submission(batch_id, "0x_old_hash", Some(10), Some("5000")).unwrap();
 
-        // Simulate the gas bump updating the outbox (subsequent bumps do not rewrite the original gas price if not passed)
-        outbox.update_submission(batch_id, "0x_new_bumped_hash", Some(10), None).unwrap();
+        // Gas bump — increments counter, does not rewrite original_gas_price
+        outbox.update_gas_bump(batch_id, "0x_new_bumped_hash", Some(10)).unwrap();
 
         let record = outbox.get_record(batch_id).unwrap().unwrap();
         assert_eq!(record.state, SagaState::SubmittedToL1);
         assert_eq!(record.tx_hash.as_deref(), Some("0x_new_bumped_hash"));
         assert_eq!(record.nonce, Some(10));
+        // original_gas_price must be preserved
+        assert_eq!(record.original_gas_price.as_deref(), Some("5000"));
+    }
+
+    #[test]
+    fn test_reset_for_experiment_clears_outbox() {
+        let db_file = NamedTempFile::new().unwrap();
+        let db_path = db_file.path().to_str().unwrap();
+        let outbox = SagaOutbox::new(db_path).unwrap();
+
+        outbox.insert_or_ignore("batch_a", "{}", "0x").unwrap();
+        outbox.insert_or_ignore("batch_b", "{}", "0x").unwrap();
+        assert_eq!(outbox.get_unconfirmed_batches().unwrap().len(), 2);
+
+        let archive_dir = tempfile::tempdir().unwrap();
+        outbox
+            .reset_for_experiment("exp_test_run_1", archive_dir.path().to_str().unwrap())
+            .unwrap();
+
+        // Outbox should be empty after reset
+        assert_eq!(outbox.get_unconfirmed_batches().unwrap().len(), 0);
+
+        // Archive DB file should exist
+        let archive_file = archive_dir.path().join("exp_test_run_1.db");
+        assert!(archive_file.exists(), "Archive DB file should exist");
     }
 }

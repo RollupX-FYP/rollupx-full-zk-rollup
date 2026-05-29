@@ -34,22 +34,34 @@
 //! - **Advantage**: MEV-resistant, decentralized, time-fair
 //! - **Disadvantage**: Higher overhead, increased latency (in multi-node setup)
 //! - **Best for**: Decentralized sequencers prioritizing censorship resistance
+//!
+//! ## 5. Blob Packing
+//! - Orders transactions to favor tighter DA blob utilization
+//! - Sorts by estimated encoded size first so larger transactions are packed early
+//! - Falls back to gas price and FCFS tie-breaking
+//! - **Advantage**: Better blob fill ratio and lower DA waste on mixed payloads
+//! - **Disadvantage**: Slightly more scheduling complexity
 //! 
 //! # Important Rule
 //! All policies only affect **normal user transactions**. Forced transactions
 //! from L1 ALWAYS come first, regardless of the selected policy.
 
-use crate::UserTransaction;
+use crate::PooledTransaction;
 
 /// Scheduling policy trait (Strategy pattern)
 /// Defines the interface for all transaction ordering policies.
 /// Each policy implements its own `order_transactions()` logic.
 pub trait SchedulingPolicy: Send + Sync {
     /// Order transactions according to this policy's rules
-    fn order_transactions(&self, transactions: Vec<UserTransaction>) -> Vec<UserTransaction>;
+    fn order_transactions(&self, transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction>;
     
     /// Get the policy name for logging and metadata
     fn name(&self) -> &str;
+
+    /// Get policy configuration parameters for metrics recording
+    fn config_params(&self) -> serde_json::Value {
+        serde_json::json!({})
+    }
 }
 
 /// FCFS (First-Come-First-Served) Policy
@@ -59,7 +71,7 @@ pub trait SchedulingPolicy: Send + Sync {
 pub struct FcfsPolicy;
 
 impl SchedulingPolicy for FcfsPolicy {
-    fn order_transactions(&self, transactions: Vec<UserTransaction>) -> Vec<UserTransaction> {
+    fn order_transactions(&self, transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction> {
         // FCFS: maintain original order, no sorting needed
         transactions
     }
@@ -76,9 +88,9 @@ impl SchedulingPolicy for FcfsPolicy {
 pub struct FeePriorityPolicy;
 
 impl SchedulingPolicy for FeePriorityPolicy {
-    fn order_transactions(&self, mut transactions: Vec<UserTransaction>) -> Vec<UserTransaction> {
+    fn order_transactions(&self, mut transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction> {
         // Sort by gas_price in descending order (highest fee first)
-        transactions.sort_by(|a, b| b.gas_price.cmp(&a.gas_price));
+        transactions.sort_by(|a, b| b.tx.gas_price.cmp(&a.tx.gas_price));
         transactions
     }
     
@@ -103,7 +115,7 @@ pub struct TimeBoostPolicy {
 }
 
 impl SchedulingPolicy for TimeBoostPolicy {
-    fn order_transactions(&self, mut transactions: Vec<UserTransaction>) -> Vec<UserTransaction> {
+    fn order_transactions(&self, mut transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction> {
         // Group transactions by time window
         // Time window = floor(timestamp / window_size)
         
@@ -115,20 +127,20 @@ impl SchedulingPolicy for TimeBoostPolicy {
         
         transactions.sort_by(|a, b| {
             // Calculate time windows
-            let window_a = a.timestamp / self.time_window_ms;
-            let window_b = b.timestamp / self.time_window_ms;
+            let window_a = a.tx.timestamp / self.time_window_ms;
+            let window_b = b.tx.timestamp / self.time_window_ms;
             
             // First, compare by time window
             match window_a.cmp(&window_b) {
                 std::cmp::Ordering::Equal => {
                     // Same window: compare by boost_bid
-                    let boost_a = a.boost_bid.unwrap_or_default();
-                    let boost_b = b.boost_bid.unwrap_or_default();
+                    let boost_a = a.tx.boost_bid.unwrap_or_default();
+                    let boost_b = b.tx.boost_bid.unwrap_or_default();
                     
                     match boost_b.cmp(&boost_a) { // Descending (b vs a)
                         std::cmp::Ordering::Equal => {
                             // Same boost: compare by gas_price
-                            b.gas_price.cmp(&a.gas_price) // Descending
+                            b.tx.gas_price.cmp(&a.tx.gas_price) // Descending
                         }
                         other => other,
                     }
@@ -142,6 +154,12 @@ impl SchedulingPolicy for TimeBoostPolicy {
     
     fn name(&self) -> &str {
         "TimeBoost"
+    }
+
+    fn config_params(&self) -> serde_json::Value {
+        serde_json::json!({
+            "time_window_ms": self.time_window_ms
+        })
     }
 }
 
@@ -178,10 +196,10 @@ impl SchedulingPolicy for TimeBoostPolicy {
 pub struct FairBftPolicy;
 
 impl SchedulingPolicy for FairBftPolicy {
-    fn order_transactions(&self, mut transactions: Vec<UserTransaction>) -> Vec<UserTransaction> {
+    fn order_transactions(&self, mut transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction> {
         // Sort strictly by timestamp (ascending - earliest first)
         // This provides time-based fairness
-        transactions.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+        transactions.sort_by(|a, b| a.tx.timestamp.cmp(&b.tx.timestamp));
         transactions
     }
     
@@ -189,6 +207,41 @@ impl SchedulingPolicy for FairBftPolicy {
         "FairBFT"
     }
 }
+
+/// Blob Packing Policy
+///
+/// Prefers larger encoded payloads first so that blob-capacity batching can
+/// reach a higher fill ratio before timeout. This policy is most useful when
+/// transaction sizes vary materially across the mempool.
+pub struct BlobPackingPolicy;
+
+impl SchedulingPolicy for BlobPackingPolicy {
+    fn order_transactions(&self, mut transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction> {
+        transactions.sort_by(|a, b| {
+            let size_a = a.estimated_encoded_bytes();
+            let size_b = b.estimated_encoded_bytes();
+            match size_b.cmp(&size_a) {
+                std::cmp::Ordering::Equal => match b.tx.gas_price.cmp(&a.tx.gas_price) {
+                    std::cmp::Ordering::Equal => a.tx.timestamp.cmp(&b.tx.timestamp),
+                    other => other,
+                },
+                other => other,
+            }
+        });
+        transactions
+    }
+
+    fn name(&self) -> &str {
+        "BlobPacking"
+    }
+
+    fn config_params(&self) -> serde_json::Value {
+        serde_json::json!({
+            "objective": "blob_fill"
+        })
+    }
+}
+
 
 /// Policy type enum for configuration
 /// 
@@ -207,6 +260,8 @@ pub enum SchedulingPolicyType {
     },
     /// Fair BFT Ordering (timestamp-based)
     FairBft,
+    /// Blob Packing (size-aware blob fill optimization)
+    BlobPacking,
 }
 
 /// Factory function to create policy instances
@@ -232,5 +287,46 @@ pub fn create_policy(policy_type: SchedulingPolicyType) -> Box<dyn SchedulingPol
             Box::new(TimeBoostPolicy { time_window_ms })
         }
         SchedulingPolicyType::FairBft => Box::new(FairBftPolicy),
+        SchedulingPolicyType::BlobPacking => Box::new(BlobPackingPolicy),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{PooledTransaction, UserTransaction};
+    use ethers::types::{Address, Signature, U256};
+
+    fn tx_with_size(gas_price: u64, value: &str, timestamp: u64) -> PooledTransaction {
+        let tx = UserTransaction {
+            from: Address::random(),
+            to: Address::random(),
+            value: U256::from_dec_str(value).unwrap(),
+            nonce: 1,
+            gas_limit: 21_000,
+            gas_price: U256::from(gas_price),
+            signature: Signature { r: U256::zero(), s: U256::zero(), v: 27 },
+            timestamp,
+            boost_bid: None,
+        };
+        PooledTransaction {
+            tx,
+            arrived_at: timestamp,
+            pool_entry_at: timestamp + 1,
+            validation_latency_ms: 1,
+        }
+    }
+
+    #[test]
+    fn blob_packing_orders_larger_payloads_first() {
+        let policy = BlobPackingPolicy;
+        let small = tx_with_size(2, "1", 1);
+        let large = tx_with_size(1, "1000000000000000000000000000000", 2);
+
+        let ordered = policy.order_transactions(vec![small.clone(), large.clone()]);
+
+        assert_eq!(ordered.len(), 2);
+        assert_eq!(ordered[0].tx.gas_price, large.tx.gas_price);
+        assert_eq!(ordered[1].tx.gas_price, small.tx.gas_price);
     }
 }

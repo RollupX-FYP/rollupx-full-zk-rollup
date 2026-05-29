@@ -47,6 +47,7 @@ sequenceDiagram
     participant Cache
     participant Pool
     participant Orch
+    participant Disk
     participant Exec
 
     User->>API: sendTransaction
@@ -59,7 +60,21 @@ sequenceDiagram
         Orch->>Orch: Check Triggers (Timeout?)
         Orch->>Pool: Pull Txs
         Orch->>Orch: Apply Scheduling Policy
+        Orch->>Cache: Collect cache_hit_rate
+        Orch->>Disk: Write sequencer_batches_<exp>.jsonl
         Orch->>Exec: PublishBatch
     end
 ```
-**Explanation:** User interaction is isolated from batch creation. Validation is instantaneous, while batching happens asynchronously.
+**Explanation:** User interaction is isolated from batch creation. Validation is instantaneous, while batching happens asynchronously. Every batch cycle logs its own performance and fairness metrics to disk for later analysis.
+
+## Research & Metrics Mapping
+
+The metrics collected by the Sequencer directly feed into the project's research questions (RQs):
+
+| Research Goal | Sequencer Metric | Interpretation |
+| :--- | :--- | :--- |
+| **System Fairness** | `jains_fairness_index` | 1.0 = Perfect fairness. Lower values indicate policy bias. |
+| **User Experience** | `wait_time_p95_ms` | Predictability of confirmation times for regular users. |
+| **MEV / Efficiency** | `ordering_efficiency` | How well the policy captures available fee revenue compared to pure FeePriority. |
+| **System Stability** | `cache_hit_rate` | Efficiency of the pessimistic balance tracking mechanism. |
+| **Network Cost** | `raw_tx_bytes` | Drives the L1 DA costs in the overall system feasibility study. |

@@ -1,115 +1,128 @@
 [baseline]
-batch_size    = 50
-timeout_ms    = 5000
-policy        = "FCFS"
-da_mode       = "calldata"
-prover        = "groth16"
-rate_tps      = 10
-duration_s    = 120
-warmup_s      = 15
-tx_mix        = "balanced"
-repeats       = 1
-seeds         = [42, 43, 44, 45, 46]
+id = "exp_000_baseline_fixed100_calldata_fcfs_10tps"
+name = "Baseline: fixed batch size 100, calldata DA, FCFS, 10 TPS"
+batch_size = 100
+timeout_ms = 30000
+min_batch_size = 1
+batch_policy = "fixed"
+adaptive_low_load_threshold = 50
+adaptive_medium_load_threshold = 200
+adaptive_small_batch_size = 50
+adaptive_medium_batch_size = 100
+adaptive_large_batch_size = 500
+blob_target_bytes = 131072
+blob_fill_target = 0.90
+policy = "FCFS"
+da_mode = "calldata"
+prover = "groth16"
+eth_price_usd = 2500
+regular_gas_price_gwei = 2
+blob_gas_price_gwei = 0.001
+rate_tps = 10
+duration_s = 120
+warmup_s = 15
+tx_mix = "balanced"
+repeats = 5
+seeds = [42, 43, 44, 45, 46]
 
-# ── F1: Batch Size ────────────────────────────────────────────────────────────
 [[experiments]]
 factor = "batch_size"
-id = "bs_010"
+id = "exp_001_batch_size_bs010_calldata_fcfs_10tps"
+name = "Batch-size sweep: fixed 10"
 batch_size = 10
 
 [[experiments]]
 factor = "batch_size"
-id = "bs_025"
-batch_size = 25
+id = "exp_002_batch_size_bs050_calldata_fcfs_10tps"
+name = "Batch-size sweep: fixed 50"
+batch_size = 50
 
 [[experiments]]
 factor = "batch_size"
-id = "bs_100"
+id = "exp_003_batch_size_bs100_calldata_fcfs_10tps"
+name = "Batch-size sweep: fixed 100"
 batch_size = 100
 
 [[experiments]]
 factor = "batch_size"
-id = "bs_200"
-batch_size = 200
-
-# ── F2: Timeout ───────────────────────────────────────────────────────────────
-[[experiments]]
-factor = "timeout"
-id = "to_0500"
-timeout_ms = 500
+id = "exp_004_batch_size_bs500_calldata_fcfs_10tps"
+name = "Batch-size sweep: fixed 500"
+batch_size = 500
 
 [[experiments]]
-factor = "timeout"
-id = "to_1000"
-timeout_ms = 1000
+factor = "batch_size"
+id = "exp_005_batch_size_bs1000_calldata_fcfs_10tps"
+name = "Batch-size sweep: fixed 1000"
+batch_size = 1000
 
-[[experiments]]
-factor = "timeout"
-id = "to_2500"
-timeout_ms = 2500
-
-[[experiments]]
-factor = "timeout"
-id = "to_10000"
-timeout_ms = 10000
-
-# ── F3: Scheduling Policy ─────────────────────────────────────────────────────
 [[experiments]]
 factor = "policy"
-id = "pol_fee"
+id = "exp_010_policy_fcfs_bs100_calldata_10tps"
+name = "Scheduling sweep: FCFS"
+batch_size = 100
+policy = "FCFS"
+
+[[experiments]]
+factor = "policy"
+id = "exp_011_policy_feepriority_bs100_calldata_10tps"
+name = "Scheduling sweep: FeePriority"
+batch_size = 100
 policy = "FeePriority"
 
 [[experiments]]
 factor = "policy"
-id = "pol_timeboost"
-policy = "TimeBoost"
+id = "exp_012_policy_blobpacking_bs100_calldata_10tps"
+name = "Scheduling sweep: BlobPacking"
+batch_size = 100
+policy = "BlobPacking"
 
-[[experiments]]
-factor = "policy"
-id = "pol_fairbft"
-policy = "FairBFT"
-
-# ── F4: DA Mode ───────────────────────────────────────────────────────────────
 [[experiments]]
 factor = "da_mode"
-id = "da_blob"
+id = "exp_020_da_calldata_bs100_fcfs_10tps"
+name = "DA sweep: calldata"
+batch_size = 100
+da_mode = "calldata"
+
+[[experiments]]
+factor = "da_mode"
+id = "exp_021_da_blob_bs100_fcfs_10tps"
+name = "DA sweep: blob"
+batch_size = 100
 da_mode = "blob"
 
 [[experiments]]
 factor = "da_mode"
-id = "da_offchain"
+id = "exp_022_da_offchain_bs100_fcfs_10tps"
+name = "DA sweep: offchain"
+batch_size = 100
 da_mode = "offchain"
 
-# ── F5: Proof Backend ─────────────────────────────────────────────────────────
 [[experiments]]
-factor = "prover"
-id = "pv_plonk"
-prover = "plonk"
-# halo2 deferred — not yet integrated in prover pipeline
-
-# ── F6: Input Rate ────────────────────────────────────────────────────────────
-[[experiments]]
-factor = "rate"
-id = "tps_005"
-rate_tps = 5
+factor = "batch_policy"
+id = "exp_030_batch_policy_fixed100_bs100_calldata_fcfs_10tps"
+name = "Batch policy validation: fixed 100"
+batch_size = 100
+batch_policy = "fixed"
 
 [[experiments]]
-factor = "rate"
-id = "tps_020"
-rate_tps = 20
+factor = "batch_policy"
+id = "exp_031_batch_policy_fixed500_bs500_calldata_fcfs_10tps"
+name = "Batch policy validation: fixed 500"
+batch_size = 500
+batch_policy = "fixed"
 
 [[experiments]]
-factor = "rate"
-id = "tps_050"
-rate_tps = 50
-
-# ── F7: Tx Heterogeneity ──────────────────────────────────────────────────────
-[[experiments]]
-factor = "tx_mix"
-id = "mix_light"
-tx_mix = "light"
+factor = "batch_policy"
+id = "exp_032_batch_policy_adaptive_bs500_calldata_fcfs_10tps"
+name = "Batch policy validation: adaptive"
+batch_size = 500
+batch_policy = "adaptive"
 
 [[experiments]]
-factor = "tx_mix"
-id = "mix_heavy"
-tx_mix = "heavy"
+factor = "batch_policy"
+id = "exp_033_batch_policy_adaptive_blob_bs500_blob_blobpacking_10tps"
+name = "Batch policy validation: adaptive + blob packing"
+batch_size = 500
+batch_policy = "adaptive"
+policy = "BlobPacking"
+da_mode = "blob"

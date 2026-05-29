@@ -91,6 +91,7 @@ impl<M: Middleware + 'static> DaStrategy for CalldataStrategy<M> {
         new_root_arr.copy_from_slice(&root_bytes);
 
         let da_meta = self.encode_da_meta(batch)?;
+        let compressed_len = batch_data.len();
 
         let bridge = self.bridge.clone();
         let call = bridge.commit_batch(
@@ -126,8 +127,12 @@ impl<M: Middleware + 'static> DaStrategy for CalldataStrategy<M> {
             block_number: receipt.block_number.unwrap_or_default().as_u64(),
             latency_ms: latency,
             compression_ratio: None,
+            compressed_bytes: Some(compressed_len),
             gas_saved: None,
             gas_used,
+            blob_gas_used: None,
+            blob_base_fee_wei: None,
+            da_mode_is_simulated: false,
         })
     }
 
@@ -188,7 +193,7 @@ mod tests {
     #[tokio::test]
     async fn test_submit_calldata() {
         let mock = MockClient::new();
-        let provider = Provider::new(mock.clone());
+        let provider = Provider::new(mock.clone()).interval(std::time::Duration::from_millis(10));
         let wallet: LocalWallet =
             "0x0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
                 .parse()
@@ -214,6 +219,7 @@ mod tests {
             blob_index: None,
             fee: 0,
             experiment_id: None,
+            ..Default::default()
         };
 
         std::fs::write("test_data_calldata.txt", "dummy data").unwrap();
@@ -234,9 +240,20 @@ mod tests {
 
         mock.push(U256::from(100_000));
         mock.push(H256::random());
+        let mut receipt = TransactionReceipt::default();
+        receipt.status = Some(U64::from(1));
+        receipt.block_number = Some(U64::from(1));
+        receipt.gas_used = Some(U256::from(21000));
+        mock.push(Some(receipt));
+        mock.push(U64::from(2));
 
         let proof_hex = format!("0x{}", hex::encode([0u8; 128])); // Random bytes
-        let res = strategy.submit(&batch, &proof_hex, 0).await;
+        let res = tokio::time::timeout(
+            std::time::Duration::from_secs(5),
+            strategy.submit(&batch, &proof_hex, 0),
+        )
+        .await
+        .expect("calldata submission timed out");
 
         let _ = std::fs::remove_file("test_data_calldata.txt");
         if let Err(e) = &res {
