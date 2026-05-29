@@ -34,6 +34,13 @@
 //! - **Advantage**: MEV-resistant, decentralized, time-fair
 //! - **Disadvantage**: Higher overhead, increased latency (in multi-node setup)
 //! - **Best for**: Decentralized sequencers prioritizing censorship resistance
+//!
+//! ## 5. Blob Packing
+//! - Orders transactions to favor tighter DA blob utilization
+//! - Sorts by estimated encoded size first so larger transactions are packed early
+//! - Falls back to gas price and FCFS tie-breaking
+//! - **Advantage**: Better blob fill ratio and lower DA waste on mixed payloads
+//! - **Disadvantage**: Slightly more scheduling complexity
 //! 
 //! # Important Rule
 //! All policies only affect **normal user transactions**. Forced transactions
@@ -201,6 +208,40 @@ impl SchedulingPolicy for FairBftPolicy {
     }
 }
 
+/// Blob Packing Policy
+///
+/// Prefers larger encoded payloads first so that blob-capacity batching can
+/// reach a higher fill ratio before timeout. This policy is most useful when
+/// transaction sizes vary materially across the mempool.
+pub struct BlobPackingPolicy;
+
+impl SchedulingPolicy for BlobPackingPolicy {
+    fn order_transactions(&self, mut transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction> {
+        transactions.sort_by(|a, b| {
+            let size_a = a.estimated_encoded_bytes();
+            let size_b = b.estimated_encoded_bytes();
+            match size_b.cmp(&size_a) {
+                std::cmp::Ordering::Equal => match b.tx.gas_price.cmp(&a.tx.gas_price) {
+                    std::cmp::Ordering::Equal => a.tx.timestamp.cmp(&b.tx.timestamp),
+                    other => other,
+                },
+                other => other,
+            }
+        });
+        transactions
+    }
+
+    fn name(&self) -> &str {
+        "BlobPacking"
+    }
+
+    fn config_params(&self) -> serde_json::Value {
+        serde_json::json!({
+            "objective": "blob_fill"
+        })
+    }
+}
+
 
 /// Policy type enum for configuration
 /// 
@@ -219,6 +260,8 @@ pub enum SchedulingPolicyType {
     },
     /// Fair BFT Ordering (timestamp-based)
     FairBft,
+    /// Blob Packing (size-aware blob fill optimization)
+    BlobPacking,
 }
 
 /// Factory function to create policy instances
@@ -244,5 +287,46 @@ pub fn create_policy(policy_type: SchedulingPolicyType) -> Box<dyn SchedulingPol
             Box::new(TimeBoostPolicy { time_window_ms })
         }
         SchedulingPolicyType::FairBft => Box::new(FairBftPolicy),
+        SchedulingPolicyType::BlobPacking => Box::new(BlobPackingPolicy),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{PooledTransaction, UserTransaction};
+    use ethers::types::{Address, Signature, U256};
+
+    fn tx_with_size(gas_price: u64, value: &str, timestamp: u64) -> PooledTransaction {
+        let tx = UserTransaction {
+            from: Address::random(),
+            to: Address::random(),
+            value: U256::from_dec_str(value).unwrap(),
+            nonce: 1,
+            gas_limit: 21_000,
+            gas_price: U256::from(gas_price),
+            signature: Signature { r: U256::zero(), s: U256::zero(), v: 27 },
+            timestamp,
+            boost_bid: None,
+        };
+        PooledTransaction {
+            tx,
+            arrived_at: timestamp,
+            pool_entry_at: timestamp + 1,
+            validation_latency_ms: 1,
+        }
+    }
+
+    #[test]
+    fn blob_packing_orders_larger_payloads_first() {
+        let policy = BlobPackingPolicy;
+        let small = tx_with_size(2, "1", 1);
+        let large = tx_with_size(1, "1000000000000000000000000000000", 2);
+
+        let ordered = policy.order_transactions(vec![small.clone(), large.clone()]);
+
+        assert_eq!(ordered.len(), 2);
+        assert_eq!(ordered[0].tx.gas_price, large.tx.gas_price);
+        assert_eq!(ordered[1].tx.gas_price, small.tx.gas_price);
     }
 }

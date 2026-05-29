@@ -249,7 +249,7 @@ def section_hypotheses(df: pd.DataFrame) -> str:
 
 
 def section_threats(df: pd.DataFrame) -> str:
-    return """## 6. Threats to Validity
+    return """## 7. Threats to Validity
 
 | Threat | Type | Mitigation |
 |--------|------|------------|
@@ -258,34 +258,44 @@ def section_threats(df: pd.DataFrame) -> str:
 | Single-machine bottleneck | External | CPU/RAM documented in run_metadata.json |
 | Sepolia congestion | External | Fixed RPC; submitter retry logic |
 | Low repeat count (n=5) | Statistical | CI reported; flag configs with n<3 |
-| Blob infra incomplete | Internal | Local archiver stub; noted in each blob experiment |
+| Local mock blob fees | Internal | Blob reports distinguish `hybrid` modeled fees from receipt-level EIP-4844 fields |
 | Proof backend gap (Halo2 deferred) | Internal | Explicitly excluded from matrix |
 | OFAT ignores interactions | Design | Noted; multi-factor cross-analysis deferred |
 
 """
 
 
-def section_figures(output_dir: str) -> str:
+def section_cost_methodology() -> str:
+    return """## 6. Cost Methodology
+
+Hardhat EVM gas measurements are deterministic for contract execution. USD values are derived from fixed reference prices recorded in the metrics. Local blob DA uses modeled blob fees unless receipt-level EIP-4844 blob gas fields are available; check `cost_source`, `blob_cost_source`, and `real_eip4844_blob` before interpreting blob cost claims.
+
+"""
+
+
+def section_figures(output_dir: str, report_dir: str) -> str:
     figure_map = [
-        ("figures/pareto_cost_latency.png",    "Pareto Frontier: Cost vs Latency"),
-        ("figures/pareto_throughput_latency.png","Pareto Frontier: Throughput vs Latency"),
-        ("figures/pareto_da_comparison.png",   "DA Mode Comparison"),
-        ("figures/throughput_by_policy.png",   "Throughput by Scheduling Policy"),
-        ("figures/latency_cdf_all.png",        "Latency CDF (all experiments)"),
-        ("figures/latency_boxplot_policy.png", "Latency Variance by Policy"),
-        ("figures/fairness_jains.png",         "Jain's Fairness Index"),
-        ("figures/fairness_per_class.png",     "Per-Class P95 Latency"),
-        ("figures/cost_heatmap_gas_per_tx.png","Cost Heatmap: Gas/tx"),
-        ("figures/sensitivity_heatmap.png",    "Factor Sensitivity Heatmap"),
+        ("pareto_cost_latency.png", "Pareto Frontier: Cost vs Latency"),
+        ("pareto_throughput_latency.png", "Pareto Frontier: Throughput vs Latency"),
+        ("pareto_da_comparison.png", "DA Mode Comparison"),
+        ("throughput_by_policy.png", "Throughput by Scheduling Policy"),
+        ("latency_cdf_all.png", "Latency CDF (all experiments)"),
+        ("latency_boxplot_policy.png", "Latency Variance by Policy"),
+        ("fairness_jains.png", "Jain's Fairness Index"),
+        ("fairness_per_class.png", "Per-Class P95 Latency"),
+        ("cost_heatmap_gas_per_tx.png", "Cost Heatmap: Gas/tx"),
+        ("sensitivity_heatmap.png", "Factor Sensitivity Heatmap"),
     ]
 
-    lines = ["## 7. Figures\n"]
-    for path, caption in figure_map:
+    lines = ["## 8. Figures\n"]
+    for filename, caption in figure_map:
+        path = os.path.join(output_dir, filename)
+        rel_path = os.path.relpath(path, report_dir)
         if os.path.exists(path):
             lines.append(f"### {caption}\n")
-            lines.append(f"![{caption}]({path})\n")
+            lines.append(f"![{caption}]({rel_path})\n")
         else:
-            lines.append(f"- *{caption}* — `{path}` *(not yet generated)*\n")
+            lines.append(f"- *{caption}* — `{rel_path}` *(not yet generated)*\n")
 
     return "\n".join(lines) + "\n"
 
@@ -317,8 +327,9 @@ def generate(
         section_rankings(df),
         section_baseline_comparison(df),
         section_hypotheses(df),
+        section_cost_methodology(),
         section_threats(df),
-        section_figures(figures_dir),
+        section_figures(figures_dir, os.path.dirname(output) or "."),
         "---\n\n*End of auto-generated summary.*\n",
     ]
 

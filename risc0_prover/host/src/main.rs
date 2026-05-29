@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use risc0_zkvm::{default_prover, ExecutorEnv};
+use risc0_zkvm::{default_prover, ExecutorEnv, ProverOpts};
 use rollup_core::BlockTrace;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -86,13 +86,13 @@ fn main() -> Result<()> {
 
     let zkvm_exec_start = std::time::Instant::now();
     let prove_info = prover
-        .prove(env, &elf)
+        .prove_with_opts(env, &elf, &ProverOpts::groth16())
         .context("prove guest execution")?;
     let zkvm_execution_ms = zkvm_exec_start.elapsed().as_millis() as u64;
     
     let receipt = prove_info.receipt;
-    // Extract RISC0 metrics from receipt metadata
-    let total_cycles = receipt.metadata.total_cycles;
+    // RISC0 2.x exposes execution stats on ProveInfo, not ReceiptMetadata.
+    let total_cycles = prove_info.stats.total_cycles;
     let total_segments = prove_info.stats.segments;
 
     let output_write_start = std::time::Instant::now();

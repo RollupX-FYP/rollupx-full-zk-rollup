@@ -3,6 +3,14 @@ max_batch_size = 100
 timeout_interval_ms = 5000
 min_batch_size = 10
 max_gas_limit = 30000000  # 30 million gas limit for L1 verification
+batch_policy = "fixed"
+adaptive_low_load_threshold = 50
+adaptive_medium_load_threshold = 200
+adaptive_small_batch_size = 50
+adaptive_medium_batch_size = 100
+adaptive_large_batch_size = 500
+blob_target_bytes = 131072
+blob_fill_target = 0.90
 
 [scheduling]
 policy_type = "FCFS"

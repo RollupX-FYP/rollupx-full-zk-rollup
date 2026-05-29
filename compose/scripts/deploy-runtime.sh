@@ -10,11 +10,19 @@ SEQUENCER_BATCH_MAX_SIZE="${SEQUENCER_BATCH_MAX_SIZE:-100}"
 SEQUENCER_BATCH_TIMEOUT_MS="${SEQUENCER_BATCH_TIMEOUT_MS:-5000}"
 SEQUENCER_BATCH_MIN_SIZE="${SEQUENCER_BATCH_MIN_SIZE:-10}"
 SEQUENCER_BATCH_MAX_GAS_LIMIT="${SEQUENCER_BATCH_MAX_GAS_LIMIT:-30000000}"
+SEQUENCER_BATCH_POLICY="${SEQUENCER_BATCH_POLICY:-fixed}"
+SEQUENCER_ADAPTIVE_LOW_LOAD_THRESHOLD="${SEQUENCER_ADAPTIVE_LOW_LOAD_THRESHOLD:-50}"
+SEQUENCER_ADAPTIVE_MEDIUM_LOAD_THRESHOLD="${SEQUENCER_ADAPTIVE_MEDIUM_LOAD_THRESHOLD:-200}"
+SEQUENCER_ADAPTIVE_SMALL_BATCH_SIZE="${SEQUENCER_ADAPTIVE_SMALL_BATCH_SIZE:-50}"
+SEQUENCER_ADAPTIVE_MEDIUM_BATCH_SIZE="${SEQUENCER_ADAPTIVE_MEDIUM_BATCH_SIZE:-100}"
+SEQUENCER_ADAPTIVE_LARGE_BATCH_SIZE="${SEQUENCER_ADAPTIVE_LARGE_BATCH_SIZE:-500}"
+SEQUENCER_BLOB_TARGET_BYTES="${SEQUENCER_BLOB_TARGET_BYTES:-131072}"
+SEQUENCER_BLOB_FILL_TARGET="${SEQUENCER_BLOB_FILL_TARGET:-0.90}"
 SEQUENCER_POLICY="${SEQUENCER_POLICY:-FCFS}"
 SUBMITTER_DA_MODE="${SUBMITTER_DA_MODE:-offchain}"
 SUBMITTER_BLOB_BINDING="${SUBMITTER_BLOB_BINDING:-mock}"
 SUBMITTER_BLOB_INDEX="${SUBMITTER_BLOB_INDEX:-0}"
-SUBMITTER_ARCHIVER_URL="${SUBMITTER_ARCHIVER_URL:-http://archiver-service:3000}"
+SUBMITTER_ARCHIVER_URL="${SUBMITTER_ARCHIVER_URL:-}"
 SUBMITTER_PROOF_BACKEND="${SUBMITTER_PROOF_BACKEND:-groth16}"
 SUBMITTER_PROOF_VERIFICATION_MODE="${SUBMITTER_PROOF_VERIFICATION_MODE:-onchain}"
 SUBMITTER_PROOF_VERIFIER_ID="${SUBMITTER_PROOF_VERIFIER_ID:-0}"
@@ -25,7 +33,8 @@ DEPLOY_LOG="${RUNTIME_DIR}/contracts-deploy.log"
 cd /app
 
 echo "[contracts-deployer] deploying contracts against ${L1_RPC_HTTP}"
-npx hardhat run scripts/deploy-local.ts --network host_docker | tee "${DEPLOY_LOG}"
+L1_NODE_URL="${L1_RPC_HTTP}" DEPLOYMENT_OUT="${RUNTIME_DIR}/contracts.json" \
+    npx hardhat run scripts/deploy-local.ts --network host_docker | tee "${DEPLOY_LOG}"
 
 MOCK_VERIFIER_ADDRESS="$(awk '/MockVerifier:/ {print $2}' "${DEPLOY_LOG}" | tail -n 1)"
 CALLDATA_DA_ADDRESS="$(awk '/CalldataDA:/ {print $2}' "${DEPLOY_LOG}" | tail -n 1)"
@@ -34,7 +43,7 @@ OFFCHAIN_DA_ADDRESS="$(awk '/OffChainDA:/ {print $2}' "${DEPLOY_LOG}" | tail -n 
 BRIDGE_ADDRESS="$(awk '/ZKRollupBridge:/ {print $2}' "${DEPLOY_LOG}" | tail -n 1)"
 GENESIS_ROOT="$(awk '/GenesisRoot:/ {print $2}' "${DEPLOY_LOG}" | tail -n 1)"
 
-if [ -z "${MOCK_VERIFIER_ADDRESS}" ] || [ -z "${BRIDGE_ADDRESS}" ]; then
+if [ -z "${MOCK_VERIFIER_ADDRESS}" ] || [ -z "${CALLDATA_DA_ADDRESS}" ] || [ -z "${TEST_BLOB_DA_ADDRESS}" ] || [ -z "${OFFCHAIN_DA_ADDRESS}" ] || [ -z "${BRIDGE_ADDRESS}" ]; then
     echo "[contracts-deployer] failed to parse deployment output" >&2
     exit 1
 fi
@@ -54,11 +63,28 @@ EOF
 
 cat > "${RUNTIME_DIR}/contracts.json" <<EOF
 {
+  "network": "host_docker",
+  "chainId": ${L1_CHAIN_ID},
+  "bridge": "${BRIDGE_ADDRESS}",
+  "verifier": "${MOCK_VERIFIER_ADDRESS}",
+  "mockVerifier": "${MOCK_VERIFIER_ADDRESS}",
+  "calldataDA": "${CALLDATA_DA_ADDRESS}",
+  "blobDA": "${TEST_BLOB_DA_ADDRESS}",
+  "testBlobDA": "${TEST_BLOB_DA_ADDRESS}",
+  "offchainDA": "${OFFCHAIN_DA_ADDRESS}",
+  "genesisRoot": "${GENESIS_ROOT}",
+  "l1RpcHttp": "${L1_RPC_HTTP}",
+  "l1RpcWs": "${L1_RPC_WS}",
+  "startBlock": ${L1_START_BLOCK},
+  "daProviders": {
+    "calldata": { "id": 0, "address": "${CALLDATA_DA_ADDRESS}" },
+    "blob": { "id": 1, "address": "${TEST_BLOB_DA_ADDRESS}" },
+    "offchain": { "id": 2, "address": "${OFFCHAIN_DA_ADDRESS}" }
+  },
   "mock_verifier": "${MOCK_VERIFIER_ADDRESS}",
   "calldata_da": "${CALLDATA_DA_ADDRESS}",
   "test_blob_da": "${TEST_BLOB_DA_ADDRESS}",
   "offchain_da": "${OFFCHAIN_DA_ADDRESS}",
-  "bridge": "${BRIDGE_ADDRESS}",
   "genesis_root": "${GENESIS_ROOT}",
   "l1_rpc_http": "${L1_RPC_HTTP}",
   "l1_rpc_ws": "${L1_RPC_WS}",
@@ -73,6 +99,14 @@ max_batch_size = ${SEQUENCER_BATCH_MAX_SIZE}
 timeout_interval_ms = ${SEQUENCER_BATCH_TIMEOUT_MS}
 min_batch_size = ${SEQUENCER_BATCH_MIN_SIZE}
 max_gas_limit = ${SEQUENCER_BATCH_MAX_GAS_LIMIT}
+batch_policy = "${SEQUENCER_BATCH_POLICY}"
+adaptive_low_load_threshold = ${SEQUENCER_ADAPTIVE_LOW_LOAD_THRESHOLD}
+adaptive_medium_load_threshold = ${SEQUENCER_ADAPTIVE_MEDIUM_LOAD_THRESHOLD}
+adaptive_small_batch_size = ${SEQUENCER_ADAPTIVE_SMALL_BATCH_SIZE}
+adaptive_medium_batch_size = ${SEQUENCER_ADAPTIVE_MEDIUM_BATCH_SIZE}
+adaptive_large_batch_size = ${SEQUENCER_ADAPTIVE_LARGE_BATCH_SIZE}
+blob_target_bytes = ${SEQUENCER_BLOB_TARGET_BYTES}
+blob_fill_target = ${SEQUENCER_BLOB_FILL_TARGET}
 
 [scheduling]
 policy_type = "${SEQUENCER_POLICY}"
@@ -100,13 +134,24 @@ network:
 
 contracts:
   bridge: "${BRIDGE_ADDRESS}"
+  verifier: "${MOCK_VERIFIER_ADDRESS}"
+  calldata_da: "${CALLDATA_DA_ADDRESS}"
+  blob_da: "${TEST_BLOB_DA_ADDRESS}"
+  offchain_da: "${OFFCHAIN_DA_ADDRESS}"
 
 da:
   mode: "${SUBMITTER_DA_MODE}"
   blob_binding: "${SUBMITTER_BLOB_BINDING}"
   blob_index: ${SUBMITTER_BLOB_INDEX}
-  archiver_url: "${SUBMITTER_ARCHIVER_URL}"
+EOF
 
+if [ -n "${SUBMITTER_ARCHIVER_URL}" ]; then
+cat >> "${RUNTIME_DIR}/submitter.yaml" <<EOF
+  archiver_url: "${SUBMITTER_ARCHIVER_URL}"
+EOF
+fi
+
+cat >> "${RUNTIME_DIR}/submitter.yaml" <<EOF
 batch:
   data_file: "dummy"
   new_root: "0x00"

@@ -16,6 +16,7 @@ pub enum ProverBackendKind {
         guest_elf: Option<PathBuf>,
         work_dir: PathBuf,
     },
+    Mock,
 }
 
 pub struct ProofArtifacts {
@@ -66,9 +67,14 @@ struct ProofRunMetadata {
 
 pub fn backend_from_env() -> anyhow::Result<ProverBackend> {
     let backend_kind = std::env::var("PROVER_BACKEND").unwrap_or_else(|_| "risc0".to_string());
+    if backend_kind.eq_ignore_ascii_case("mock") {
+        return Ok(ProverBackend {
+            kind: ProverBackendKind::Mock,
+        });
+    }
     if !backend_kind.eq_ignore_ascii_case("risc0") {
         anyhow::bail!(
-            "unsupported PROVER_BACKEND '{}': only 'risc0' is supported",
+            "unsupported PROVER_BACKEND '{}': supported values are 'risc0' and 'mock'",
             backend_kind
         );
     }
@@ -103,13 +109,46 @@ pub fn generate_artifacts(
             guest_elf,
             work_dir,
         } => generate_risc0_artifacts(trace, host_binary, guest_elf, work_dir),
+        ProverBackendKind::Mock => generate_mock_artifacts(trace),
     }
 }
 
 pub fn backend_label(backend: &ProverBackend) -> &'static str {
-    match backend.kind {
+    match &backend.kind {
         ProverBackendKind::Risc0 { .. } => "risc0",
+        ProverBackendKind::Mock => "mock",
     }
+}
+
+fn generate_mock_artifacts(trace: &ExecutionTraceV1) -> anyhow::Result<ProofArtifacts> {
+    let core_trace = to_rollup_core_trace(trace);
+    let core_trace_bytes = serde_json::to_vec(&core_trace)?;
+    let proof =
+        Sha256::digest([b"rollupx-mock-proof".as_slice(), &core_trace_bytes].concat()).to_vec();
+    let journal = [
+        trace.public_inputs.initial_root.as_slice(),
+        trace.public_inputs.final_root.as_slice(),
+    ]
+    .concat();
+    let da_commitment = sha256_hash(&journal).to_vec();
+
+    Ok(ProofArtifacts {
+        proof_bytes: proof.len(),
+        journal_bytes: journal.len(),
+        proof,
+        da_commitment,
+        metadata: ProofMetadataMetrics {
+            witness_generation_ms: 0,
+            zkvm_execution_ms: 0,
+            proof_compression_ms: 0,
+            total_prover_wall_ms: 0,
+            trace_read_ms: 0,
+            output_write_ms: 0,
+            total_cycles: 0,
+            total_segments: 0,
+            proof_mode: "mock".to_string(),
+        },
+    })
 }
 
 fn generate_risc0_artifacts(

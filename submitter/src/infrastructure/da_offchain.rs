@@ -110,6 +110,7 @@ impl<M: Middleware + 'static> DaStrategy for OffChainStrategy<M> {
             .ok_or(DomainError::Da("Dropped".to_string()))?;
 
         let latency = start_time.elapsed().as_millis() as u64;
+        let gas_used = receipt.gas_used.map(|g| g.as_u64());
 
         Ok(SubmissionResult {
             tx_hash: format!("{:?}", tx_hash),
@@ -118,7 +119,7 @@ impl<M: Middleware + 'static> DaStrategy for OffChainStrategy<M> {
             compression_ratio: None,
             compressed_bytes: Some(batch_data.len()),
             gas_saved: None,
-            gas_used: None,
+            gas_used,
             blob_gas_used: None,
             blob_base_fee_wei: None,
             da_mode_is_simulated: true,

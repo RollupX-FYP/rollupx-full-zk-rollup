@@ -178,6 +178,27 @@ impl PooledTransaction {
             validation_latency_ms: pool_entry_at.saturating_sub(arrived_at),
         }
     }
+
+    /// Approximate serialized size used by blob-aware packing heuristics.
+    pub fn estimated_encoded_bytes(&self) -> usize {
+        fn u256_digits(value: &U256) -> usize {
+            value.to_string().len()
+        }
+
+        let mut size = 20 + 20 + 32 + 8 + 32 + 8 + 65;
+        size += u256_digits(&self.tx.value);
+        size += u256_digits(&self.tx.gas_price);
+        size += self.tx.nonce.to_string().len();
+        size += self.tx.gas_limit.to_string().len();
+        size += self.tx.timestamp.to_string().len();
+        size += self
+            .tx
+            .boost_bid
+            .as_ref()
+            .map(u256_digits)
+            .unwrap_or(4);
+        size
+    }
 }
 
 /// Generic transaction (can be normal or forced)
@@ -212,6 +233,22 @@ impl Transaction {
         match self {
             Transaction::Normal(ptx) => ptx.arrived_at,
             Transaction::Forced(tx) => tx.timestamp.saturating_mul(1000), // L1 ts is usually seconds
+        }
+    }
+
+    /// Approximate serialized size used by metrics and blob packing.
+    pub fn estimated_encoded_bytes(&self) -> usize {
+        match self {
+            Transaction::Normal(ptx) => ptx.estimated_encoded_bytes(),
+            Transaction::Forced(tx) => {
+                let mut size = 20 + 20 + 32 + 8 + 32 + 8 + 8;
+                size += tx.value.to_string().len();
+                size += tx.nonce.to_string().len();
+                size += tx.gas_limit.to_string().len();
+                size += tx.l1_block_number.to_string().len();
+                size += tx.timestamp.to_string().len();
+                size
+            }
         }
     }
 }
@@ -434,4 +471,4 @@ mod tests {
         });
         assert_eq!(forced.arrival_timestamp_ms(), 1700000000000); // ms
     }
-}
+}
