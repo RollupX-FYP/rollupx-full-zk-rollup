@@ -1,0 +1,27 @@
+% ====================
+% header.tex
+% Poster background image overlay + left/right logo commands
+% ====================
+
+% ---------- Full-page background ----------
+\newcommand{\posterHeader}{%
+  \begin{tikzpicture}[remember picture,overlay]
+    \node[anchor=north west, inner sep=0pt] at (current page.north west) {
+      \includegraphics[width=\paperwidth,height=\paperheight]{poster/images/Poster_Template.pdf}
+    };
+    % Overlay a white rectangle to cover the body area, keeping the header and footer untouched
+    \fill[white] ([yshift=-0.14\textheight]current page.north west) rectangle ([yshift=3.0cm]current page.south east);
+  \end{tikzpicture}%
+}
+
+% ---------- Left logo ----------
+\newcommand{\posterLogoLeft}{%
+  % Uncomment and replace path to enable:
+  % \includegraphics[height=5.0cm]{poster/logos/uc-logo-white.eps}
+}
+
+% ---------- Right logo ----------
+\newcommand{\posterLogoRight}{%
+  % Uncomment and replace path to enable:
+  % \includegraphics[height=8.0cm]{poster/logos/cs-logo-white.png}
+}

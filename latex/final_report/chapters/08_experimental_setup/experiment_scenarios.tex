@@ -1,0 +1,21 @@
+\section{Benchmark Scenarios}
+\label{sec:experiment_scenarios}
+Table \ref{tab:scenarios} outlines the specific scenarios executed to answer the research questions.
+
+\begin{table}[H]
+\centering
+\caption{Benchmark Scenario Matrix}
+\label{tab:scenarios}
+\small
+\begin{tabularx}{\textwidth}{l l l l X}
+\toprule
+\textbf{Scenario} & \textbf{Workload} & \textbf{Batch Policy} & \textbf{DA Mode} & \textbf{Purpose} \\
+\midrule
+Cost Amortization & Steady-state & Sweeping (10-500) & Calldata & Observe the trade-off between amortized L1 cost and user queueing latency. \\
+\addlinespace
+Blob Efficiency & Steady-state & Fixed (100) & Blob (4844) & Compare total transaction cost reduction against the calldata baseline. \\
+\addlinespace
+Prover Bottleneck & Steady-state & Fixed (100) & Calldata & Sweep parameterized proof delay to observe its impact on end-to-end finalization time. \\
+\bottomrule
+\end{tabularx}
+\end{table}

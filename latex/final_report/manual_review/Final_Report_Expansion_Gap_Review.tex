@@ -1,0 +1,129 @@
+\documentclass[12pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{hyperref}
+\usepackage{tabularx}
+\usepackage{geometry}
+\geometry{a4paper, margin=1in}
+
+\title{Final Report Expansion Gap Review}
+\author{Review Bot}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\section{1. Executive Summary}
+The final report has successfully transitioned from a rough draft to a structured document with proper boundaries around its "research prototype" nature. However, compared to proposal2 and the progress report, it lacks depth in literature references, specific architectural rationale, and concrete implementation details.
+
+\section{2. Current Report Status}
+The report correctly adopts safe wording (e.g., "modular ZK-rollup benchmarking prototype"). It contains placeholder sections for results and acknowledges missing data. However, the bibliography is sparser than previous proposals, and several strong sections from proposal2 are absent.
+
+\section{3. Proposal1-to-Final-Report Coverage}
+Proposal1 provides excellent background on the blockchain trilemma, L1/L2 taxonomy, and storage/read/write scalability. Much of this is compressed or missing in the current final report's background chapter.
+
+\section{4. Proposal2-to-Final-Report Coverage}
+Proposal2 clearly articulated the ZK-rollup motivation, research gaps, RQs, and methodology. The final report should integrate proposal2's deeper literature references and its rigorous definition of architecture.
+
+\section{5. Progress-Report-to-Final-Report Coverage}
+The progress report contains critical implementation details (e.g., specific sequencer, executor, and submitter code-level implementations) that have not been fully migrated to the final report's implementation chapters.
+
+\section{6. Code/Docs-to-Final-Report Coverage}
+The final report still lacks explicit mapping to the codebase's command-line operations, exact configuration management strategies, and limitations documented in the source code (such as the \texttt{prev\_state\_root} logic and RISC0 ELF parse errors).
+
+\section{7. Reference Coverage Analysis}
+\begin{itemize}
+    \item \textbf{Proposal1 Bibliography:} Estimated ~15-20 references.
+    \item \textbf{Proposal2 Bibliography:} Estimated ~20-25 references.
+    \item \textbf{Progress Report Bibliography:} Estimated ~10-15 references.
+    \item \textbf{Final Report Bibliography:} Currently ~12 references.
+\end{itemize}
+The final report is missing numerous relevant citations present in proposal2.
+
+\section{8. Missing References to Add}
+Several critical references related to sequencer decentralization, DA layers, and specific ZK proof systems (e.g., PLONK, Halo2) from proposal2 are absent from the final \texttt{references.bib} and must be migrated.
+
+\section{9. Missing Sections to Add}
+- In-depth zkEVM complexity spectrum.
+- Expanded Optimistic vs. ZK Rollup comparison table.
+- Mathematical/state-transition model checks in the implementation.
+
+\section{10. Sections That Are Shorter Than Proposal2}
+- Literature Review (specifically the taxonomy of related work).
+- Research Methodology (justification of chosen parameters).
+
+\section{11. Risky Claims and Safer Wording}
+The report has mostly corrected risky claims, but must maintain strict adherence to "configuration-level comparison, not production performance claim".
+
+\section{12. Results and Metrics Gap}
+Results are correctly marked as "pending completed run," avoiding hallucinated data.
+
+\section{13. Required Tables/Figures}
+See Matrix D for required table definitions.
+
+\section{14. Chapter-by-Chapter Fix Plan}
+Future edits should map proposal2 literature to Chapter 3, progress report implementation details to Chapter 7, and explicitly cite missing references across Chapters 1-4.
+
+\section{15. Priority TODO List}
+\begin{enumerate}
+    \item Migrate missing references from proposal2 to \texttt{references.bib}.
+    \item Expand Background chapter with proposal1 trilemma data.
+    \item Expand Implementation chapter with progress report specifics.
+\end{enumerate}
+
+\section{16. Exact File Mapping for Next Editing Task}
+See Matrix E.
+
+\vspace{2em}
+\noindent\textbf{A. Source Coverage Matrix} \\
+\begin{tabularx}{\textwidth}{|l|X|l|X|l|l|}
+\hline
+\textbf{Source} & \textbf{Key useful content} & \textbf{Present?} & \textbf{Missing detail} & \textbf{Target} & \textbf{Priority} \\ \hline
+Proposal1 & Trilemma taxonomy & Partial & Storage scalability & Background & Med \\ \hline
+Proposal2 & ZK motivation, Lit Review & Partial & Deep reference citations & Lit Review & High \\ \hline
+Progress Rpt & Implementation specifics & Partial & Sequencer/Executor deep-dive & Implementation & High \\ \hline
+\end{tabularx}
+
+\vspace{2em}
+\noindent\textbf{B. Reference Coverage Matrix} \\
+\begin{tabularx}{\textwidth}{|X|l|l|l|X|X|}
+\hline
+\textbf{Reference} & \textbf{In Prop2/Prog?} & \textbf{In Final?} & \textbf{Cited?} & \textbf{Why needed} & \textbf{Action} \\ \hline
+Various ZK hardware refs & Yes (Prop2) & No & No & Contextualizes prototype & Migrate \\ \hline
+DA off-chain protocols & Yes (Prop2) & Partial & Yes & Explains blob vs off-chain & Add \\ \hline
+\end{tabularx}
+
+\vspace{2em}
+\noindent\textbf{C. Proposal2 Stronger-than-Final Matrix} \\
+\begin{tabularx}{\textwidth}{|l|X|X|X|l|}
+\hline
+\textbf{Prop2 Section} & \textbf{Why Stronger} & \textbf{Final Weakness} & \textbf{What to add} & \textbf{Target File} \\ \hline
+Lit Review & More comprehensive citations & Too brief & Migrate taxonomy & lit\_review.tex \\ \hline
+Architecture & Deep logical separation & Generic & Add interaction detail & architecture.tex \\ \hline
+\end{tabularx}
+
+\vspace{2em}
+\noindent\textbf{D. Progress Implementation Gap Matrix} \\
+\begin{tabularx}{\textwidth}{|l|X|l|X|l|}
+\hline
+\textbf{Component} & \textbf{Progress Detail} & \textbf{In Final?} & \textbf{Missing} & \textbf{Target File} \\ \hline
+Sequencer & Mempool logic & Partial & Code-level flow & sequencer.tex \\ \hline
+Executor & Merkle checks & No & Mathematical STF checks & executor.tex \\ \hline
+\end{tabularx}
+
+\vspace{2em}
+\noindent\textbf{E. Risky Claim Matrix} \\
+\begin{tabularx}{\textwidth}{|X|X|X|X|}
+\hline
+\textbf{Claim/Location} & \textbf{Problem} & \textbf{Evidence} & \textbf{Safer Wording} \\ \hline
+Performance Results & Implies mainnet & Code & "Configuration-level comparison" \\ \hline
+\end{tabularx}
+
+\vspace{2em}
+\noindent\textbf{F. Results Availability Matrix} \\
+\begin{tabularx}{\textwidth}{|l|l|l|X|X|}
+\hline
+\textbf{Metric} & \textbf{Claimed?} & \textbf{Found?} & \textbf{Safe Treatment} & \textbf{Action} \\ \hline
+Throughput/Latency/Cost & Yes & No & "Pending completed run" & Execute benchmarks \\ \hline
+\end{tabularx}
+
+\end{document}

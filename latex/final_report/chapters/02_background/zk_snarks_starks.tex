@@ -1,0 +1,7 @@
+\subsection{zk-SNARKs and zk-STARKs}
+\label{sec:snarks_starks}
+
+\begin{itemize}
+    \item \textbf{zk-SNARKs} (Zero-Knowledge Succinct Non-Interactive Argument of Knowledge) are known for incredibly small proof sizes and fast, constant-time verification. However, they traditionally require a trusted setup phase, which introduces a potential security risk if the setup ceremony is compromised. Groth16 and PLONK are popular SNARK proving systems used in production rollups today.
+    \item \textbf{zk-STARKs} (Zero-Knowledge Scalable Transparent Argument of Knowledge) require no trusted setup (relying on transparent cryptography like hash functions) and offer post-quantum security. However, they generally produce significantly larger proof sizes, which can increase the L1 gas cost required for verification \cite{ben2018stark}.
+\end{itemize}

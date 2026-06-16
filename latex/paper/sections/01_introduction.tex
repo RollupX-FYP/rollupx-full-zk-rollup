@@ -1,0 +1,27 @@
+\section{Introduction}
+
+Public blockchain networks like Ethereum are fundamentally constrained by the \textbf{blockchain trilemma}, limiting Layer-1 (L1) base-layer throughput to 15--25 transactions per second (TPS) and causing high congestion and volatile fees~\cite{trilemma, buterin2014ethereum}. To scale, the ecosystem has adopted a rollup-centric roadmap where Layer-2 (L2) ZK-Rollups execute transactions off-chain, submit batch data and validity proofs (SNARKs/STARKs) to L1, and verify them via smart contracts to inherit L1 security without re-executing transactions~\cite{buterin_horizon, bensasson2018stark}. Recently, the Dencun upgrade implemented EIP-4844 (Proto-Danksharding) to introduce blob-carrying transactions, reducing L2 data availability (DA) costs by over 90\% and triggering massive surges in transaction volume~\cite{eip4844, l2beat_dencun, dune_eip4844}.
+
+However, the multi-dimensional parameter space of rollups---comprising batch sizes (\(B_{\text{max}}\)), timeouts (\(T_{\text{timeout}}\)), sequencing rules, DA modes, and provers---remains poorly understood in controlled settings. In production rollups (e.g., ZKsync Era~\cite{zksync_era_docs}, Starknet~\cite{starknet_docs}, Scroll~\cite{scroll_docs}), these components are tightly coupled with complex operational mechanisms, making isolated scientific analysis of individual configurations impossible. To address this, we present \textbf{RollupX}, a modular L2 ZK-rollup benchmarking sandbox implemented in Rust and Solidity that leverages a Sparse Merkle Tree (SMT) state manager, the RISC0 zkVM for execution/proving, and a Groth16 wrapper for proof compression.
+
+\subsection{Rationale for a Clean-Room Sandbox}
+
+The justification for building a clean-room, modular ZK-rollup sandbox like RollupX---rather than simply forking or benchmarking an existing production ZK-rollup (such as ZKsync Era~\cite{zksync_era_docs}, Starknet~\cite{starknet_docs}, or Scroll~\cite{scroll_docs})---is grounded in system isolation, architectural agility, and research reproducibility:
+
+\begin{enumerate}
+    \item \textbf{System Isolation:} Forking a production rollup to study parameters introduces too much noise from custom compilers and complex gas logic, making layer-level variables impossible to isolate~\cite{bez2023empirical, habib2025bottlenecks}. RollupX solves this by decoupling the state transition function from the EVM's execution overhead, allowing researchers to study sequencing and data layer dynamics in isolation.
+
+    \item \textbf{State Representation:} Ethereum uses a Hexary Patricia Trie (PMT) to manage state~\cite{wood2014ethereum}, which is very slow to prove in ZK due to variable path lengths and complex serialization~\cite{trilemma}. Similar to how production rollups use binary tries to minimize ZK circuit complexity and prover latency~\cite{zksync_era_docs, starknet_docs}, RollupX implements a 256-level binary Sparse Merkle Tree (SMT) to guarantee simple, constant-length ZK proofs.
+
+    \item \textbf{zkVM Execution:} Writing custom ZK circuits (like in Circom) is complex, hard to audit, and inflexible. RollupX compiles standard Rust code directly inside the RISC0 zkVM, making the state transition logic easy to audit and modify~\cite{lavaur2023modular}. While zkVM execution has instruction overhead, parallel proving and recursive merging make it commercially viable for L2 protocols~\cite{werner2024analyzing}.
+
+    \item \textbf{EIP-4844 Blob Dilemma:} Under EIP-4844, blobs are sold in fixed 128~KB chunks~\cite{eip4844}. For low-volume rollups, this creates a ``Blob Dilemma'': wait to fill the blob (increasing delay) or post it partially empty (increasing cost)~\cite{werner2024analyzing}. RollupX provides a sandbox to sweep workloads and test how sequencers can dynamically adjust batch parameters to close this cost gap~\cite{adler2021data, l2beat_dencun, dune_eip4844}.
+\end{enumerate}
+
+\subsection{Contributions}
+Our contributions are threefold:
+\begin{enumerate}
+    \item \textbf{Empirical Characterization:} We sweep batch sizes, timeouts, and workloads, demonstrating the complete decoupling of L2 virtual machine execution complexity from L1 gas costs.
+    \item \textbf{Data Availability \& Prover Analysis:} We compare the cost profiles of Calldata, Blob, and Offchain DA modes, and model RISC0 prover execution, demonstrating that proving time scales as a step-function governed by segment boundaries.
+    \item \textbf{Open-Source Artifacts:} We release the complete modular rollup codebase, Docker container setups, benchmark execution scripts, raw telemetry logs, and analysis notebooks as a public resource for reproducible Layer-2 research.
+\end{enumerate}

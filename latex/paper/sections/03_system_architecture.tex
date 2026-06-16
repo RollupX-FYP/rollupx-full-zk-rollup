@@ -1,0 +1,30 @@
+\section{System Architecture}
+
+\subsection{Architecture Overview}
+RollupX is designed as a modular, decoupled Layer-2 (L2) benchmarking sandbox. As illustrated in Fig.~\ref{fig:architecture}, it separates the rollup lifecycle into isolated stages: workload generation, transaction sequencing, execution, zero-knowledge proving, and L1 submission. This isolation allows individual protocol parameters (e.g., batch size, timeouts, ordering policies, and data availability modes) to be modified independently without confounding variables from other layers.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{system architecture.png}
+    \caption{RollupX modular prototype system architecture diagram.}
+    \label{fig:architecture}
+\end{figure}
+
+\subsection{Core Components}
+The prototype is structured into seven modular components:
+\begin{itemize}
+    \item \textbf{Workload Generator \& Ingestion:} Generates repeatable transaction workloads (Poisson or bursty traffic) and validates and ingests transactions via a HTTP JSON-RPC endpoint.
+    \item \textbf{Sequencer:} Manages the mempool, orders incoming transactions using configured scheduling policies (e.g., FCFS, TimeBoost), and groups them into sealed batches when size limits or timeouts are met.
+    \item \textbf{Executor:} Consumes sealed batches, runs the state transition function (STF) to process transactions, and updates L2 account states in a Sparse Merkle Tree (SMT).
+    \item \textbf{Prover (RISC0):} Runs the STF guest program inside the RISC0 zkVM to check signatures and state transitions, outputting a STARK validity proof which is compressed into a 256-byte Groth16 proof.
+    \item \textbf{DA Handler \& Submitter:} Packages batch data into calldata or EIP-4844 blobs, attaches the Groth16 proof, and sends a \texttt{commitBatch} transaction to L1.
+    \item \textbf{L1 verifier contracts:} Deployed on Hardhat, \texttt{RollupBridge.sol} anchors the L2 state root and manages funds, while \texttt{Groth16Verifier.sol} verifies the validity proofs.
+    \item \textbf{Telemetry Harness:} Collects execution logs and timestamps across all stages to measure throughput, queue wait times, proving cycles, L1 gas usage, and latency.
+\end{itemize}
+
+\subsection{Design Decisions}
+To support controlled benchmarking, RollupX implements following design decisions contrasting with state-of-the-art (SOTA) production architectures:
+\begin{itemize}
+    \item \textbf{Execution Engine (Simplified vs. zkEVM):} SOTA systems deploy  zkEVMs executing EVM bytecode directly \cite{scroll_docs}. RollupX utilizes a simplified, transfer-only executor where the State Transition Function (STF) is compiled directly from Rust. This trade-off bypasses complex EVM execution overhead to isolate sequencer and data parameters, though it lacks smart contract compatibility.
+    \item \textbf{Proving System (zkVM vs. Custom Circuits):} SOTA architectures build custom circuit pipelines (e.g., Halo2, Plonky2). RollupX uses the RISC0 zkVM (STARK) with Groth16 wrapper compression \cite{lavaur2023modular, werner2024analyzing}. This maximizes developer ergonomics by writing standard Rust instead of custom constraints.
+\end{itemize}

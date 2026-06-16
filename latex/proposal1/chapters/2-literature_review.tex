@@ -1,0 +1,130 @@
+
+The current body of research on blockchain scalability is extensive, yet often fragmented. Existing surveys frequently focus on specific aspects, such as sharding, leaving other critical dimensions like read-performance, storage solutions, and comprehensive performance analysis underexplored. This literature review aims to provide a broader and more systematic overview, based on the proposed five-layer blockchain ecosystem model~\cite{ref1} (Data, Consensus, Network, Platform, and Application layers) and exploring both write-performance, read-performance, and storage scalability solutions, along with their empirical performance metrics and identified limitations.
+
+\subsection{Write-Performance Scalability Solutions}
+Write-performance, primarily measured by transaction throughput (TPS) and transaction latency, is a critical aspect of blockchain scalability. Solutions in this area aim to increase the rate at which transactions are processed and confirmed.
+
+\subsubsection{Data Layer Solutions (On-Chain)}
+On-chain solutions involve modifications to the main blockchain structure itself.
+
+\paragraph{Reducing Block Data}
+This approach focuses on optimising the content within blocks to accommodate more transactions without excessively increasing the physical block size.
+
+\textbf{SegWit (Segregated Witness):} Separates signature data from transaction data and appends it as metadata, effectively freeing up space within the block. This allows for approximately four times more transactions per block and increases Bitcoin's effective block size from 1 MB to 4 MB. It also addresses transaction malleability and facilitates off-chain solutions like the Lightning Network. However, its throughput improvement is limited to 17–23 TPS. It also caused a hard fork in Bitcoin and requires further scaling efforts.
+
+\textbf{Merkelized Abstract Syntax Tree (MAST):} A Bitcoin Improvement Proposal (BIP-114) that represents Bitcoin scripts as a Merkle tree of their Abstract Syntax Tree (AST) branches. This allows unused sub-scripts to be removed from a block, achieving substantial block size reduction on a logarithmic scale.
+
+\textbf{Lumino Transaction Compression Protocol (LTCP):} Used in the RSK network, LTCP employs delta compression to remove selected fields (e.g., some signatures) from a block, resulting in up to 90\% block data reduction. It aims to scale the RSK network to 2000 TPS and could potentially scale Bitcoin to 100 TPS.
+
+\paragraph{Directly Increasing Block Size}
+\textbf{Bitcoin-Cash (BCH) and Bitcoin-Unlimited (BU):} Following the SegWit soft fork, Bitcoin-Cash emerged as a hard fork, initially increasing the Bitcoin block size limit to 8 MB and later to 32 MB. While this increases transaction capacity, direct increases in block size can introduce security vulnerabilities due to increased propagation delays, potentially leading to more forks and denial-of-service (DoS) attacks. It can also raise centralisation concerns.
+
+\textbf{Litecoin:} With a 2.5-minute block interval, faster than Bitcoin's 10 minutes, Litecoin achieves 56 TPS. However, this faster block generation can lead to more orphaned blocks due to time lags in acceptance.
+
+\paragraph{Sharding}
+A technique adapted from distributed database systems, sharding divides the blockchain network into smaller, independent groups called shards. Each shard processes transactions and stores data in parallel, thereby scaling the blockchain horizontally.
+
+Examples include:
+\begin{itemize}
+  \item \textbf{Elastico:} Throughput of 40 TPS with 1600 nodes; limited fault tolerance (25\%).
+  \item \textbf{Omniledger:} Uses ByzCoinX consensus; 3500 TPS with 600 nodes/shard; vulnerable to DoS.
+  \item \textbf{RapidChain:} No trusted setup; 7300 TPS, 8.7s confirmation with 4000 nodes; prone to partitioning.
+  \item \textbf{Monoxide:} 11,694 TPS with 48,000 nodes; concerns over miner centralisation.
+  \item \textbf{Ethereum 2.0 Sharding:} Aims for 100,000 TPS with 64 shards and hybrid BFT-PoS.
+  \item \textbf{Ostraka:} Node-level sharding; significant throughput improvement, but bandwidth not sharded.
+\end{itemize}
+
+\paragraph{Directed Acyclic Graph (DAG) Solutions}
+\begin{itemize}
+  \item \textbf{Conflux:} 6400 TPS, 4.5–7.4 min confirmation.
+  \item \textbf{Tangle (IOTA):} $>$1000 TPS; coordinator node raises centralisation/security concerns.
+  \item \textbf{ByteBall:} Witness-based validation; 20 TPS.
+  \item \textbf{Spectre:} Concurrent mining, tolerant to 50\% adversaries.
+  \item \textbf{CoDAG:} Compacted DAG achieving 394 TPS.
+\end{itemize}
+
+\paragraph{Parallel Executions (Smart Contracts)}
+Random assignment, contract partitioning, and multi-threading enable parallel smart contract execution.
+
+\subsubsection{Data Layer Solutions (Off-Chain)}
+Transactions or tasks are conducted outside the main blockchain, with only summaries recorded on-chain.
+
+\paragraph{Payment and State Channels}
+\textbf{Lightning Network (Bitcoin):} Instant micropayments with claims of 40M TPS, limited to small values and online parties.  
+\textbf{Raiden Network (Ethereum):} Similar to Lightning, supports ERC20 tokens.
+
+\paragraph{Sidechains}
+\textbf{Plasma (Ethereum):} Smart contract sidechains, potentially 100x faster than Ethereum.  
+\textbf{ZK-Rollup:} 2000–3000 TPS; data availability and centralisation risks.  
+\textbf{Liquid Network (Bitcoin):} 2-min block finality via Strong Federation.  
+\textbf{RootStock (RSK):} Smart contracts on Bitcoin; 300–1000 TPS.
+
+\paragraph{Cross-Chains}
+\textbf{Cosmos:} IBC protocol, Tendermint consensus.  
+\textbf{Polkadot:} Relay-chain with parachains for interoperability and scalability.
+
+\paragraph{Off-Chain Computations}
+\textbf{TrueBit (Ethereum):} Offloads heavy computations with verifiable proofs.  
+\textbf{Arbitrum (Ethereum):} Executes smart contracts off-chain; main chain only verifies signatures.
+
+\subsubsection{Consensus Layer Scalability Solutions}
+\paragraph{PoW Improvements}
+\textbf{Bitcoin-NG:} 10x TPS via microblocks.  
+\textbf{GHOST:} Improves Bitcoin throughput to 200 TPS.
+
+\paragraph{PoS Improvements}
+\textbf{DPoS:} $>$2000 TPS but raises centralisation concerns.  
+\textbf{Ouroboros:} Cardano’s secure PoS.
+
+\paragraph{BFT Improvements}
+\textbf{PBFT:} $>$1000 TPS in private chains, but $O(N^2)$ overhead.  
+\textbf{Tendermint:} 10,000 TPS, tolerates 1/3 adversaries.  
+\textbf{SBFT/T-PBFT:} Reduce communication overhead.
+
+\paragraph{Hybrid Protocols}
+\textbf{Ethereum Casper:} Combines PoS + BFT.  
+\textbf{ByzCoin:} PoW + PBFT, 1500 TPS.  
+\textbf{Algorand BA:} Confirmation $<$1 min, 125x Bitcoin throughput.
+
+\subsubsection{Network Layer Scalability Solutions}
+\paragraph{Relay Networks}
+\textbf{Fiber, GeeqChain:} Reduce propagation delays but raise centralisation concerns.
+
+\paragraph{RINA}
+Cardano’s alternative to TCP/IP for faster propagation.
+
+\paragraph{RDMA Networking}
+High-performance communication bypassing CPU/OS.
+
+\paragraph{Data Compression}
+\textbf{Compact Block Relay (BIP152):} Saves bandwidth 10x.  
+\textbf{Txilm:} 80x reduction using short hashes.
+
+\subsubsection{Platform Layer Scalability Solutions}
+\paragraph{Hyperledger Fabric}
+Execute-Order-Validate architecture; FastFabric scales to 20,000 TPS.
+
+\paragraph{Ethereum 2.0}
+Casper-sharding + eWASM; targets 100,000 TPS.
+
+\subsection{Storage Scalability Solutions}
+\paragraph{Data Pruning and Compression}
+Mini-Blockchain scheme deletes old tx; IoT-focused compression.
+
+\paragraph{Off-Chain Storage}
+\textbf{DHTs, IPFS (Filecoin, Disema):} Offload raw data.  
+\textbf{CUB, Jidar:} Peer-based or trustless reduction.
+
+\paragraph{Enhanced Databases}
+\textbf{BigchainDB:} Millions of writes/sec, petabyte scale, NoSQL querying.
+
+\subsection{Read-Performance Scalability Solutions}
+\paragraph{Hardware Caching}
+\textbf{FPGA caching:} Handles requests directly, reduces server load.
+
+\paragraph{Improved Query}
+\textbf{Ethereum Query Language (EQL):} SQL-like queries for Ethereum.
+
+\subsection{Summary of Scalability Solutions \& Trade-offs}
+On-chain solutions offer direct improvements but raise security and centralisation issues. Off-chain methods provide higher throughput and privacy but may require locked funds or introduce new attack vectors. Consensus, network, and platform-level solutions enhance performance but carry trade-offs in complexity, security, or interoperability. Storage and read-performance methods mitigate data and query inefficiencies.  
+Overall, the \textbf{blockchain quadrilemma} persists: scalability, decentralisation, security, and trust cannot be simultaneously maximised. Each solution balances these dimensions differently, highlighting the need for context-specific trade-offs.

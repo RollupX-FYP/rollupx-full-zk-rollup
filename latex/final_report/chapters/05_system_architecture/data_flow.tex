@@ -1,0 +1,3 @@
+\section{Data Flow and Control Flow}
+\label{sec:data_control_flow}
+Data flows strictly unidirectionally from the Sequencer through the Executor to the Submitter via highly typed gRPC channels. Control flow is handled asynchronously within each component; for example, the Submitter's Saga engine operates independently of the Sequencer's batch generation loops, allowing the system to handle L1 RPC instability without halting L2 ingestion.

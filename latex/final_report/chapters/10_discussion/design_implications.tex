@@ -1,0 +1,2 @@
+\subsection{RQ4: Practical Implementation Bottlenecks}
+Implementing the prototype revealed several practical engineering challenges. Relying on the local Hardhat RPC for rapid, automated submissions highlighted the volatility of L1 gas estimation and the necessity of robust retry mechanisms (implemented via the Submitter's Saga pattern). Furthermore, ensuring state consistency between the Sequencer's pessimistic cache and the Executor's canonical state root required strict message ordering via gRPC.

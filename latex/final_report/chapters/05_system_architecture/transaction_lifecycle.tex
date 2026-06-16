@@ -1,0 +1,12 @@
+\section{Transaction Lifecycle}
+\label{sec:transaction_lifecycle}
+The transaction lifecycle spans both the data plane (handling transaction execution) and the control plane (handling orchestration and metric collection).
+
+\begin{enumerate}
+    \item \textbf{Ingestion:} The Python-based Workload Generator synthesizes transactions and submits them to the Sequencer via HTTP/JSON-RPC.
+    \item \textbf{Sequencing and Batching:} The Sequencer validates the transactions, holds them in a local pool, and orders them according to the configured scheduling policy (e.g., FCFS or priority-based). A background Batch Orchestrator constantly evaluates batching triggers (such as maximum batch size or timeout interval). Once a trigger is met, the batch is "sealed" and dispatched. This establishes \textit{soft finality}.
+    \item \textbf{Execution:} The Executor receives the batch via a gRPC stream. It applies the transactions against its state representation (e.g., updating balances and nonces) and computes the new Merkle state root.
+    \item \textbf{Proving:} The Executor invokes the Prover. In benchmarking mode, this involves a parameterized mock delay to simulate cryptographic overhead without requiring specialized hardware. In verification mode, it invokes a basic \texttt{risc0\_prover} backend to generate actual proof artifacts.
+    \item \textbf{Submission:} The Submitter listens to the Executor's gRPC stream. It packages the execution results, the proof (or mock proof metadata), and the transaction data into a payload. Depending on the configuration, it formats the Data Availability (DA) as standard \texttt{calldata} or EIP-4844 blobs.
+    \item \textbf{L1 Settlement:} The Submitter sends the transaction to the L1 Smart Contracts running on a local Hardhat node. The contract verifies the DA commitments and the proof, updating the canonical state root. This establishes \textit{hard finality}.
+\end{enumerate}

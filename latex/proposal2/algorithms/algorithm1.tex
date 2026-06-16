@@ -1,0 +1,30 @@
+
+\begin{algorithm}
+\caption{ANALYZE ($image\_name$)}\label{alg:cap}
+\begin{algorithmic}
+\If{${(image\_name}$ in ${knowledge base)}$}
+      \State ${Is\_first} \gets \text{FALSE}$
+    \State ${Crit\_CPU} \gets \text{get critical CPU usage for last run from KB}$
+    \State ${Throttling } \gets \text{get information about CPU throttling from KB}$
+    \State ${Startup\_time} \gets \text{get startup time for last run from KB}$
+    \State ${Crit\_CPU\_average} \gets \text{get moving average of the critical CPU usage from KB}$
+    \State ${Prev\_CPU\_prediction} \gets \text{get previous CPU quantity prediction from KB}$
+    \State ${Prev\_time\_prediction} \gets \text{get previous CPU duration prediction from KB}$
+    \State ${Best\_startup\_time} \gets \text{get best startup time recorded from KB}$
+\Else
+    \State ${Is\_first} \gets \text{TRUE}$
+    \State ${Crit\_CPU,Throttling,Startup\_time,Crit\_CPU\_average} \gets \text{0}$
+    
+    \State ${Crit\_CPU\_average,Prev\_CPU\_prediction,Prev\_time\_prediction} \gets \text{0}$
+    \State${Best\_startup\_time} \gets \text{0}$
+\EndIf
+\State ${Deployment\_cpu\_req } \gets \text {get CPU request in deployment from scheduler/yaml}$ 
+\State ${Image\_meta\_data } \gets \text{get meta data from image}$
+\State ${Runtime} \gets \text{determine the runtime environment of the image}$
+
+\State ${Metrics = [Is\_first, Crit\_CPU, Throttling, Startup\_time, Crit\_CPU\_average,}$
+\State \hspace{58pt} ${Deployment\_CPU\_req, Image\_size, Runtime, Prev\_prediction,}$
+\State \hspace{58pt} ${Best\_startup\_time]}$
+\State $\text{Return } Metrics$
+\end{algorithmic}
+\end{algorithm}

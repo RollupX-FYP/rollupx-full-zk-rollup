@@ -1,0 +1,44 @@
+\chapter{Build and Run Guide}
+\label{app:build_run_guide}
+This appendix outlines the steps required to build and run the RollupX prototype natively for development purposes (bypassing Docker Compose).
+
+\textbf{Prerequisites:}
+\begin{itemize}
+    \item Node.js (v18+) and npm
+    \item Rust (\texttt{stable} and \texttt{nightly-2024-08-01} toolchains)
+    \item Python 3.11+
+    \item SQLite3 CLI, \texttt{nasm}, and \texttt{protobuf-compiler}
+\end{itemize}
+
+\textbf{Build Commands:}
+\begin{verbatim}
+# Install contract dependencies
+cd contracts && npm install
+npx hardhat compile
+
+# Build core Rust components
+cd risc0_prover && cargo +stable build -p rollup_host && cd ..
+cd executor && cargo build --ignore-rust-version && cd ..
+cd sequencer && cargo build --release && cd ..
+cargo build --manifest-path submitter/Cargo.toml
+\end{verbatim}
+
+\textbf{Run Commands (in separate terminals):}
+\begin{verbatim}
+# Terminal A: Start L1 Node
+cd contracts && npx hardhat node
+
+# Terminal B: Deploy Contracts
+cd contracts && npx hardhat run scripts/deploy-local.ts --network localhost
+
+# Terminal C: Start Executor
+export PROVER_BACKEND=risc0 ... # (Set environment variables)
+./executor/target/debug/zksync_state_machine
+
+# Terminal D: Start Submitter
+cargo run --manifest-path submitter/Cargo.toml --bin submitter -- \
+  --config submitter/config/local-offchain-risc0.yaml
+
+# Terminal E: Start Sequencer
+cd sequencer && RUST_LOG=info cargo run --release
+\end{verbatim}

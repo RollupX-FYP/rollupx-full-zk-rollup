@@ -1,0 +1,11 @@
+\begin{tcolorbox}[colback=yellow!20,colframe=yellow!50!black]
+\section{Conclusion and Future Work}
+
+This paper presented a research-grade modular ZK-rollup benchmarking prototype designed to isolate and evaluate Layer-2 scalability bottlenecks. By structurally separating workload ingestion, sequencing, state execution, proof handling, and data availability, the framework enables systematic configuration sweeps over batching, ordering, and DA modes. Unlike production stacks heavily optimized for deployment reliability, this prototype exposes normally hidden internal policies as experimental controls. The resulting methodology supports deterministic replay of synthetic workloads to precisely measure throughput--latency--cost trade-offs.
+\end{tcolorbox}
+
+\subsection{Limitations}
+The prototype is strictly a research tool, and does not claim production mainnet performance or act as a security proof of the system. The current implementation features a simplified transfer-only executor and lacks full zkEVM compatibility. Because it currently relies on a risk zero prover, it does not capture the full memory footprint, hardware sensitivity, or circuit constraints of cryptographic execution. Additionally, the evaluations are based on synthetic workloads in local/testnet environments, which do not reflect the adversarial transaction patterns, MEV strategies, or network congestion inherent to Ethereum mainnet. 
+
+\subsection{Future Work}
+Future extensions will focus on integrating a real cryptographic prover backend (such as Circom/Groth16, PLONK, RISC Zero, or STARK) to empirically calibrate the batching model against actual proof-delay costs. The synthetic workload model will be supplemented with trace-driven workload replay using public datasets, enabling more realistic analysis. We also plan to integrate DA backends such as Celestia or Avail, and perform real calldata and blob submission measurements on testnets. System-level enhancements will include failure injection, adversarial workload tests, decentralized sequencing experiments, and a complete deposit/withdrawal flow. Finally, a public artifact release with Docker setups, configuration sweeps, telemetry logs, and analysis notebooks will be provided to support reproducible modular blockchain research.

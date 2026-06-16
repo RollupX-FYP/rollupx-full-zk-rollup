@@ -1,0 +1,23 @@
+\chapter{Configuration Reference}
+\label{app:config_reference}
+The system behavior is largely controlled by TOML and YAML files. Table \ref{tab:config_reference} highlights key parameters.
+
+\begin{table}[H]
+\centering
+\caption{Key Configuration Parameters}
+\label{tab:config_reference}
+\small
+\begin{tabularx}{\textwidth}{>{\hsize=1.0\hsize}X >{\hsize=1.0\hsize}X >{\hsize=0.5\hsize}X >{\hsize=1.5\hsize}X}
+\toprule
+\textbf{Parameter} & \textbf{Location} & \textbf{Default} & \textbf{Effect} \\
+\midrule
+\texttt{max\_batch\_size} & \texttt{sequencer.toml} & 100 & Triggers a batch seal when the tx pool reaches this size. \\
+\addlinespace
+\texttt{timeout\_interval\_ms} & \texttt{sequencer.toml} & 5000 & Triggers a batch seal if the interval expires, regardless of size. \\
+\addlinespace
+\texttt{policy\_type} & \texttt{sequencer.toml} & FCFS & Determines the transaction ordering algorithm (e.g., FCFS or FeePriority). \\
+\addlinespace
+\texttt{da\_mode} & \texttt{submitter.yaml} & calldata & Swaps the L1 data posting mechanism between standard calldata and EIP-4844 blobs. \\
+\bottomrule
+\end{tabularx}
+\end{table}

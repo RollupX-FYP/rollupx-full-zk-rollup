@@ -1,0 +1,53 @@
+% =========================================================
+% MERCon / IEEE Conference Paper Main File
+% This file is intended to be compiled from the project root via:
+%   \input{paper/mercon_main}
+%
+% Expected root-level shared files:
+%   IEEEtran.cls
+%   macros.tex
+%   authors.tex
+%   refs.bib
+% =========================================================
+
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+\usepackage{float} 
+% Shared packages and commands from root folder
+\input{macros}
+\usepackage{xcolor}
+\usepackage{soul}
+\usepackage[most]{tcolorbox}
+\begin{document}
+
+
+\title{A Modular ZK-Rollup Benchmarking Prototype for Controlled Layer-2 Scalability Experiments}
+
+% Shared author block from root folder
+\input{authors}
+
+\maketitle
+
+\begin{abstract}
+Ethereum's rollup-centric roadmap positions Layer-2 systems as the dominant path for scaling decentralized applications without weakening Layer-1 settlement security. Among these systems, ZK-rollups are attractive because validity proofs can verify off-chain state transitions without re-executing every transaction on-chain. However, practical ZK-rollup performance depends on interacting design choices across batching, sequencing, state execution, proof generation, data availability, and Layer-1 submission. Existing production rollup stacks are optimized for deployment, compatibility, and operational reliability, but their architectural complexity makes it difficult for researchers to isolate individual bottlenecks under repeatable workloads.
+
+This paper presents a research-grade modular ZK-rollup benchmarking prototype designed for controlled Layer-2 scalability experiments. The prototype separates workload generation, transaction ingestion, sequencing, simplified state-transition execution, proof-delay abstraction, Layer-1 submission, data availability, and telemetry collection. This separation allows batching policy, sequencing policy, proof-delay assumptions, and data-posting mode to be varied independently while keeping the rest of the pipeline fixed.
+
+The contribution of this work is a reproducible experimental framework for studying how normally hidden rollup configuration knobs shift throughput, latency, finalization delay, data availability footprint, and amortized submission cost. The current evaluation design uses controlled synthetic workloads and parameterized proof-delay settings, with future extension toward real prover integration and trace-driven workloads.
+\end{abstract}
+
+\begin{IEEEkeywords}
+ZK-Rollups, Ethereum, Layer-2 Scaling, Blockchain Scalability, Benchmarking, Sequencer, Data Availability
+\end{IEEEkeywords}
+
+\input{paper/sections/01_introduction}
+\input{paper/sections/02_related_work}
+\input{paper/sections/03_system_architecture}
+\input{paper/sections/04_methodology}
+\input{paper/sections/05_results_discussion}
+\input{paper/sections/06_conclusion}
+
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
+\end{document}

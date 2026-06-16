@@ -1,0 +1,16 @@
+\chapter{Repository Structure}
+\label{app:repo_structure}
+An overview of the essential directories within the RollupX repository:
+\begin{verbatim}
+.
+|-- benchmark-suite/   # Workload generator and orchestration scripts
+|-- contracts/         # L1 Smart Contracts (Solidity/Hardhat)
+|-- data-tools/        # Python scripts for telemetry aggregation and plotting
+|-- docs/              # System architecture and component documentation
+|-- executor/          # Rust executor (state transitions and proving integration)
+|-- risc0_prover/      # Experimental RISC0 zkVM prover backend
+|-- sequencer/         # Rust sequencer (transaction ingestion and batching)
+|-- submitter/         # Rust submitter (DA formatting and L1 interaction)
+|-- compose/           # Docker compose configuration files
+|-- latex/             # LaTeX sources for reports, papers, and proposals
+\end{verbatim}

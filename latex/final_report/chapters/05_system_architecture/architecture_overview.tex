@@ -1,0 +1,8 @@
+\section{High-Level Architecture Overview}
+\label{sec:architecture_overview}
+The prototype developed for this project (internally referred to as RollupX during development) separates the standard ZK-Rollup pipeline into distinct, containerized microservices. This modular architecture follows Domain-Driven Design (DDD) principles and is explicitly designed to support observability, rapid configuration changes, and controlled benchmarking rather than functioning as a secure production deployment.
+
+The system's end-to-end execution flow is strictly defined as:
+\begin{center}
+\texttt{Workload Generator $\rightarrow$ Sequencer $\rightarrow$ Executor (gRPC) $\rightarrow$ Prover $\rightarrow$ Submitter $\rightarrow$ L1 Contracts}
+\end{center}

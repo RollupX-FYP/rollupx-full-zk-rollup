@@ -1,0 +1,28 @@
+\section{Component Interactions}
+\label{sec:component_interactions}
+
+Table \ref{tab:component_responsibility} summarizes the language and core responsibility of each component in the pipeline.
+
+\begin{table}[H]
+\centering
+\caption{Component Responsibility Summary}
+\label{tab:component_responsibility}
+\small
+\begin{tabularx}{\textwidth}{>{\hsize=0.6\hsize}X >{\hsize=0.6\hsize}X >{\hsize=1.8\hsize}X}
+\toprule
+\textbf{Component} & \textbf{Language} & \textbf{Core Responsibility} \\
+\midrule
+Workload Gen. & Python & Synthesize controlled traffic (Poisson arrivals) and log client latency. \\
+\addlinespace
+Sequencer & Rust & Validate, order, and batch L2 transactions; enforce gas limits and timeout triggers. \\
+\addlinespace
+Executor & Rust & Apply state transition function, update Merkle state, and orchestrate the prover. \\
+\addlinespace
+Prover & Rust & Generate cryptographic validity proofs (or simulate proof delay). \\
+\addlinespace
+Submitter & Rust & Handle L1 RPC interactions, manage DA formatting (Calldata/Blobs), and ensure reliable transaction broadcast. \\
+\addlinespace
+Contracts & Solidity & L1 aggregate root; verifies DA, proofs, and maintains the canonical state root. \\
+\bottomrule
+\end{tabularx}
+\end{table}

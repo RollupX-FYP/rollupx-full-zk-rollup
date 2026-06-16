@@ -1,0 +1,79 @@
+\section{Background and Related Work}
+
+\subsection{Rollup Scaling and Data Availability}
+To overcome Ethereum Layer-1 (L1) execution bottlenecks, Layer-2 (L2) rollups execute transactions off-chain and post state roots, proofs, and transaction data to L1 for settlement and verification~\cite{poon2017plasma, buterin_horizon}. Rollups generally fall into two categories: optimistic rollups (which assume transitions are valid and rely on fraud challenge windows) and ZK-rollups (which use cryptographic validity proofs for instant L1 settlement)~\cite{ethereum_optimistic_rollups_docs, ethereum_zk_rollups_docs}. Table~\ref{tab:rollup_comparison} provides a comparative summary of these designs.
+
+Historically, posting transaction data as L1 calldata constituted up to 80\% of L2 transaction fees~\cite{l2beat_fees, dune_eip4844}. EIP-4844 (Proto-Danksharding) introduced cheaper, transient data storage (blobs) to address this~\cite{eip4844, l2beat_dencun}. However, because blobs are sold in fixed 128~KB chunks, low-throughput rollups face a cost-latency ``Blob Dilemma'': delay batch posting to pack blobs tightly (increasing user delay) or post empty space (increasing marginal transaction costs)~\cite{adler2021data, werner2024analyzing}.
+
+\begin{table}[h]
+\centering
+\caption{Comparison of Optimistic and ZK-Rollups}
+\label{tab:rollup_comparison}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{p{2.5cm}p{2.5cm}p{2.5cm}}
+\toprule
+\textbf{Attribute} & \textbf{Optimistic Rollups} & \textbf{ZK-Rollups} \\
+\midrule
+Validation method & Fraud proofs & Validity proofs \\
+Finality model & Accepted unless challenged & Finalized after proof generation and L1 verification \\
+Withdrawal delay & Challenge-window dependent & Proof-generation and verification dependent \\
+Proving cost & Low in normal case; fraud proofs only during disputes & Higher, since validity proofs are required for batches \\
+EVM compatibility & Easier to support with EVM-equivalent execution & Harder due to zkEVM/circuit complexity \\
+Data publication & Transaction data for replay and disputes & Transaction data, state diffs, or system-specific DA payloads \\
+Main bottleneck & Dispute/finality delay and sequencer trust & Proof generation, DA cost, and system complexity \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\subsection{Sequencer Scheduling and Transaction Ordering}
+Transaction sequencing dictates the execution order and mempool dynamics of L2 networks. Naive First-Come-First-Served (FCFS) ordering is simple but vulnerable to MEV latency racing and network spam~\cite{motepalli2023sequencers}. To prevent this, mechanisms like TimeBoost group transactions into time windows and auction priority within them~\cite{timeboost_docs}, while shared sequencing networks coordinate multi-rollup ordering~\cite{motepalli2023sequencers}. While existing scheduling research focuses on game-theoretic MEV and consensus security, RollupX targets state-level consistency. We analyze how global priority sorting rules can conflict with sender nonces, causing permanent mempool blocks.
+
+\subsection{Zero-Knowledge Proof Acceleration and zkVMs}
+ZK-rollups utilize cryptographic proof systems (e.g., Groth16~\cite{groth2016snark}, STARKs~\cite{bensasson2018stark}, and PLONK~\cite{gabizon2019plonk}) to verify state transitions. Generating these proofs is highly intensive and represents a core rollup bottleneck~\cite{bez2023empirical, werner2024analyzing}. The industry is moving from inflexible, custom arithmetic circuits to general-purpose zkVMs and zkEVMs (e.g., RISC0, zkSync Era~\cite{zksync_era_docs}, Starknet~\cite{starknet_docs}, Scroll~\cite{scroll_docs}) that execute standard code compiled from languages like Rust or Solidity~\cite{lavaur2023modular, habib2025bottlenecks}. In zkVMs, parallel proving is achieved by splitting the execution trace into discrete segments (e.g., \(2^{20}\) cycles) and merging them recursively. RollupX studies this prover performance, showing how wall-clock proving time scales as a step-function dictated by these segment boundaries.
+
+\subsection{Positioning of This Work}
+Rather than proposing a new prover or deploying a production zkEVM, RollupX provides a clean-room experimental sandbox. Table~\ref{tab:positioning} positions RollupX against related modular blockchain work. It serves as a customizable benchmarking platform where variables across the sequencer, execution, prover, and data layers can be swept in isolation.
+
+\begin{table}[h]
+\centering
+\caption{Positioning of the proposed work against related literature}
+\label{tab:positioning}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{p{2.2cm}p{1.9cm}p{2.1cm}p{2.3cm}p{2.0cm}}
+\toprule
+\textbf{Work Type} & \textbf{Example References} & \textbf{Main Focus} & \textbf{Limitation of existing rollups} & \textbf{Our Contribution} \\
+\midrule
+Production rollup benchmarking
+& Chaliasos et al.~\cite{chaliasos2024benchmarking}; Habib~\cite{habib2025bottlenecks}
+& Cost, proving, and deployment behavior
+& Limited ability to modify internals under identical workloads
+& Configurable internal controls \\
+
+Public rollup datasets
+& Silva et al.~\cite{silva2024zksyncdataset}
+& Historical rollup activity and fees
+& Observational rather than experimental
+& Replayable benchmark harness and future trace-driven extension \\
+
+Data availability studies
+& Saif et al.~\cite{saif2024dataavailability}; Al-Bassam~\cite{albassam2019lazyledger}
+& DA problem and solution taxonomy
+& Usually studied separately from full rollup execution
+& DA mode as an experimental variable \\
+
+Proof-system research
+& Groth16~\cite{groth2016snark}; PLONK~\cite{gabizon2019plonk}; STARKs~\cite{bensasson2018stark}
+& Cryptographic proof construction
+& Does not isolate system-level rollup trade-offs
+& Proof-delay abstraction and future prover calibration \\
+
+Production documentation
+& ZKsync~\cite{zksync_era_docs}; Polygon zkEVM~\cite{polygon_zkevm_docs}
+& Operational rollup architecture
+& Optimized for deployment rather than controlled experiments
+& Research-grade modular benchmark structure \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}

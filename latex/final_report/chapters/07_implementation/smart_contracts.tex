@@ -1,0 +1,10 @@
+\section{Smart Contracts}
+\label{sec:smart_contracts}
+The L1 verification tier is composed of Solidity smart contracts running on a local Hardhat node. A custom Hardhat node image (\texttt{npx hardhat node --hostname 0.0.0.0 --port 8545}) is used in the Docker Compose stack to support dev chain behavior and pre-funded accounts.
+
+\begin{itemize}
+    \item \textbf{Language:} Solidity.
+    \item \textbf{Contract Role:} The \texttt{ZKRollupBridge.sol} contract acts as the aggregate root for Layer-1. It delegates DA validation to specific providers (\texttt{CalldataDA}, \texttt{BlobDA}) and proof verification to a registry of verifiers. It maintains state root commitments and orchestrates deposit and withdrawal flows.
+    \item \textbf{Mock Verification:} During benchmarking, local L1 interactions bypass cryptographic verification using \texttt{MockVerifier.sol} instead of a real verifier, ensuring L1 execution time does not artificially bottleneck the L2 throughput metrics.
+    \item \textbf{Testing:} Contracts are strictly required to maintain 100\% branch and line coverage via \texttt{npx hardhat test}.
+\end{itemize}

@@ -1,0 +1,121 @@
+\vspace{12pt}
+\subsection{Executive Summary}
+\vspace{12pt}
+
+Ethereum's limited throughput has driven the rise of Layer-2 solutions \cite{sanka2021systematic, habib2025analyzing}, with ZK-Rollups emerging as the most promising due to their use of validity proofs for fast, secure finality \cite{chaliasos2024pricing, chaliasos2024analyzing}. Existing research highlights key challenges around sequencer centralization \cite{motepalli2023sok}, the high and evolving costs of data availability \cite{saif2024survey}, and computational bottlenecks in proof generation \cite{gogol2025scalingdefi, chaliasos2024analyzing}. Trade-offs between batch size, latency, and cost further complicate rollup design, while simple TPS metrics fail to capture real scalability limits. Although systems like zkSync \cite{matterlabs_zksync} and StarkNet \cite{starkware_starknet} demonstrate production viability, their complexity prevents controlled experimentation \cite{motepalli2023sok, saif2024survey, silva2025public}. Current gaps include the lack of end-to-end empirical evaluations and fine-grained studies of batching, scheduling, and data availability strategies. This project addresses these gaps through a minimal, modular ZK-Rollup prototype, enabling reproducible benchmarking and generating actionable insights into the scalability trade-offs of rollup design.
+
+\vspace{12pt}
+\subsection{The Ethereum Scalability Challenge and the Rise of Layer 2}
+
+\vspace{12pt}
+The proliferation of decentralized applications (dApps) has exposed a fundamental limitation of legacy Layer-1 (L1) blockchains like Ethereum \cite{ethScalingDocs}. Designed for security and decentralization, Ethereum's architecture currently constrains its transaction throughput to a range of 12 to 17 transactions per second (TPS) \cite{habib2025analyzing}, leading to network congestion, high transaction fees, and a poor user experience \cite{habib2025analyzing}. This inherent scalability bottleneck has become a significant barrier to mainstream adoption, compelling the blockchain ecosystem to seek alternative solutions \cite{habib2025analyzing}.\newline
+
+To address these challenges without altering the foundational L1 design, a new class of "off-chain" scaling solutions, known as Layer-2 (L2) protocols, has emerged. These systems process transactions outside the main blockchain, leveraging the L1 for security and data integrity. Among the various L2 alternatives, such as state channels and sidechains, rollups have distinguished themselves as the most promising and widely adopted technology \cite{saif2024survey, habib2025analyzing, ethScalingDocs}. They operate by executing transactions and state computations off-chain, then bundling the data into a single, compressed transaction that is committed back to the L1 \cite{silva2025public}.
+
+\vspace{12pt}
+\subsection{Zero-Knowledge Rollups: Current State of the Art}
+\vspace{12pt}
+
+The rollup landscape is defined by two primary technologies: optimistic rollups and Zero-Knowledge Rollups (ZK-Rollups). While optimistic rollups rely on a fraud proof system that assumes transactions are valid by default and requires a challenge period to identify and penalize fraudulent state transitions, ZK-Rollups leverage cryptographic validity proofs to verify the correctness of state transitions before they are committed to the L1 \cite{motepalli2023sok}. This crucial distinction allows ZK-Rollups to offer fast transaction finality, a key advantage that has led them to be considered the "holy grail" of L2 scalability \cite{chaliasos2024pricing}.
+A typical ZK-Rollup system includes four main off-chain components:
+\vspace{12pt}
+\begin{itemize}
+    \item \textbf{Sequencer} responsible for collecting, ordering, and queuing pending user transactions.
+    \item \textbf{Executor:} which processes transactions and constructs transaction blocks to update the system state, often represented in Merkle trees \cite{saez2022overview}.
+    \item \textbf{Submitter:} which broadcasts transactional data, such as state differences and Merkle tree roots, to the L1 after execution.
+    \item \textbf{Prover:} which generates cryptographic validity proofs to substantiate the computational integrity of state transitions \cite{motepalli2023sok}.
+\end{itemize}
+
+\subsubsubsection{Sequencer Scheduling Policies}
+
+The sequencing policy determines how transactions are ordered, with implications for fairness, latency, and cost efficiency. Literature identifies several approaches:
+\vspace{12pt}
+
+\begin{itemize}
+    \item \textbf{First-Come-First-Serve (FCFS):} simple and fair but vulnerable to latency racing \cite{motepalli2023sok}.
+    \item \textbf{Maximal Value:} prioritizes fees and sequencer profit, but may delay inclusion \cite{gogol2025scalingdefi}.
+    \item  \textbf{Time-Boost:} allows users to pay for faster confirmation, introducing tiered access \cite{motepalli2023sok}.
+    \item \textbf{Fair BFT Ordering:} emphasizes time-based fairness, reducing collusion and latency-racing risks \cite{motepalli2023sok}.
+\end{itemize}
+\vspace{12pt}
+Each policy presents trade-offs between fairness, performance, and economic incentives, highlighting the difficulty of balancing user experience with system efficiency \cite{motepalli2023sok}.
+
+\subsubsubsection{Sequencer Efficiency and Bottlenecks}
+
+Sequencer performance strongly influences throughput, latency, and finality.
+\vspace{12pt}
+
+\begin{itemize}
+    \item \textbf{Batching:} Larger batches reduce average transaction costs but increase latency, while smaller batches improve responsiveness at the expense of efficiency \cite{ethScalingDocs}.zkSync Era, for instance, achieves soft finality in \textless 2.5s for over 50\% of transactions but requires 10–20 minutes for L1 settlement \cite{gogol2025scalingdefi}.
+    \item \textbf{Computational Bottlenecks:} Proof generation is sensitive to batching \cite{chaliasos2024analyzing}, with Merkle tree computation adding up to 2.44s per batch \cite{gogol2025scalingdefi}. Design Differences: zkSync leverages data compression to support large batches on modest hardware \cite{chaliasos2024analyzing}, whereas Polygon zkEVM achieves more predictable proving times but requires expensive infrastructure \cite{chaliasos2024analyzing}.
+    \item  \textbf{Scalability:} Benchmarks demonstrate ~71 TPS for zkSync swap transactions (vs. ~15 TPS on Ethereum L1) \cite{gogol2025scalingdefi}, yet stress testing reveals instability under high load, underscoring the fragility of centralized sequencer designs \cite{gogol2025scalingdefi}.
+\end{itemize}
+
+\subsubsubsection{Future Directions}
+
+Ongoing research emphasizes:
+\vspace{12pt}
+\begin{itemize}
+\item  Adaptive scheduling mechanisms to optimize batching under bursty workloads \cite{chaliasos2024analyzing}.
+\item Opcode-aware batching strategies that align transaction grouping with prover capacity \cite{chaliasos2024analyzing}.
+\item Metering and incentive models to mitigate DoS risks and align sequencer behavior with network health \cite{chaliasos2024pricing}.
+\item Sequencers-as-provers architectures (e.g., Starknet) to improve efficiency, though at the cost of heightened collusion risk \cite{motepalli2023sok}.
+\end{itemize}
+
+\subsubsection{Data Availability and Its Evolving Cost Dynamics}
+\vspace{12pt}
+Data Availability (DA) is a foundational aspect of ZK-Rollups, ensuring that transaction data required for verifying state transitions is always accessible on Layer 1 (L1). Without DA, sequencers could withhold data, preventing users from validating the rollup state or recovering funds \cite{saif2024survey}.
+
+\subsubsubsection{On-Chain DA}
+
+ZK-Rollups traditionally rely on on-chain data posting, securing transactions through Ethereum’s consensus but at high cost.
+\vspace{12pt}
+
+\begin{itemize}
+\item Calldata: Early ZK-Rollups such as Loopring and Immutable X compressed state diffs into calldata \cite{gogol2025scalingdefi}. This guaranteed security but was limited by high gas costs (16 gas per non-zero byte) and block size restrictions.
+\item EIP-4844 Blobs: Introduced in March 2024, Proto-Danksharding added blob-carrying transactions, allowing 128 KB per blob and up to 2 MB per block \cite{gogol2025scalingdefi}. Rollups like zkSync Era, Linea, Starknet, and Scroll adopted blobs to cut DA costs \cite{gogol2025scalingdefi}. However, blobs are sold in fixed sizes, meaning small batches may be more efficient with calldata \cite{gogol2025scalingdefi}.
+\item Compression: ZK-Rollups increasingly post state differences instead of full transaction data to optimize DA. zkSync Era’s compression outperforms Polygon zkEVM, reducing per-transaction DA costs \cite{gogol2025scalingdefi}.
+\end{itemize}
+
+\subsubsubsection{Off-Chain DA}
+Some ZK-Rollups explore validium mode, where data is kept off-chain for lower costs but verified via external mechanisms.
+\vspace{12pt}
+\begin{itemize}
+\item DACs (Data Availability Committees): Trusted committees sign and store data off-chain, as seen in Immutable X \cite{gogol2025scalingdefi}.
+\item DALs (Data Availability Layers): Permissionless networks like Celestia and Avail use erasure coding and data availability sampling to guarantee scalability and reduce costs \cite{celestia_how}.
+\end{itemize}
+
+\subsubsubsection{Evolving Cost Dynamics}
+DA historically represented ~80\% of ZK-Rollup transaction costs \cite{stephan2025crowdprove}. With EIP-4844 blobs, DA costs have dropped significantly, making proof generation the dominant cost. Key trade-offs remain:
+\vspace{12pt}
+\begin{itemize}
+\item Batch size vs. finality: Larger batches lower per-transaction DA costs but slow finality \cite{chaliasos2024analyzing}.
+\item Sequencer optimization: Sequencers reduce DA overhead by batching related transactions or grouping workloads by prover limits \cite{chaliasos2024analyzing}.
+\item Blob pricing challenges: Fixed blob sizes remain inefficient for small rollups, and the long-term blob market is uncertain \cite{gogol2025scalingdefi}.
+\end{itemize}
+
+\subsubsection{Proving Bottlenecks and Nuanced Performance Metrics}
+\vspace{12pt}
+The prover, responsible for generating validity proofs, is a major computational bottleneck. While simple token transfers have been shown to achieve theoretical throughput above 14,000 TPS, real-world workloads like DeFi swaps achieve only ~71 TPS. This discrepancy highlights the inadequacy of simple TPS metrics: true scalability depends on transaction complexity \cite{gogol2025scalingdefi}. Proof generation costs also increase with batch size, and Merkle tree computation has been identified as a dominant delay (up to 2.44s per batch). These findings emphasize the need to study proving bottlenecks more carefully \cite{gogol2025scalingdefi}.
+
+\subsubsection{Finality, Cost, and Efficiency Trade-offs}
+\vspace{12pt}
+ZK-Rollup design involves a trade-off between throughput, latency, and cost \cite{motepalli2023sok}. Larger batches are cheaper per transaction due to amortized fixed costs (e.g., L1 posting and proof verification), but they increase latency since sequencers must wait to fill batches. Another trade-off is between soft finality (fast L2 confirmation, \textless 2.5s) and hard finality (L1 confirmation, 10–20 minutes) \cite{gogol2025scalingdefi}. While users prefer fast confirmations, security ultimately depends on slower L1 settlement. Literature suggests that over 50\% of transactions achieve soft finality within 2.5s, but finality guarantees vary widely \cite{gogol2025scalingdefi}.
+
+\subsection{Gaps in the Literature}
+\vspace{12pt}
+
+Despite progress, current research exhibits key gaps:
+\vspace{12pt}
+\begin{itemize}
+\item Limited end-to-end empirical evaluations of ZK-Rollups: Controlled, end-to-end benchmarks of ZK-Rollups are sparse, particularly for real-world workloads.
+\item Lack of controlled studies on how batch size, scheduling, and DA strategies interact to affect throughput, latency, and cost.
+\item Insufficient fine-grained cost breakdowns in real-world settings.
+\item Little analysis of the interaction between sequencer, prover, and DA within fee mechanism design.
+\end{itemize}
+
+\vspace{12pt}
+
+\vspace{12pt}
+
+This project aims to fill these gaps by building a minimal, modular ZK-Rollup prototype supporting basic token transfers. Unlike production-ready systems such as zkSync, Polygon zkEVM, and StarkNet, which are too complex for fine-grained experimentation, the prototype will allow controlled benchmarking of sequencing policies, batching strategies, and DA compression. This approach enables reproducible empirical analysis that validates or challenges theoretical claims while producing actionable insights for the ZK-Rollup ecosystem.

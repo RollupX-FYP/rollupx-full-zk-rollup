@@ -1,0 +1,23 @@
+\section{Prototype vs. Production Distinctions}
+\label{sec:prototype_vs_production}
+To contextualize the architecture, Table \ref{tab:prototype_vs_production} outlines the key differences between this research prototype and a production mainnet rollup.
+
+\begin{table}[H]
+\centering
+\caption{Prototype vs. Production Rollup Architecture}
+\label{tab:prototype_vs_production}
+\small
+\begin{tabularx}{\textwidth}{>{\hsize=0.8\hsize}X >{\hsize=1.0\hsize}X >{\hsize=1.2\hsize}X}
+\toprule
+\textbf{Feature} & \textbf{Production Rollup (e.g., zkSync Era)} & \textbf{This Research Prototype} \\
+\midrule
+Execution Environment & Full zkEVM, capable of running arbitrary Solidity smart contracts. & Simplified state-transition engine tailored for transfer-style workloads. \\
+\addlinespace
+Proving System & Massively parallelized, hardware-accelerated recursive proving (e.g., Boojum/PLONK). & Parameterized mock-delay or basic RISC0 host for bottleneck isolation. \\
+\addlinespace
+L1 Network & Deployed on Ethereum Mainnet. & Benchmarked against a local, controlled Hardhat node to eliminate external network jitter. \\
+\addlinespace
+Data Availability & Often integrates with external DA layers (e.g., Celestia) alongside L1. & Focuses strictly on L1 DA (Calldata and EIP-4844 blobs); off-chain DA is a simulated stub. \\
+\bottomrule
+\end{tabularx}
+\end{table}

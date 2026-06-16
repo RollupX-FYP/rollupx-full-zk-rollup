@@ -1,0 +1,12 @@
+\section{Conclusion}
+\label{sec:conclusion}
+This report demonstrated the design, implementation, and evaluation of a modular ZK-Rollup benchmarking prototype, aimed at addressing the critical scalability challenges inherent in Ethereum Layer-1. Unlike production-grade rollups—which prioritize EVM equivalence and reliability at the cost of experimental flexibility—this prototype was explicitly architected to isolate and evaluate distinct performance bottlenecks under controlled, synthetic conditions.
+
+By cleanly separating the sequencing, execution, proving, and submission stages, the framework allowed for a systematic analysis of the fundamental throughput--latency--cost trade-offs in Layer-2 scaling. The empirical observations yielded several key conclusions:
+\begin{enumerate}
+    \item \textbf{The Batching Dilemma:} Larger batch sizes significantly reduce the amortized Layer-1 gas cost per transaction, but directly penalize early-arriving users by increasing queueing latency (delaying soft finality).
+    \item \textbf{Data Availability Dynamics:} Transitioning from standard transaction \texttt{calldata} to EIP-4844 blobs drastically reduces the L1 execution gas footprint. This structural efficiency gain allows rollups to operate more cost-effectively, fundamentally shifting the profitability curve of Layer-2 submission.
+    \item \textbf{Prover Bottlenecks:} Through parameterized mock proving, the research demonstrated that if proof generation is significantly delayed, the system becomes strictly compute-bound. This creates severe downstream backpressure, widening the gap between soft and hard finality regardless of batching efficiency.
+\end{enumerate}
+
+Ultimately, the RollupX prototype successfully serves its purpose as a reproducible research framework, validating that scalability optimizations cannot be achieved in isolation. Enhancing one dimension (e.g., cost) inevitably impacts others (e.g., latency or computational overhead).

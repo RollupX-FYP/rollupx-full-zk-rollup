@@ -1,0 +1,16 @@
+\chapter{Benchmark Execution Guide}
+\label{app:benchmark_guide}
+\textbf{Running an Automated Benchmark (Dockerized):}
+\begin{verbatim}
+# Start the core infrastructure
+docker compose --profile core up -d
+
+# Execute the specific experiment matrix
+bash benchmark-suite/scripts/run_matrix.sh --phase feasibility
+\end{verbatim}
+
+\textbf{Collecting and Plotting Metrics:}
+\begin{verbatim}
+# Trigger the data tools analytics pipeline
+bash run_pipeline.sh
+\end{verbatim}

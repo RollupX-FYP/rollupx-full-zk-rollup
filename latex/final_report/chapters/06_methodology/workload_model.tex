@@ -1,0 +1,3 @@
+\section{Workload Model}
+\label{sec:workload_model}
+The benchmarking methodology relies heavily on controlled synthetic workloads to isolate configuration effects. A Python-based workload generator synthesizes transaction requests using a seeded Poisson arrival process. The generator supports steady-state and skewed transaction mixes but does not implement bursty transfer patterns. Transactions use dummy signatures that the Sequencer accepts, preventing the load generator itself from becoming computationally bottlenecked by ECDSA signing.

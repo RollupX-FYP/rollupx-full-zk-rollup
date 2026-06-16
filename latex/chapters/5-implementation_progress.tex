@@ -1,0 +1,44 @@
+\subsection{Sequencer}
+A dynamic batch-size controller was designed as an extension to the sequencer. The current implementation can be integrated into the batching layer as a policy module, while the present evaluation uses the model to guide configuration selection and interpret batching trade-offs.
+\input{chapters/Implementation_Progress/sequencer}
+
+\subsection{Executor}
+\input{chapters/Implementation_Progress/executor}
+
+\subsection{Submitter}
+\input{chapters/Implementation_Progress/submitter}
+
+\subsection{Prover}
+\input{chapters/Implementation_Progress/prover}
+
+\subsection{Smart Contracts}
+\input{chapters/Implementation_Progress/smart_contracts}
+
+
+\subsection{Development Challenges and Solutions}
+
+Throughout the prototype implementation, our team encountered three major technical challenges that significantly impacted development velocity and required systematic problem-solving approaches.
+
+\textbf{1. Unfamiliarity with Rust Programming Language}
+
+The team's primary experience with JavaScript, TypeScript, and Python created a steep learning curve when transitioning to Rust. Rust's unique ownership model, borrowing rules, and lifetime annotations—while providing memory safety guarantees—introduced conceptual barriers that were initially difficult to grasp. Simple operations straightforward in garbage-collected languages required careful consideration of ownership transfers, mutable versus immutable references, and lifetime bounds.
+
+The compiler's strictness, though ultimately beneficial, initially resulted in prolonged development cycles as we struggled to satisfy the borrow checker. Common patterns such as sharing state across multiple components, implementing callbacks, or creating self-referential data structures proved particularly challenging. Error messages, while informative, required time to interpret correctly, especially for complex scenarios involving trait bounds and lifetime elision. Additionally, understanding the async/await ecosystem in Rust (\texttt{tokio}, futures, async traits) added another layer of complexity when implementing concurrent components like the L1 Event Listener and API handlers.
+
+\textbf{2. Implementing Cryptographic Primitives and Zero-Knowledge Circuits}
+
+The prover component, responsible for generating cryptographic validity proofs, presented the most technically demanding aspect of the project. Despite selecting Circom with Groth16 for its maturity and documentation (as outlined in Section 3.1.2), implementing the zero-knowledge circuits required deep understanding of finite field arithmetic, elliptic curve cryptography, and constraint systems.
+
+Designing circuits to verify state transitions (OldRoot $\rightarrow$ NewRoot) for the Sparse Merkle Tree required translating high-level state update logic into arithmetic circuits with R1CS (Rank-1 Constraint System) constraints. This process was unintuitive and error-prone, as even simple operations like hash functions (Poseidon, SHA-256) required hundreds or thousands of constraints, impacting proof generation time. Debugging circuits proved particularly difficult since traditional debugging tools were inapplicable—identifying which constraint was violated and why required manual inspection and reasoning about the mathematical relationships.
+
+Furthermore, integrating Circom circuits with our Rust codebase required FFI (Foreign Function Interface) bindings and careful management of witness generation, proving key paths, and proof serialization. The trusted setup ceremony for Groth16, though facilitated by existing tools, required understanding of the Powers of Tau and phase-2 ceremony processes. Performance optimization of the prover—crucial for achieving the throughput targets in our benchmarking experiments—demanded profiling constraint counts, exploring parallelization strategies, and tuning parameters like batch size to balance proving time against throughput.
+
+\textbf{3. Component Integration and Inter-Process Communication}
+
+While the modular architecture (Section 3.1.1) provided clear separation of concerns, integrating the Sequencer, Executor, Prover, Submitter, and on-chain contracts into a cohesive system presented significant coordination challenges. Each component, developed somewhat independently, needed to communicate reliably with precise data format agreements and error handling protocols.
+
+Establishing efficient inter-process communication (IPC) mechanisms required architectural decisions about synchronous versus asynchronous patterns, message serialization formats (JSON, MessagePack, Protocol Buffers), and failure recovery strategies. The execution pipeline—Sequencer forwards sealed batches to Executor, which triggers Prover after state updates, and finally Submitter packages everything for L1 submission—required careful handling of failures at each stage. Any component crash or RPC error could lead to inconsistent states if not properly managed.
+
+Synchronizing the Local State Cache in the Sequencer with the canonical Sparse Merkle Tree in the Executor proved particularly complex. State updates are asynchronous, and the Sequencer must handle scenarios where it continues accepting transactions based on slightly stale state while batches are being executed. Race conditions could occur if the Sequencer validated a transaction against state root $N$ while the Executor was processing batch $N+1$, potentially leading to nonce conflicts or double-spending attempts. Additionally, integrating with Ethereum testnets (Sepolia) introduced external dependencies on RPC endpoint reliability, gas price volatility, and transaction confirmation times, requiring robust retry logic and gas estimation strategies.
+
+To address these challenges, we adopted a systematic, multi-faceted approach centered on iterative learning and pragmatic development practices.

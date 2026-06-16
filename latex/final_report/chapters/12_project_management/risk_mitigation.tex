@@ -1,0 +1,8 @@
+\section{Risk Mitigation}
+\label{sec:risk_mitigation}
+Throughout the development lifecycle, several risks were identified and mitigated:
+\begin{itemize}
+    \item \textbf{Integration Complexity:} The shift from a monolithic design to microservices introduced severe integration challenges. This was mitigated by strictly adhering to Protocol Buffer definitions and executing integration tests early in the pipeline.
+    \item \textbf{Prover Overhead:} Recognizing that actual ZKP generation would dominate execution time and mask systems-level bottlenecks, the team introduced the mock-prover parameterized delay mode to preserve the project's focus on batching and DA trade-offs.
+    \item \textbf{Dependency Management:} The Executor required specific Rust nightly toolchains, causing conflicts. This was managed via strict Dockerfile definitions and explicit toolchain toml files.
+\end{itemize}

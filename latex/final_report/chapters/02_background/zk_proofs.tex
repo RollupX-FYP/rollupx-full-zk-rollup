@@ -1,0 +1,6 @@
+\subsection{Zero-Knowledge Proofs}
+\label{sec:zk_proofs}
+
+ZK-Rollups distinguish themselves from Optimistic Rollups by their verification mechanism. Instead of relying on a dispute time window and fraud proofs, ZK-Rollups utilize advanced cryptographic validity proofs—specifically Zero-Knowledge Proofs (ZKPs) such as zk-SNARKs or zk-STARKs \cite{groth2016snark, ben2018stark}.
+
+The off-chain prover generates a mathematical proof attesting to the correctness of the batch's state transition. A smart contract on L1 verifies this proof. Because verifying a ZKP is computationally much cheaper than re-executing thousands of transactions, L1 can guarantee the correctness of the L2 state instantly without executing the transactions itself.

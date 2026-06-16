@@ -1,0 +1,49 @@
+\subsection{Current Prototype Status}
+At the current stage, the prototype implements a complete local benchmarking pipeline including a Python workload generator, a configurable sequencer, a simplified transfer-centric executor, and a Hardhat-based L1 settlement stub. Components such as EIP-4844 blob submission and proof generation are currently modeled or parameterized via a mock prover. Therefore, the evaluation is framed as controlled configuration sweeps measuring relative trade-offs rather than production mainnet benchmarking.
+
+\begin{table}[h]
+\centering
+\caption{Prototype Component Implementation Status}
+\label{tab:prototype_status}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{p{2.5cm}p{2cm}p{3.5cm}}
+\toprule
+\textbf{Component} & \textbf{Current Status} & \textbf{Implementation Details} \\
+\midrule
+Workload Generator & Implemented & Python Poisson generator with synthetic classes \\
+Ingestion API & Implemented & HTTP JSON-RPC boundary \\
+Sequencer & Implemented & FIFO, fee, time-boost, fair-BFT ordering \\
+Batching Logic & Implemented & Fixed-size, soft-cap, and time-based triggers \\
+Executor & Implemented & Simplified Merkle state transition (transfer-only) \\
+Mock Prover & Implemented & Parameterized proof-delay injection \\
+Real Prover & Partial & RISC Zero path exists but causes known guest errors \\
+DA Mode (Calldata) & Implemented & Standard L1 payload submission \\
+DA Mode (Blob) & Simulated & Modeled cost/footprint; no real EIP-4844 blobs \\
+L1 Verifier & Mocked & Hardhat verifier stub (accepts dummy signatures) \\
+Telemetry & Implemented & JSONL/CSV logs and Python aggregation pipeline \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Available Telemetry and Metrics}
+\label{tab:metrics_status}
+\resizebox{\linewidth}{!}{%
+\begin{tabular}{p{3.5cm}p{1.5cm}p{3cm}}
+\toprule
+\textbf{Metric} & \textbf{Status} & \textbf{Source} \\
+\midrule
+Submitted/Committed TPS & Collected & \texttt{aggregate.py} / \texttt{poisson\_generator.py} \\
+Average, P95, P99 Latency & Collected & \texttt{poisson\_generator.py} \\
+Queueing Delay & Collected & \texttt{sequencer\_batch\_metrics.jsonl} \\
+Execution Time & Collected & \texttt{executor\_batch\_metrics.jsonl} \\
+Proof-Delay Contribution & Collected & \texttt{executor\_batch\_metrics.jsonl} \\
+DA Bytes per Batch & Collected & \texttt{submitter\_metrics.json} \\
+Amortized L1 Gas/Cost & Collected & \texttt{submitter\_metrics.json} \\
+L1 Finalization Time & Collected & \texttt{submitter\_metrics.json} \\
+\bottomrule
+\end{tabular}%
+}
+\end{table}

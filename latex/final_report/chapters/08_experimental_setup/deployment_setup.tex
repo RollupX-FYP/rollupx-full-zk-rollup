@@ -1,0 +1,3 @@
+\subsection{L1 Network Configuration}
+\label{sec:deployment_setup}
+A custom Docker image (\texttt{contracts/Dockerfile.node}) running \texttt{npx hardhat node --hostname 0.0.0.0 --port 8545} is utilized as the local L1 network instead of Geth. This provides a deterministic dev-chain environment with pre-funded test accounts, which is necessary for automated testing without the unpredictability and cost of public testnets (like Sepolia). Furthermore, when running against a fresh Hardhat node, the Sequencer is configured with \texttt{start\_block = 0} to prevent synchronization failures.

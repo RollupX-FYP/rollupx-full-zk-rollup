@@ -1,0 +1,116 @@
+\documentclass[a4paper, 12pt]{article}
+% \documentclass{report}
+% \usepackage{geometry}
+% \geometry{
+%  a4paper,
+%  total={170mm,257mm},
+%  left=20mm,
+%  top=20mm,
+%  }
+%% Language and font encodings
+\usepackage[english]{babel}
+\usepackage[utf8x]{inputenc}
+
+\usepackage{booktabs}
+\usepackage{tabu}
+\usepackage[T1]{fontenc}
+\usepackage{changepage}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+\usepackage{adjustbox} % to fit the tikzpicture to \linewidth
+%% Sets page size and margins
+\usepackage[a4paper,top=2cm,bottom=2cm,left=2cm,right=2cm]{geometry}
+
+%% packages
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{cite}
+%\usepackage[backend=biber,style=verbose]{biblatex}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithm}
+\usepackage{forloop}
+\usepackage{listings}
+\usepackage{algpseudocode}
+% \usepackage{textcomp}
+\usepackage{wasysym}
+\usepackage{xcolor}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage[colorlinks=true, allcolors=blue]{hyperref}
+\usepackage{soul}
+
+\setlength{\marginparwidth}{2cm}
+
+% Allow subsubsubsection as a sectioning level
+\usepackage{titlesec}
+
+\titleclass{\subsubsubsection}{straight}[\subsubsection]
+\newcounter{subsubsubsection}[subsubsection]
+\renewcommand\thesubsubsubsection{\thesubsubsection.\arabic{subsubsubsection}}
+
+\titleformat{\subsubsubsection}
+  {\normalfont\normalsize\bfseries}{\thesubsubsubsection}{1em}{}
+\titlespacing*{\subsubsubsection}
+  {0pt}{3.25ex plus 1ex minus .2ex}{1.5ex plus .2ex}
+
+% ---- Numbering depth ----
+\setcounter{secnumdepth}{4}
+
+% ---- ToC formatting ----
+\usepackage{tocloft}
+
+% ---- ToC formatting for subsubsubsection ----
+\makeatletter
+\newcommand{\l@subsubsubsection}{\@dottedtocline{4}{7em}{4em}}
+\makeatother
+
+% Show numbering & ToC down to subsubsubsection
+\setcounter{tocdepth}{4}
+
+% ---------------------------------------
+
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{enumitem}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\setlist[itemize]{leftmargin=*,topsep=1pt,itemsep=1pt,parsep=0pt}
+
+\begin{document}
+\input{cover}
+
+\date{}
+\tableofcontents
+\newpage
+
+
+\section{Introduction}
+\input{chapters/1-introduction}
+\newpage
+
+\section{Literature Review}
+\input{chapters/2-literature_review}
+\newpage
+
+\section{Proposed Method}
+\input{chapters/3-proposed_method}
+\newpage
+
+% \section{Evaluation}
+% \input{chapters/4-evaluation}
+% \newpage
+
+\section{Research Timeline}
+\input{chapters/5-research_timeline}
+\newpage
+
+\section{Feasibility and Conclusion}
+\input{chapters/6-feasibility_and_conclusion}
+\newpage
+
+\addcontentsline{toc}{section}{References}
+\bibliographystyle{IEEEtran}
+\bibliography{refs}
+
+\end{document}
