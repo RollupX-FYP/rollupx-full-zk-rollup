@@ -22,7 +22,7 @@ mod tests {
         boost_bid: Option<u64>,
     ) -> crate::PooledTransaction {
         let tx = UserTransaction {
-            from: Address::zero(),
+            from: Address::from_low_u64_be(nonce),
             to: Address::zero(),
             value: U256::from(1000),
             nonce,

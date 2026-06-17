@@ -129,6 +129,18 @@ impl BatchTrigger {
             return Some(TriggerReason::SizeThreshold);
         }
 
+        // Priority 2.5: Blob target fill threshold → seal when target fill is met (EIP-4844)
+        let da_mode = std::env::var("SUBMITTER_DA_MODE")
+            .or_else(|_| std::env::var("DA_MODE"))
+            .unwrap_or_default();
+        if da_mode.eq_ignore_ascii_case("blob") {
+            let total_bytes = self.tx_pool.total_bytes().await;
+            let target_fill_bytes = (self.config.blob_target_bytes as f64 * self.config.blob_fill_target) as usize;
+            if total_bytes >= target_fill_bytes && total_bytes > 0 {
+                return Some(TriggerReason::SizeThreshold);
+            }
+        }
+
         // Priority 3: Timeout expired → seal partial batch
         // Only if we have at least `min_batch_size` transactions to avoid
         // producing near-empty batches during very low traffic
@@ -267,6 +279,42 @@ mod tests {
         let trigger = BatchTrigger::new(config, pool, forced);
 
         let reason = trigger.should_seal(Instant::now()).await;
+        assert!(matches!(reason, Some(TriggerReason::SizeThreshold)));
+    }
+
+    #[tokio::test]
+    async fn size_threshold_triggers_on_blob_fill_target() {
+        let pool = Arc::new(TransactionPool::new());
+        let forced = Arc::new(ForcedQueue::new());
+        let config = BatchConfig {
+            max_batch_size: 100,
+            timeout_interval_ms: 30_000,
+            min_batch_size: 10,
+            max_gas_limit: 30_000_000,
+            batch_policy: "fixed".to_string(),
+            adaptive_low_load_threshold: 50,
+            adaptive_medium_load_threshold: 200,
+            adaptive_small_batch_size: 25,
+            adaptive_medium_batch_size: 100,
+            adaptive_large_batch_size: 500,
+            blob_target_bytes: 100, // Very small target
+            blob_fill_target: 0.50, // 50% target = 50 bytes
+        };
+        // Add a transaction which will easily exceed 50 bytes
+        pool.add(pooled_tx()).await;
+        
+        let trigger = BatchTrigger::new(config, pool, forced);
+        
+        // Set env variable to simulate EIP-4844 mode
+        unsafe {
+            std::env::set_var("SUBMITTER_DA_MODE", "blob");
+        }
+        
+        let reason = trigger.should_seal(Instant::now()).await;
+        unsafe {
+            std::env::remove_var("SUBMITTER_DA_MODE");
+        }
+        
         assert!(matches!(reason, Some(TriggerReason::SizeThreshold)));
     }
 }
