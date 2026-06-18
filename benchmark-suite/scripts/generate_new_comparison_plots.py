@@ -61,6 +61,22 @@ else:
 df = pd.read_csv(csv_path)
 print(f"Loaded {len(df)} rows from {csv_path}")
 
+# Rename columns from aggregate.py if they exist to match what the plotting script expects
+if "avg_batch_tx_count" in df.columns:
+    df["avg_batch_size"] = df["avg_batch_tx_count"]
+    print("Mapped avg_batch_tx_count -> avg_batch_size")
+
+if "avg_l1_gas_used" in df.columns and "avg_batch_tx_count" in df.columns:
+    df["true_weighted_gas_per_tx"] = df["avg_l1_gas_used"] / df["avg_batch_tx_count"]
+    print("Computed true_weighted_gas_per_tx = avg_l1_gas_used / avg_batch_tx_count")
+elif "avg_gas_per_tx" in df.columns:
+    df["true_weighted_gas_per_tx"] = df["avg_gas_per_tx"]
+    print("Mapped avg_gas_per_tx -> true_weighted_gas_per_tx")
+
+if "avg_queue_wait_ms" in df.columns:
+    df["true_weighted_wait_time_ms"] = df["avg_queue_wait_ms"]
+    print("Mapped avg_queue_wait_ms -> true_weighted_wait_time_ms")
+
 # Output directories
 figures_dir = os.path.join(os.path.dirname(csv_path), "figures")
 brain_dir = r"C:\Users\malin\.gemini\antigravity\brain\d8962380-1b1b-449a-b9b2-e12c0aa85276\figures"
