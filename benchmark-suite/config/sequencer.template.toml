@@ -9,6 +9,9 @@ adaptive_medium_load_threshold = ${ADAPTIVE_MEDIUM_LOAD_THRESHOLD}
 adaptive_small_batch_size = ${ADAPTIVE_SMALL_BATCH_SIZE}
 adaptive_medium_batch_size = ${ADAPTIVE_MEDIUM_BATCH_SIZE}
 adaptive_large_batch_size = ${ADAPTIVE_LARGE_BATCH_SIZE}
+adaptive_small_timeout_ms = ${ADAPTIVE_SMALL_TIMEOUT_MS}
+adaptive_medium_timeout_ms = ${ADAPTIVE_MEDIUM_TIMEOUT_MS}
+adaptive_large_timeout_ms = ${ADAPTIVE_LARGE_TIMEOUT_MS}
 blob_target_bytes = ${BLOB_TARGET_BYTES}
 blob_fill_target = ${BLOB_FILL_TARGET}
 

@@ -144,7 +144,7 @@ impl BatchTrigger {
         // Priority 3: Timeout expired → seal partial batch
         // Only if we have at least `min_batch_size` transactions to avoid
         // producing near-empty batches during very low traffic
-        let timeout_ms = self.config.timeout_interval_ms;
+        let timeout_ms = self.timeout_for_depth(normal_count);
         let elapsed = last_batch_time.elapsed();
         if elapsed >= tokio::time::Duration::from_millis(timeout_ms) {
             // Even on timeout, require minimum transactions to avoid empty batches
@@ -187,6 +187,23 @@ impl BatchTrigger {
         }
     }
 
+    /// Compute the active timeout interval for the current mempool depth.
+    ///
+    /// Adaptive batching scales the timeout interval based on mempool load.
+    pub fn timeout_for_depth(&self, pending_count: usize) -> u64 {
+        if self.config.batch_policy.eq_ignore_ascii_case("adaptive") {
+            if pending_count < self.config.adaptive_low_load_threshold {
+                self.config.adaptive_small_timeout_ms
+            } else if pending_count <= self.config.adaptive_medium_load_threshold {
+                self.config.adaptive_medium_timeout_ms
+            } else {
+                self.config.adaptive_large_timeout_ms
+            }
+        } else {
+            self.config.timeout_interval_ms
+        }
+    }
+
     /// Reset the batch timer after producing a batch
     ///
     /// # Arguments
@@ -216,6 +233,9 @@ mod tests {
             adaptive_small_batch_size: 25,
             adaptive_medium_batch_size: 100,
             adaptive_large_batch_size: 500,
+            adaptive_small_timeout_ms: 500,
+            adaptive_medium_timeout_ms: 1000,
+            adaptive_large_timeout_ms: 2000,
             blob_target_bytes: 131_072,
             blob_fill_target: 0.90,
         }
@@ -255,6 +275,10 @@ mod tests {
         assert_eq!(trigger.target_batch_size_for_depth(0), 25);
         assert_eq!(trigger.target_batch_size_for_depth(50), 100);
         assert_eq!(trigger.target_batch_size_for_depth(201), 400);
+
+        assert_eq!(trigger.timeout_for_depth(0), 500);
+        assert_eq!(trigger.timeout_for_depth(50), 1000);
+        assert_eq!(trigger.timeout_for_depth(201), 2000);
     }
 
     #[tokio::test]
@@ -272,6 +296,9 @@ mod tests {
             adaptive_small_batch_size: 1,
             adaptive_medium_batch_size: 1,
             adaptive_large_batch_size: 1,
+            adaptive_small_timeout_ms: 500,
+            adaptive_medium_timeout_ms: 1000,
+            adaptive_large_timeout_ms: 2000,
             blob_target_bytes: 131_072,
             blob_fill_target: 0.90,
         };
@@ -297,6 +324,9 @@ mod tests {
             adaptive_small_batch_size: 25,
             adaptive_medium_batch_size: 100,
             adaptive_large_batch_size: 500,
+            adaptive_small_timeout_ms: 500,
+            adaptive_medium_timeout_ms: 1000,
+            adaptive_large_timeout_ms: 2000,
             blob_target_bytes: 100, // Very small target
             blob_fill_target: 0.50, // 50% target = 50 bytes
         };
