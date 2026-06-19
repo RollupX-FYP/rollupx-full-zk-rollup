@@ -5,9 +5,9 @@ To systematically map the performance frontier, RollupX is evaluated using a Pyt
 \begin{itemize}
     \item \textbf{Batch Size (\(B_{\text{max}}\)):} The maximum number of transactions allowed in a single L2 batch before it is sealed.
     \item \textbf{Timeout (\(T_{\text{timeout}}\)):} The maximum time the sequencer waits before sealing and flushing a batch.
-    \item \textbf{Sequencing Policies:} The rules used by the sequencer to order transactions in the mempool. We test standard First-Come-First-Served (FCFS), FeePriority (sorting by gas price), TimeBoost (sorting by bid price within discrete 5-second windows)~\cite{timeboost_docs}, and BlobPacking (prioritizing larger transaction sizes).
-    \item \textbf{Data Availability (DA) Modes:} The storage path used for L2 transaction data on L1. We evaluate Calldata (writing data to L1 execution history), EIP-4844 Blobs (using cheaper, temporary blob storage)~\cite{eip4844}, and Offchain DA (publishing only state roots and ZK proofs while keeping transaction data off-chain).
-    \item \textbf{Prover Backends:} The environment validating L2 state transitions. We compare a Mock Prover (simulating proving times using a configurable delay parameter) and the Real Prover (executing guest code in the RISC0 zkVM and wrapping STARK proofs into Groth16 SNARK proofs).
+    \item \textbf{Sequencing Policies:} The rules used by the sequencer to order transactions in the mempool. We test standard First-Come-First-Served (FCFS), FeePriority and TimeBoost ~\cite{timeboost_docs}
+    \item \textbf{Data Availability (DA) Modes:} The storage path used for L2 transaction data on L1. We evaluate Calldata , EIP-4844 Blobs~\cite{eip4844}, and Offchain DA.
+    \item \textbf{Prover Backends:} The environment validating L2 state transitions. We compare a Mock Prover and the Real Prover.
 \end{itemize}
 
 \subsection{Evaluation Metrics}
@@ -19,16 +19,4 @@ We collect telemetry logs across all lifecycle stages to compute five primary me
     \item \textbf{L1 Gas per Transaction:} Total L1 gas consumed divided by transaction count.
     \item \textbf{Proving Wall-Clock Time:} Prover proof-generation duration.
 \end{itemize}
-To evaluate latency fairness under different scheduling policies, we compute Jain's Fairness Index~\cite{motepalli2023sequencers}:
-\begin{equation}
-J(x_1, x_2, \dots, x_n) = \frac{\left(\sum_{i=1}^{n} x_i\right)^2}{n \sum_{i=1}^{n} x_i^2}
-\end{equation}
-where \(x_i\) represents the queue wait time of transaction \(i\).
 
-\subsection{Analytical Dynamic Batching Model}
-To formalize the trade-off between batch size, user wait times, and Layer-1 submission costs, we define a cost-penalty heuristic model~\cite{adler2021data, werner2024analyzing}. For a batch size \(N\), the penalty score \(U(N)\) is defined as:
-\begin{equation}
-U(N) = \frac{C_{\text{fixed}} + F_{\text{blob}} \left\lceil \frac{N b_{\text{tx}}}{B_{\text{blob}}} \right\rceil}{N} + \gamma \left( \frac{N}{2\lambda} + P(N) + T_{\text{L1}} \right)
-\label{eq:dynamic_batching}
-\end{equation}
-where \(C_{\text{fixed}}\) is the fixed L1 verifier and bridge cost, \(b_{\text{tx}}\) is the transaction data size, \(B_{\text{blob}}\) and \(F_{\text{blob}}\) are blob size and cost, \(\lambda\) is the transaction arrival rate, \(P(N)\) is the prover time for batch size \(N\), \(T_{\text{L1}}\) is the L1 block mining delay, and \(\gamma\) is a weight factor balancing cost against latency.

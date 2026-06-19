@@ -1,2 +1,5 @@
-\subsection{RQ2: Impact of Batching}
-The results clearly illustrate the core throughput--latency--cost trade-off. Optimizing for the absolute lowest Layer-1 cost per transaction dictates the use of exceptionally large batches. However, this inherently penalizes early-arriving users with high queueing latency. Conversely, fast soft finality requires smaller, rapidly sealed batches, which drives up the amortized L1 cost.
+\section{Batching Dynamics and Outliers}
+\label{sec:batching_discussion}
+Analysis of the Stage 1 queueing distributions revealed a critical insight regarding tail batch latency distortion. When operating with high timeouts, finite test runs created severe tail-end latency outliers. For instance, the final batch in a run with a 200s timeout waited for nearly 200,000 ms because the workload generator stopped offering traffic. This demonstrates that simple arithmetic means are insufficient for measuring sequencer latency; median (P50) and 95th percentile (P95) metrics provide a much more accurate reflection of user experience.
+
+Furthermore, Stage 5 Prover metrics highlighted the step-function nature of zkVM execution segments. Because RISC Zero execution jumps by ~140 seconds whenever cycles cross a segment boundary (multiples of $1,048,576$ cycles), sequencer batching algorithms should ideally be "cycle-aware." Rather than blindly packing transactions until a hard limit is reached, an optimal sequencer would seal batches just under these segment thresholds to maximize throughput while minimizing proving time penalties.

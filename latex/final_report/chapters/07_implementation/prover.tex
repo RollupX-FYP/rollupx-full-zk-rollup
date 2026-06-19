@@ -1,10 +1,9 @@
-\section{Prover / Mock Prover}
+\section{Prover and Benchmark-Mode Delay}
 \label{sec:prover}
-To allow for scalability experiments without being heavily constrained by the massive hardware requirements of actual cryptographic proof generation, the prototype relies heavily on a mock proving path for analytical benchmarking.
+To allow for scalability experiments without being heavily constrained by the massive hardware requirements of actual cryptographic proof generation, the prototype relies heavily on a mock proving path for analytical benchmarking, while still supporting a base real prover.
 
 \begin{itemize}
-    \item \textbf{Mock Prover Mode:} During benchmark execution, the system uses a parameterized time delay to simulate cryptographic overhead. This allows the study to isolate systems-level bottlenecks (sequencer queue growth, database I/O, network latency) from compute-bound cryptographic constraints.
-    \item \textbf{Real Prover Backend:} A basic \texttt{risc0\_prover} path exists in the repository root and is used as the real proof path backend for the executor (\texttt{PROVER\_BACKEND=risc0}). However, it does not implement full parallel PLONK, Groth16, Halo2, Plonky2, or recursive aggregation. Therefore, using the mock prover is the preferred and valid approach for controlled throughput–latency bottleneck isolation.
+    \item \textbf{Mock Prover Mode:} During standard benchmark execution, the system uses a parameterized time delay to simulate cryptographic overhead. This allows the study to isolate systems-level bottlenecks (sequencer queue growth, database I/O, network latency) from compute-bound cryptographic constraints.
+    \item \textbf{Real Prover Backend:} A \texttt{risc0\_prover} implementation exists and is used as the real proof path backend for the executor (\texttt{PROVER\_BACKEND=risc0}). When enabled via \texttt{REQUIRE\_REAL\_PROOFS}, it executes the guest code inside the RISC0 zkVM, generating STARK proofs that can be wrapped in Groth16.
+    \item \textbf{Deprecation of Initial Proposals:} Early progress reports mentioned parallelized proof generation using \texttt{bellman} and \texttt{halo2}. These were deprecated in favor of the current \texttt{risc0} and mock-prover approach to better align with the project's focus on sequencing and batching queue dynamics rather than raw cryptographic circuit optimization.
 \end{itemize}
-\subsection{Prover Backend Integration and Benchmark-Mode Proof Delay}
-The prover path currently supports a \texttt{risc0\_prover} implementation as well as a benchmark-mode mock proof-delay. The benchmark-mode parameterizes the proof generation time to isolate throughput bottlenecks independently of heavy cryptographic computation. Note that the \texttt{risc0\_prover} has a known ELF parse error during guest execution, meaning results relying on this should be treated as benchmark-mode proof-delay unless specifically noted.

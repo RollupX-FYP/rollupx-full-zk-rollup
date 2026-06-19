@@ -1,7 +1,7 @@
 \section{Component Interactions}
 \label{sec:component_interactions}
 
-Table \ref{tab:component_responsibility} summarizes the language and core responsibility of each component in the pipeline.
+The system components interact synchronously across well-defined boundaries. Table \ref{tab:component_responsibility} summarizes the language and core responsibility of each component in the pipeline.
 
 \begin{table}[H]
 \centering
@@ -12,17 +12,19 @@ Table \ref{tab:component_responsibility} summarizes the language and core respon
 \toprule
 \textbf{Component} & \textbf{Language} & \textbf{Core Responsibility} \\
 \midrule
-Workload Gen. & Python & Synthesize controlled traffic (Poisson arrivals) and log client latency. \\
+Workload Gen. & Python & Synthesize controlled traffic (Poisson arrivals) and simulate varying network load. \\
 \addlinespace
-Sequencer & Rust & Validate, order, and batch L2 transactions; enforce gas limits and timeout triggers. \\
+Sequencer & Rust & Validate, order, and batch L2 transactions using policies like FCFS; enforce timeout triggers. \\
 \addlinespace
-Executor & Rust & Apply state transition function, update Merkle state, and orchestrate the prover. \\
+Executor & Rust & Receive gRPC batches, execute a transfer-centric state transition over a RocksDB Sparse Merkle Tree, and invoke the Prover. \\
 \addlinespace
-Prover & Rust & Generate cryptographic validity proofs (or simulate proof delay). \\
+Prover & Rust & A subsystem of the Executor using \texttt{risc0\_prover} (or mock delays) to generate cryptographic validity artifacts. \\
 \addlinespace
-Submitter & Rust & Handle L1 RPC interactions, manage DA formatting (Calldata/Blobs), and ensure reliable transaction broadcast. \\
+Submitter & Rust & Handle L1 Ethereum Adapter interactions, manage DA formatting (Calldata/Blobs), and ensure reliable transaction broadcast via a Saga loop. \\
 \addlinespace
-Contracts & Solidity & L1 aggregate root; verifies DA, proofs, and maintains the canonical state root. \\
+Contracts & Solidity & L1 bridge; validates DA commitments, verifies proofs via \texttt{MockVerifier} or Groth16, and finalizes the batch. \\
 \bottomrule
 \end{tabularx}
 \end{table}
+
+The interactions ensure a strict cryptographic link. The Sequencer's transaction handling is isolated from batch creation. When a batch is sealed, it is sent to the Executor via gRPC. The Executor maintains a trace of the execution and invokes the prover backend. The resulting enriched payload (DA commitment and proof) is broadcast via a stream to the Submitter, which handles the final L1 gas estimation and submission.

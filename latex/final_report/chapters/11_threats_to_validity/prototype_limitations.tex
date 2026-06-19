@@ -1,7 +1,9 @@
 \section{Prototype Limitations}
 \label{sec:prototype_limitations}
-Finally, the architectural scope of the RollupX prototype presents inherent limitations:
+Finally, the architectural scope of the research prototype presents inherent limitations:
 \begin{itemize}
-    \item \textbf{Not a Full zkEVM:} The Executor implements a simplified state-transition function focused on balance transfers and nonce updates. It lacks the complex opcode implementation and state trie bloat management required for a production zkEVM capable of executing arbitrary Solidity smart contracts.
-    \item \textbf{Simplified Security Assumptions:} The system relies on dummy signatures during benchmarking to bypass expensive ECDSA recovery on the sequencer, prioritizing throughput measurement over full cryptographic verification. Furthermore, off-chain DA is implemented only as a simulated stub, not a robust integration with a real Data Availability layer.
+    \item \textbf{Not a Full zkEVM:} The Executor implements a simplified state-transition function focused on balance transfers and Merkle state updates (transfer-centric research logic). It lacks the complex opcode implementation and state trie bloat management required for a production zkEVM capable of executing arbitrary smart contracts.
+    \item \textbf{Workload Realism:} The workloads evaluated were strictly synthetic Poisson arrivals. The generator lacks implementation for bursty, heavy-tailed transfer patterns or complex decentralized finance (DeFi) flash-loan cascades, meaning the queueing dynamics observed represent a steady-state lower bound.
+    \item \textbf{Prover Simulation:} While the prototype includes a \texttt{risc0\_prover} for cycle evaluation, the massive hardware requirements to run thousands of sequential SNARK proofs meant that the primary queueing experiments relied on a mock verifier and parameterized proof delays. In production, a real Groth16 verifier contract consumes significant fixed gas (~250,000 gas compared to the mock's ~1,000 gas), meaning the gas amortization benefits of larger batch sizes would be significantly more pronounced than those observed in the mock-verifier baseline.
+    \item \textbf{Simplified Security Assumptions:} The system relies on unsigned or pre-signed transactions during benchmarking to bypass expensive ECDSA recovery on the load generator, prioritizing throughput measurement. Furthermore, off-chain DA is implemented only as a simulated stub, not a robust integration with a real Data Availability layer like Celestia.
 \end{itemize}

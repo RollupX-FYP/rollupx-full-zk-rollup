@@ -4,9 +4,9 @@ The Sequencer is the entry point for L2 transactions. It is responsible for inge
 
 \begin{itemize}
     \item \textbf{Language:} Rust.
-    \item \textbf{API Interface:} Exposes a JSON-RPC Server to receive transactions from users and the Workload Generator.
-    \item \textbf{Transaction Flow:} Incoming transactions pass through a Validity Checker that interfaces with a pessimistic state cache (verifying nonces and balances). Valid transactions are pushed to a Normal Tx Pool. Simultaneously, an L1 Event Listener monitors the L1 bridge contract and inserts forced transactions (e.g., L1 deposits) into a high-priority Forced Tx Queue.
+    \item \textbf{API Interface:} Exposes a JSON-RPC Server to receive transactions from users and the Python Workload Generator.
+    \item \textbf{Transaction Flow:} Incoming transactions pass through a Validity Checker that interfaces with a pessimistic state cache (verifying nonces and balances). Valid transactions are pushed to a Normal Tx Pool. 
     \item \textbf{Batch Formation:} A background Batch Orchestrator pulls from these pools to form batches based on configured triggers. The primary triggers are reaching a maximum batch size (\texttt{max\_batch\_size}) or exceeding a defined time interval (\texttt{timeout\_interval\_ms}).
-    \item \textbf{Scheduling Policies:} The sequencer uses the Strategy pattern to support different ordering policies, specifically First-Come-First-Served (FCFS), Fee-Priority, Time-Boost, and Fair BFT/timestamp ordering.
-    \item \textbf{Output:} Completed batches are dispatched to the Executor via a gRPC stream. Configuration is managed via TOML files (e.g., \texttt{sequencer.template.toml}), which are processed via \texttt{envsubst} during container startup.
+    \item \textbf{Scheduling Policies:} The sequencer uses the Strategy pattern to support different ordering policies, specifically First-Come-First-Served (FCFS), Fee-Priority, Time-Boost, Fair BFT, and BlobPacking.
+    \item \textbf{Output:} Completed batches are dispatched to the Executor via a gRPC stream. Configuration is managed via TOML files (e.g., \texttt{sequencer.template.toml}), which are processed via \texttt{envsubst} during container startup (notably requiring explicit bash environment variables since default fallbacks are unsupported).
 \end{itemize}

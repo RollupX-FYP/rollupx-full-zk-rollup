@@ -1,4 +1,12 @@
-\subsection{Queueing Latency (Soft Finality)}
-Conversely, larger batch sizes negatively impacted the latency for individual transactions. Transactions arriving early in the batch window experienced substantial queueing delay while waiting for the sequencer to accumulate enough transactions to seal the batch. Smaller batch sizes triggered the sequencer more frequently, resulting in lower average latency but higher per-transaction costs.
-\vspace{1em}
-\noindent \textbf{Note:} The framework supports this metric, but the inspected repository snapshot does not include a completed run for this configuration.
+\section{Queueing Latency (Soft Finality)}
+\label{sec:latency_results}
+The Stage 1 experiments established a clear relationship between batch size configurations and queueing latency (the time a transaction waits in the sequencer pool before the batch is sealed).
+
+As the timeout interval was increased (from 500 ms to 10,000 ms), the average queue wait time scaled linearly until it hit the ceiling defined by the \texttt{MAX\_BATCH\_SIZE}. For example:
+\begin{itemize}
+    \item \textbf{Timeout 500 ms}: Actual queue wait was 256.4 ms.
+    \item \textbf{Timeout 2000 ms}: Actual queue wait was 1017.2 ms.
+    \item \textbf{Timeout 10000 ms}: The batch filled to the size cap (100 txs) in roughly 5.4 seconds due to the arrival rate, resulting in an actual queue wait of 2937.1 ms instead of the full 10 seconds.
+\end{itemize}
+
+A proposed visualization for these findings is a dual-axis plot showing Timeout on the X-axis, Average Queue Wait Time on the Left Y-Axis, and Average Batch Size on the Right Y-Axis. This plot clearly illustrates how the timeout acts as the primary batch sealing trigger until the size cap is reached.

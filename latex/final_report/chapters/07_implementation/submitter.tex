@@ -4,7 +4,7 @@ The Submitter acts as the bridge relayer, reliably pushing executed batch data f
 
 \begin{itemize}
     \item \textbf{Language:} Rust.
-    \item \textbf{Workflow:} Subscribes to the Executor stream via a gRPC Client (compiled using \texttt{protobuf-compiler}). It uses a Saga Workflow Engine backed by a SQLite database to handle reliable retries, idempotency, and nonce management when interacting with the L1 RPC.
-    \item \textbf{Data Availability (DA):} The DA Formatter formats batch payloads based on the configured DA mode. Crucially, it supports both standard \texttt{Calldata} and \texttt{EIP-4844 Blob} data representations. (Note: Off-chain DA is implemented only as a local simulated stub, not a real integration with IPFS or Celestia).
+    \item \textbf{Workflow:} Subscribes to the Executor stream via a gRPC Client (compiled using \texttt{protobuf-compiler}). It uses a Saga Workflow Engine backed by a database to handle reliable retries, idempotency, and nonce management when interacting with the L1 RPC (Hardhat node).
+    \item \textbf{Data Availability (DA):} The DA Formatter formats batch payloads based on the configured DA mode. Crucially, it supports both standard \texttt{Calldata} and \texttt{EIP-4844 Blob} data representations. Off-chain DA is implemented only as a local simulated stub.
     \item \textbf{Output:} Broadcasts transactions to L1 via \texttt{eth\_sendRawTransaction} and records latency and gas savings metrics to \texttt{submitter\_metrics.json}.
 \end{itemize}

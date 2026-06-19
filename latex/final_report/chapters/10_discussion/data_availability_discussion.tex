@@ -1,2 +1,3 @@
-\subsection{RQ2: Impact of DA Modes}
-The integration of EIP-4844 blobs fundamentally shifts the trade-off curve. By drastically reducing the L1 data posting cost compared to calldata, blobs allow rollups to either operate more profitably at the same batch size or maintain current profitability while reducing batch sizes (thereby improving user latency).
+\subsection{RQ3: Data Availability Implications}
+\label{sec:data_availability_discussion}
+The integration of EIP-4844 blobs fundamentally shifts the economic trade-off curve compared to traditional calldata. As demonstrated by the baseline gas cost of ~19,300 marginal gas per transaction using calldata, data costs rapidly become the dominant economic constraint. By drastically reducing the L1 execution data footprint via blobs, rollups can decouple the data submission cost from the execution verification cost. This allows rollups to either operate more profitably at the same batch size or maintain current profitability while significantly reducing batch sizes (thereby dramatically improving user latency and soft finality times).

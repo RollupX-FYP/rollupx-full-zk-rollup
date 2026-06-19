@@ -1,15 +1,13 @@
 \section{Research Objectives}
 \label{sec:research_objectives}
-To systematically answer the research questions, the project defines the following specific objectives:
+To systematically answer the research questions, the project defines the following specific objectives emphasizing modularity and reproducibility:
 
 \begin{itemize}
-    \item Design the modular architecture.
-    \item Implement key prototype components (Sequencer, Executor, Submitter, Contracts).
-    \item Support configurable batching and sequencing policies.
-    \item Support benchmark-mode proof-delay/prover measurement.
-    \item Support DA mode comparison (calldata vs blobs).
-    \item Generate controlled synthetic workloads.
-    \item Collect throughput, latency, cost, DA, proof-delay, and finalization metrics.
-    \item Analyze the observed throughput–latency–cost trade-offs.
-    \item Provide reproducible documentation and appendices.
+    \item \textbf{Develop a Modular Prototype}: Design and implement a modular ZK-Rollup prototype framework deployable on a local Ethereum testnet, featuring distinct Sequencer, Executor, Submitter, and Smart Contract components.
+    \item \textbf{Establish Benchmarking Infrastructure}: Create a synthetic Poisson workload generator and an automated orchestration pipeline to execute reproducible configuration sweeps.
+    \item \textbf{Investigate Batching Dynamics}: Execute experiments to benchmark baseline performance metrics and measure the impact of varying batch sizes on latency and L1 gas costs.
+    \item \textbf{Evaluate Sequencer Policies}: Implement and compare scheduling algorithms to analyze their impact on fairness and throughput.
+    \item \textbf{Analyze Data Availability}: Support DA mode comparison by actively toggling between \texttt{calldata} and EIP-4844 blobs to measure L1 footprint differences.
+    \item \textbf{Isolate Prover Overhead}: Utilize benchmark-mode proof-delay mock provers and basic \texttt{risc0} proof integration to isolate prover-stage effects from L1 submission overhead.
+    \item \textbf{Analyze Trade-offs}: Synthesize the collected metrics (throughput, latency, cost, DA) into quantitative trade-off analyses (e.g., latency vs cost).
 \end{itemize}
