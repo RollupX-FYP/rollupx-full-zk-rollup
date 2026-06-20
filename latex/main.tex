@@ -1,2 +1,50 @@
-\input{paper/paper_main}
-% \input{poster/poster_main.tex}
+% =========================================================
+% Main Entry Point for Project Documentation
+% =========================================================
+% Uncomment EXACTLY ONE of the \def\documenttype lines below
+% to choose which document to compile.
+
+% \def\documenttype{paper}
+% \def\documenttype{poster}
+% \def\documenttype{proposalone}
+% \def\documenttype{proposaltwo}
+% \def\documenttype{progressreport}
+\def\documenttype{finalreport}
+
+% ==================================================
+% FINAL REPORT MODE
+% Keep this before the shared documentclass/preamble.
+% The final report has its own full preamble and
+% document structure, so we delegate to its own main.
+% ==================================================
+\def\finalreporttype{finalreport}
+
+\ifx\documenttype\finalreporttype
+  \input{final_report/final_report_main.tex}
+  \endinput
+\fi
+
+% --- Conditional Logic ---
+\ifx\documenttype\undefined
+  \PackageError{main}{No documenttype defined. Please uncomment one documenttype option at the top.}{Uncomment exactly one \def\documenttype line.}
+\fi
+
+\def\doctestpaper{paper}
+\def\doctestposter{poster}
+\def\doctestproposalone{proposalone}
+\def\doctestproposaltwo{proposaltwo}
+\def\doctestprogressreport{progressreport}
+
+\ifx\documenttype\doctestpaper
+  \input{paper/paper_main}
+\else\ifx\documenttype\doctestposter
+  \input{poster/poster_main}
+\else\ifx\documenttype\doctestproposalone
+  \input{proposal1/main}
+\else\ifx\documenttype\doctestproposaltwo
+  \input{proposal2/main}
+\else\ifx\documenttype\doctestprogressreport
+  \input{chapters/progress_report_main}
+\else
+  \PackageError{main}{Invalid documenttype}{Please select a valid documenttype}
+\fi\fi\fi\fi\fi
