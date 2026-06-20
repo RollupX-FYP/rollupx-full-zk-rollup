@@ -1,14 +1,21 @@
 This chapter presents the findings from the automated benchmark runs (Stage 1 through Stage 5). It is important to emphasize that these results are derived from a \textit{controlled benchmarking prototype} using synthetic workloads and parameterized delays. Therefore, the absolute numbers represent a configuration-level, relative comparison of trade-offs rather than a claim of production mainnet performance.
 
-\begin{table}[H]
-\centering
-\caption{Results Availability Summary}
-\begin{tabular}{|l|l|l|}
-\hline
-\textbf{Metric} & \textbf{Supported by framework?} & \textbf{Completed output found?} \\ \hline
-Throughput (TPS) & Yes & Yes (Stage 1) \\ \hline
-Latency & Yes & Yes (Stage 1, 4) \\ \hline
-Cost per transaction & Yes & Yes (Stage 1, 5) \\ \hline
-Prover Metrics & Yes & Yes (Stage 5) \\ \hline
-\end{tabular}
-\end{table}
+\subsection{Overview of Evaluation Stages}
+The empirical results are structured across five distinct stages:
+\begin{itemize}
+    \item \textbf{Stage 1: Batch Size, Cost, and Latency.} Evaluates the fundamental latency-cost trade-off using fixed batch sizes.
+    \item \textbf{Stage 2: Adaptive Batching.} Attempts to evaluate dynamic batch scaling based on mempool load.
+    \item \textbf{Stage 3: Sequencer Scheduling Policies.} Evaluates the effect of transaction ordering policies (like TimeBoost and FeePriority) on fairness and throughput.
+    \item \textbf{Stage 4: Data Availability.} Analyzes the cost savings of Calldata, Blob, and Offchain DA modes.
+    \item \textbf{Stage 5: RISC0 Proving.} Profiles the cycle behavior, step-functions, and fixed overheads of real cryptographic proof generation.
+\end{itemize}
+
+\subsection{Unsupported and Inconclusive Findings}
+To maintain rigorous academic integrity, it is crucial to explicitly state which configurations or claims were \textit{not} validated by the experimental results:
+\begin{itemize}
+    \item \textbf{Adaptive Batching Not Validated:} As detailed in Section \ref{sec:throughput_results}, adaptive batching was not proven effective due to a hysteresis threshold trap.
+    \item \textbf{Blob Fill Target Inactive:} Code audits confirmed that the \texttt{blob\_fill\_target} configuration parameter is inactive and unused by the sequencer's sealing logic.
+    \item \textbf{BlobPacking Not Validated:} The BlobPacking heuristic triggered the same global nonce-reordering failures observed in other priority policies, resulting in failed execution.
+    \item \textbf{Priority Scheduling Requires Redesign:} True priority scheduling cannot be effectively used without a nonce-aware grouping redesign.
+    \item \textbf{Mock Metrics Are Not Production Metrics:} Mock prover and mock verifier results ($\sim$1,000 gas L1 cost) isolate queueing dynamics but do not reflect the computational bottlenecks or real gas costs ($\sim$250,000 gas) of a production zkEVM.
+\end{itemize}

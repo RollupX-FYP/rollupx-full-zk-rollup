@@ -1,7 +1,16 @@
 \section{Workload Model}
 \label{sec:workload_model}
-To isolate the effects of system configurations (such as batch size or sequencer timeouts) from external noise, the benchmarking methodology relies entirely on controlled, synthetic workloads. It explicitly does not use trace-driven replays of mainnet traffic.
+To isolate the effects of system configurations (such as batch size or sequencer timeouts) from external noise, the benchmarking methodology relies entirely on controlled, synthetic workloads. It explicitly does not use trace-driven replays of mainnet traffic. This approach minimizes external confounders, enabling clear attribution of performance changes to specific configuration adjustments.
 
-A Python-based \texttt{poisson\_generator.py} script synthesizes transaction requests using a seeded Poisson arrival process to simulate realistic, steady-state user traffic. The generator allows parameterized control over the offered input rate (TPS) and transaction mixes (e.g., Light, Medium, Heavy state impact), but lacks implementation for bursty, volatile transfer patterns typical of extreme DeFi events. 
+A Python-based \texttt{poisson\_generator.py} script synthesizes transaction requests using a seeded Poisson arrival process to simulate realistic, steady-state user traffic. The generator allows parameterized control over the offered input rate (TPS) and transaction mixes. However, it lacks implementation for highly bursty, volatile transfer patterns typical of extreme DeFi events. Instead, burst tests are simulated using programmatic rate stepping (e.g., maintaining an 8 TPS base rate before injecting an 80 TPS burst).
+
+\subsection{Why a Local Hardhat Node and Mock Prover Are Used}
+
+A fundamental methodological choice was utilizing a local Hardhat node combined with a Mock Prover for the majority of the benchmarking sweeps (Stages 1 through 4), rather than executing on public testnets with real hardware-intensive provers. 
+
+\begin{itemize}
+    \item \textbf{Local Hardhat Node:} Running the L1 settlement layer on a local Hardhat node (configured for automatic or ultra-fast mining, e.g., 12 seconds per block) eliminates network congestion, fluctuating base fees, and unpredictable L1 finality variance. This ensures that the L1 submission phase behaves deterministically, allowing the metrics collection to focus exclusively on L2 sequencing and batching dynamics.
+    \item \textbf{Mock Prover:} True cryptographic proof generation (e.g., using RISC Zero) is an extremely compute-bound process that acts as a massive bottleneck, often masking subtle scheduling and queueing dynamics. By using a Mock Prover with a parameterized delay, the framework simulates proof generation overhead without requiring a specialized GPU cluster. Real RISC Zero proving is deliberately separated into isolated Stage 5 experiments to profile cycle behavior and step-function limits independently.
+\end{itemize}
 
 To ensure the load generator can saturate the sequencer without becoming a bottleneck itself, it relies on unsigned or pre-signed user transactions when \texttt{ALLOW\_UNSIGNED\_USER\_TXS} is enabled in the benchmarking stack.

@@ -1,5 +1,14 @@
-\section{Summary of Findings}
+\section{Summary of Validated Findings}
 \label{sec:summary_of_findings}
-The observations clearly define the fundamental throughput--latency--cost trade-off inherent in rollup batching policies. Furthermore, the DA footprint remains the most significant L1 cost factor, and proof generation delay represents the primary bottleneck to hard finality.
+The observations clearly define the fundamental throughput--latency--cost trade-off inherent in rollup batching policies. 
+
+In summary, the empirical results robustly support the following conclusions:
+\begin{itemize}
+    \item Larger batches significantly reduce L1 gas/tx but exponentially increase queue latency (Stage 1).
+    \item Blob DA provides an approximate 70\% cost reduction over standard Calldata, while Offchain DA provides an 82.5\% reduction but alters trust assumptions (Stage 4).
+    \item Real RISC0 proof generation exhibits a massive 70-80 second fixed compilation overhead, highlighting the necessity of large batch amortization (Stage 5).
+    \item RISC0 execution time scales in a step-function based on segment boundaries (Stage 5).
+    \item The final compressed Groth16 proof size remains constant at exactly 256 bytes, ensuring O(1) L1 verification costs regardless of batch size (Stage 5).
+\end{itemize}
 
 \textit{Note: The dynamic batching cost model referenced in early literature is analytical and not implemented in the current runtime codebase. The results presented here reflect the empirical behavior of the implemented microservice stack.}

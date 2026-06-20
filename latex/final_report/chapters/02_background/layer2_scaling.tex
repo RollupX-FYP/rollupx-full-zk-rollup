@@ -5,5 +5,13 @@ To address these limitations, scaling solutions are generally categorized into t
 
 \textbf{Layer-1 (On-Chain) Scaling} involves modifying the base blockchain protocol itself. Approaches include increasing block sizes, reducing block times, or implementing sharding (partitioning the database into smaller, faster parallel chains). However, these modifications risk compromising decentralization or security.
 
-\textbf{Layer-2 (Off-Chain) Scaling} involves moving computation and state storage off the main chain while relying on the L1 for security and dispute resolution. Prominent L2 approaches include state channels, sidechains, plasma, optimistic rollups, and ZK-rollups. The Ethereum community has largely adopted a "rollup-centric" scaling roadmap.
-Layer 2 (L2) systems extend Ethereum while relying on it for security \cite{ethdocs_layer2}. According to Ethereum scaling documentation, L2 rollups have become the primary scaling technique \cite{ethdocs_scaling}. Rollups execute off-chain and post data/state back to L1, retaining data on-chain while offloading computation \cite{chaliasos2024analyzing}.
+\textbf{Layer-2 (Off-Chain) Scaling} involves moving computation and state storage off the main chain while relying on the L1 for security and dispute resolution. The Ethereum community has largely adopted a "rollup-centric" scaling roadmap. Layer 2 (L2) systems extend Ethereum while relying on it for security \cite{ethdocs_layer2}. According to Ethereum scaling documentation, L2 rollups have become the primary scaling technique \cite{ethdocs_scaling}. Rollups execute off-chain and post data/state back to L1, retaining data on-chain while offloading computation \cite{chaliasos2024analyzing}.
+
+Prominent L2 approaches include:
+\begin{itemize}
+    \item \textbf{State Channels:} Allow users to transact off-chain multiple times and only submit the final state to the blockchain. They are fast but require participants to be online and are typically limited to specific applications.
+    \item \textbf{Sidechains:} Independent blockchains that run parallel to the main chain, often with their own consensus mechanism. They are highly scalable but do not inherit the security of the main chain.
+    \item \textbf{Plasma:} A framework that creates hierarchical tree structures of sidechains. While it inherits some security from L1 via fraud proofs, users must actively monitor the network, and data availability issues complicate mass withdrawals.
+    \item \textbf{Optimistic Rollups:} Execute transactions off-chain and assume they are valid by default. They rely on "fraud proofs" where anyone can challenge an invalid transaction during a specific dispute window (typically 7 days). This leads to delayed finality for withdrawals.
+    \item \textbf{ZK-Rollups:} Execute transactions off-chain and generate a cryptographic proof of validity. This proof is instantly verified by a smart contract on L1, ensuring deterministic finality without the need for a dispute window.
+\end{itemize}

@@ -3,8 +3,9 @@
 To guide this investigation, the project will answer the following research questions:
 
 \begin{enumerate}
-    \item \textbf{RQ1:} What is the quantitative impact of batch size on the throughput (TPS), proof generation latency, and per-transaction cost of a ZK-Rollup?
-    \item \textbf{RQ2:} How do different sequencer scheduling policies (e.g., FIFO vs. priority fee) affect transaction confirmation times, particularly for high-value transactions under network congestion?
-    \item \textbf{RQ3:} What are the cost and throughput implications of using different data availability mechanisms, specifically comparing on-chain calldata with EIP-4844 blobs?
+    \item \textbf{RQ1:} What is the quantitative impact of batch size on throughput, latency, proof-generation overhead, and per-transaction cost?
+    \item \textbf{RQ2:} How do sequencer scheduling policies affect transaction ordering, fairness, latency, and execution correctness?
+    \item \textbf{RQ3:} What are the cost implications of calldata, EIP-4844 blob DA, and offchain DA modes?
+    \item \textbf{RQ4:} What practical bottlenecks emerge when implementing a modular research ZK-rollup prototype?
 \end{enumerate}
 These questions are designed to yield empirical, reproducible evidence to guide the design and optimization of ZK-Rollup systems.

@@ -5,8 +5,15 @@ The Sequencer is the entry point for L2 transactions. It is responsible for inge
 \begin{itemize}
     \item \textbf{Language:} Rust.
     \item \textbf{API Interface:} Exposes a JSON-RPC Server to receive transactions from users and the Python Workload Generator.
-    \item \textbf{Transaction Flow:} Incoming transactions pass through a Validity Checker that interfaces with a pessimistic state cache (verifying nonces and balances). Valid transactions are pushed to a Normal Tx Pool. 
-    \item \textbf{Batch Formation:} A background Batch Orchestrator pulls from these pools to form batches based on configured triggers. The primary triggers are reaching a maximum batch size (\texttt{max\_batch\_size}) or exceeding a defined time interval (\texttt{timeout\_interval\_ms}).
-    \item \textbf{Scheduling Policies:} The sequencer uses the Strategy pattern to support different ordering policies, specifically First-Come-First-Served (FCFS), Fee-Priority, Time-Boost, Fair BFT, and BlobPacking.
+    \item \textbf{Transaction Flow (Validity Checker \& Transaction Pool):} Incoming transactions pass through a Validity Checker that interfaces with a pessimistic state cache (verifying nonces and balances locally). Valid transactions are then pushed to the Transaction Pool, an in-memory queue awaiting selection. 
+    \item \textbf{Batch Formation (Batching Engine):} A background Batching Engine continuously polls the transaction pool to form batches based on explicitly configured triggers. The primary sealing triggers are reaching a size threshold (\texttt{max\_batch\_size}) or a timeout threshold (\texttt{timeout\_interval\_ms}). Adaptive batching logic was also implemented but identified as fundamentally flawed during testing due to hysteresis threshold traps (as discussed in the Results chapter).
+    \item \textbf{Scheduling Policies:} The sequencer uses the Strategy pattern to support different transaction ordering heuristics:
+    \begin{itemize}
+        \item \textit{FCFS:} Strict temporal arrival order.
+        \item \textit{FeePriority:} Sorted by gas price to maximize sequencer revenue.
+        \item \textit{TimeBoost:} Time-windowed grouping to balance fee revenue and latency fairness.
+        \item \textit{FairBFT:} Timestamp-ordered execution.
+        \item \textit{BlobPacking:} Specifically optimizes for EIP-4844 by calculating a multi-dimensional score (\texttt{feeScore}, \texttt{fitScore}, \texttt{waitScore}) to maximize blob utilization.
+    \end{itemize}
     \item \textbf{Output:} Completed batches are dispatched to the Executor via a gRPC stream. Configuration is managed via TOML files (e.g., \texttt{sequencer.template.toml}), which are processed via \texttt{envsubst} during container startup (notably requiring explicit bash environment variables since default fallbacks are unsupported).
 \end{itemize}

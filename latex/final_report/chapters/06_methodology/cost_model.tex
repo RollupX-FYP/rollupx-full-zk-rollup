@@ -19,4 +19,6 @@ Proving Time & witness + proof generation & Marginal / cycles & Chaliasos \cite{
 
 The fundamental equation governing Layer-1 gas cost per transaction is:
 $$ \text{Cost per tx} = \left(\frac{\text{fixed batch settlement \& proof cost}}{\text{batch size}}\right) + \text{marginal DA cost per tx} $$
-Larger batches reduce the amortized fixed cost per transaction but inherently increase queueing latency.
+Larger batches reduce the amortized fixed cost per transaction but inherently increase queueing latency. 
+
+It is important to note that the USD cost metrics reported in this document are derived from this gas model combined with assumed static environment parameters (e.g., \texttt{ETH\_PRICE\_USD} = \$2500, \texttt{REGULAR\_GAS\_PRICE\_GWEI} = 2.0). However, due to L1 base fee fluctuations, gas units (e.g., L1 Gas Used per batch) remain the only stable, comparable metric for cross-configuration efficiency evaluations.

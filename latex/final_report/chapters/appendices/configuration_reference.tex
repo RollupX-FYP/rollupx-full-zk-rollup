@@ -1,11 +1,28 @@
 \chapter{Configuration Reference}
 \label{app:config_reference}
-The system behavior is largely controlled by TOML and YAML files. Table \ref{tab:config_reference} highlights key parameters.
+The system behavior is largely controlled by TOML and YAML files. Table \ref{tab:config_reference_app} highlights key parameters.
+
+\begin{figure}[H]
+    \centering
+\begin{lstlisting}[style=yamlStyle]
+# Example sequencer.yaml configuration
+server:
+  host: "0.0.0.0"
+  port: 3000
+batching:
+  max_batch_size: 100
+  timeout_interval_ms: 2000
+scheduling:
+  policy_type: "FCFS"
+  timeboost_window_ms: 5000
+\end{lstlisting}
+    \caption{Example Configuration Dump for Sequencer}
+\end{figure}
 
 \begin{table}[H]
 \centering
 \caption{Key Configuration Parameters}
-\label{tab:config_reference}
+\label{tab:config_reference_app}
 \small
 \begin{tabularx}{\textwidth}{>{\hsize=1.0\hsize}X >{\hsize=1.0\hsize}X >{\hsize=0.5\hsize}X >{\hsize=1.5\hsize}X}
 \toprule

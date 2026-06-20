@@ -1,0 +1,10 @@
+\section{State Synchronization and Nonce Handling}
+\label{sec:state_synchronization}
+
+A critical implementation detail of the modular architecture is how state is synchronized across the decoupled components, particularly concerning account nonces.
+
+The Sequencer performs local, pessimistic validation of incoming transactions against a cached state. It ensures that the transaction's nonce matches the account's current nonce in the pool. If a transaction is valid, it is accepted and queued.
+
+However, the Executor acts as the single source of truth for the canonical state-transition logic. When the Executor receives a batch of transactions, its State Transition Function (STF) evaluates them strictly. If a transaction's nonce does not perfectly match the expected canonical state (e.g., due to a skipped nonce), the Executor immediately rejects the transaction. 
+
+This strict separation of concerns highlights a systemic vulnerability when global priority sorting policies (such as FeePriority or TimeBoost) are applied. If the Sequencer's scheduling policy reorders transactions purely based on gas price or multi-dimensional scoring without respecting the sender's nonce sequence, it introduces nonce gaps. Consequently, the Executor will reject the out-of-order transactions, resulting in execution failures and empty batches. This architectural disconnect between naive global priority sorting in the Sequencer and strict canonical execution in the Executor explains the scheduler failures observed in the Stage 3 experiments.

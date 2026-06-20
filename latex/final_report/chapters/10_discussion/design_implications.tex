@@ -1,2 +1,12 @@
-\subsection{RQ2: Impact of Sequencer Scheduling Policies}
-Implementing the prototype revealed several practical engineering challenges regarding transaction queueing. Relying on the local Hardhat RPC for rapid, automated submissions highlighted the volatility of L1 gas estimation and the necessity of robust retry mechanisms (implemented via the Submitter's Saga pattern). Furthermore, ensuring state consistency between the Sequencer's pessimistic cache and the Executor's canonical state root required strict message ordering via gRPC. Different sequencer scheduling policies (such as strict FCFS versus size-based limits) directly govern this queueing behavior and determine how fairly and quickly user transactions achieve soft finality under network congestion.
+\section{Design Implications and Trade-offs}
+\label{sec:design_implications}
+The findings from this research carry several critical implications for the design of future ZK-rollup architectures.
+
+\begin{itemize}
+    \item \textbf{Use Blob DA when Cost Matters:} The empirical data overwhelmingly supports the adoption of EIP-4844 blobs over calldata to achieve drastic cost reductions. Rollups prioritizing low fees should default to Blob DA.
+    \item \textbf{Avoid Small Proving Batches:} Given the massive 70-80s fixed overhead of RISC0 proving, submitting small batches is highly inefficient. Proving should be delayed until a sufficient number of transactions accumulate to amortize this fixed cost.
+    \item \textbf{Use Segment-Aware Batching for RISC0:} Because proving latency scales in a step-function based on segment boundaries, sequencers should ideally be "cycle-aware." Sealing a batch just before it crosses a segment boundary optimizes proving time.
+    \item \textbf{Preserve Nonce Ordering Before Applying Priority:} The most critical failure observed was the global reordering of transactions. Sequencers must group transactions by sender account and preserve their intra-account nonce order \textit{before} applying inter-account priority sorting (like FeePriority or TimeBoost).
+    \item \textbf{Separate Soft Finality from Hard Finality:} Users care about latency, but the system cares about L1 security. Decoupling the Sequencer's soft finality (which can be instantaneous) from the Submitter's hard finality (which must wait for L1 block times and prover overhead) is essential for a responsive user experience.
+    \item \textbf{Do Not Use TPS Alone as the Main Metric:} Throughput (TPS) is easily manipulated by submitting empty or artificially small batches. A holistic evaluation must report TPS alongside latency, L1 gas cost, proof generation time, DA bytes, and execution success rate to provide a true picture of system efficiency.
+\end{itemize}

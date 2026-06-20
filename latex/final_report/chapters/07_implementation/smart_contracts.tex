@@ -5,6 +5,6 @@ The L1 verification tier is composed of Solidity smart contracts running on a lo
 \begin{itemize}
     \item \textbf{Language:} Solidity.
     \item \textbf{Contract Role:} The \texttt{ZKRollupBridge.sol} contract acts as the aggregate root for Layer-1. It delegates DA validation to specific providers (\texttt{CalldataDA}, \texttt{BlobDA}) and proof verification to a registry of verifiers. It maintains state root commitments and orchestrates deposit and withdrawal flows.
-    \item \textbf{Mock Verification:} During benchmarking, local L1 interactions bypass cryptographic verification using \texttt{MockVerifier.sol} instead of a real verifier, ensuring L1 execution time does not artificially bottleneck the L2 throughput metrics.
+    \item \textbf{Mock Verifier and Real Verifier Scope:} During standard benchmarking sweeps, local L1 interactions bypass cryptographic verification using \texttt{MockVerifier.sol} instead of a real verifier, ensuring L1 execution time does not artificially bottleneck the L2 throughput metrics. However, for real proof integration (Stage 5), a real Groth16 Verifier is used. It is critical to note that the mock verifier consumes significantly less gas ($\sim$1,000 gas) compared to a real Groth16 verifier ($\sim$250,000 gas), which must be accounted for in the cost models.
     \item \textbf{Testing:} Contracts are strictly required to maintain 100\% branch and line coverage via \texttt{npx hardhat test}.
 \end{itemize}

@@ -1,14 +1,17 @@
 \section{Reproducibility Setup}
 \label{sec:reproducibility_setup}
 The entire benchmark matrix can be executed consistently using the \texttt{run\_matrix.sh} wrapper. This script automatically tears down the stack between runs, drops the internal SQLite databases to prevent state conflicts, and sequentially steps through the variables defined in \texttt{experiments.toml}.
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \caption{Reproducibility Commands Table}
 \begin{tabular}{|l|l|}
 \hline
 \textbf{Command/Script} & \textbf{Purpose} \\ \hline
-\texttt{run\_matrix.sh} & Execute benchmarks \\ \hline
-\texttt{--profile core} & Start core stack \\ \hline
-\texttt{--profile bench} & Start benchmark stack \\ \hline
+\texttt{docker compose --profile core up -d} & Start the foundational L1 and L2 stack \\ \hline
+\texttt{npx hardhat run scripts/deploy-local.ts --network localhost} & Deploy L1 contracts (if not using docker automation) \\ \hline
+\texttt{benchmark-suite/scripts/run\_experiment.sh} & Execute a specific benchmark sweep \\ \hline
+\texttt{bash run\_pipeline.sh} (from repo root) & Run the Python Data Tools pipeline \\ \hline
 \end{tabular}
 \end{table}
+
+It is important to note that when running the data analytics pipeline, \texttt{run\_pipeline.sh} must be executed from the repository root directory rather than from inside \texttt{benchmark-suite/}, to ensure that relative paths to the \texttt{data-tools/} directory resolve correctly.

@@ -1,9 +1,15 @@
-\section{Impact of Proof Delay on Finalization}
+\section{Prover Backend and Real Proof Behavior (Stage 5)}
 \label{sec:proof_delay_impact}
 
-To evaluate the proving stage without requiring enterprise-grade hardware accelerators, we utilized the mock prover with a parameterized delay (0s, 5s, 15s, 30s).
+Stage 5 benchmarks replaced the Mock Prover with the real RISC0 Prover Backend (using Groth16 proof compression) to profile cycle behavior and step-function limits independently.
+
+A key discovery is the massive fixed overhead of real proof generation. The compilation and SNARK-wrapping overhead takes approximately \textbf{70 to 80 seconds} of wall-clock time, with a marginal proving cost of roughly \textbf{5.7 seconds per transaction}. Therefore, the general proving time model can be approximated as $T(N) = 75 + 5.7N$ seconds.
+
+Because of this high fixed cost, larger batches amortize the overhead more effectively. Proving time improved from roughly 7.5 seconds/tx at batch size 50 down to 6.0 seconds/tx as batch sizes grew to 500.
+
+Furthermore, RISC0 prover execution time does not scale linearly but rather in a step-function governed by segment boundaries (each segment representing $1,048,576$ cycles). For example, Batch 49 completed in approximately 333.4 seconds, while crossing a segment boundary caused Batch 50 to spike to 362.3 seconds. 
+
+Regardless of the batch size (swept from 3 to 246 executed transactions), the final compressed Groth16 proof size remained perfectly constant at exactly \textbf{256 bytes}.
 
 \input{chapters/09_results/finalization_results}
 \input{chapters/09_results/bottleneck_analysis}
-\vspace{1em}
-\noindent \textbf{Note:} The framework supports this metric, but the inspected repository snapshot does not include a completed run for this configuration.

@@ -1,0 +1,28 @@
+\chapter{Lessons Learned and Design Recommendations}
+\label{ch:lessons_learned}
+
+Developing and benchmarking the modular ZK-rollup prototype yielded critical insights into Layer-2 systems engineering. This chapter distills these findings into actionable design recommendations for future rollup architectures.
+
+\section{Data Availability Optimization}
+\textbf{Lesson:} Data availability (DA) remains the dominant cost factor for rollups. \\
+\textbf{Recommendation:} Use Blob DA (EIP-4844) when cost efficiency is paramount. The empirical results demonstrated a $\sim$70\% cost reduction over standard calldata. Off-chain DA should only be considered when the system can tolerate the shifted trust assumptions inherent in a Validium model.
+
+\section{Nonce-Aware Sequencing}
+\textbf{Lesson:} Global sorting policies fundamentally conflict with account-based state machines. \\
+\textbf{Recommendation:} Sequencers must be explicitly designed to be nonce-aware. Any priority heuristic (such as FeePriority or TimeBoost) must be applied as a secondary sorting step \textit{after} transactions have been grouped and ordered sequentially by sender account nonce. Failing to preserve nonce ordering results in canonical execution failures and costly empty-batch submissions.
+
+\section{Proving Economics and Batching}
+\textbf{Lesson:} Real cryptographic proving (e.g., using the RISC0 zkVM) introduces massive fixed computational overhead per batch (70-80 seconds). \\
+\textbf{Recommendation:} Avoid small proving batches. Rollups must accumulate a sufficient volume of transactions per batch to effectively amortize this fixed compilation and wrapping overhead. Furthermore, sequencers should employ \textit{segment-aware batching}. Because proving latency scales in a step-function based on instruction segments ($2^{20}$ cycles in RISC0), sealing a batch immediately before crossing a segment boundary maximizes computational efficiency.
+
+\section{Adaptive Batching Implementation}
+\textbf{Lesson:} Dynamic parameter adjustments are highly susceptible to feedback loops and hysteresis. \\
+\textbf{Recommendation:} Adaptive batching logic must be rigorously tested under steady-state conditions to avoid threshold traps. The system must ensure that intermediate threshold triggers are attainable and do not instantly vault to maximum limits under minor load fluctuations.
+
+\section{Separation of Finality}
+\textbf{Lesson:} There is an inherent tension between user experience (latency) and cryptographic security (finality). \\
+\textbf{Recommendation:} Rollup architectures must clearly separate \textit{soft finality} (provided instantaneously by the Sequencer upon batch inclusion) from \textit{hard finality} (provided by the L1 contract upon proof verification). L1 finality latency strictly dominates hard finality; therefore, UX should rely on decentralized, secure sequencing for immediate confirmation.
+
+\section{Holistic Evaluation Metrics}
+\textbf{Lesson:} Throughput (TPS) alone is a deceptive metric that can be artificially inflated by submitting empty or minimal batches. \\
+\textbf{Recommendation:} System evaluation must avoid TPS-only reporting. A transparent assessment of a ZK-rollup must present a multi-dimensional analysis including TPS, average queue latency, amortized L1 gas cost, proof generation time, DA footprint, and execution success rate.

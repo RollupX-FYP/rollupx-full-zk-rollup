@@ -6,3 +6,8 @@ The experimental environment is strictly local and fully containerized, orchestr
     \item \texttt{--profile bench}: Triggers the Workload Generator and benchmark harness (\texttt{run\_experiment.sh}).
     \item \texttt{--profile report}: Triggers the Data Tools analytics pipeline to process raw telemetry into aggregated reports.
 \end{itemize}
+
+\subsection{Local L1 Configuration}
+The local L1 network is provided by a custom Docker image (\texttt{contracts/Dockerfile.node}) running \texttt{npx hardhat node -{}-hostname 0.0.0.0 -{}-port 8545}. This setup is crucial because it provides deterministic, ultra-fast block mining (12-second intervals by default) and pre-funded accounts, allowing the benchmark to saturate the sequencer without being constrained by public testnet block times or faucet limits. Contract deployment is automated via a deployment script (\texttt{npx hardhat run scripts/deploy-local.ts}) executed immediately after the node initializes.
+
+When running the local sequencer against a fresh local Hardhat node, the \texttt{start\_block} in \texttt{sequencer.yaml} (or \texttt{sequencer.docker.yaml}) must be strictly set to \texttt{0} to prevent the sequencer from attempting to sync historical blocks that do not exist, which would otherwise cause initialization failures.

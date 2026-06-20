@@ -1,3 +1,15 @@
 \section{Answering the Research Questions}
 \label{sec:rq_answers}
-The following sections address each research question posed at the beginning of the study, mapping the empirical results to the original inquiries regarding batch size, sequencing policies, and data availability.
+The following sections address each research question posed at the beginning of the study, mapping the empirical results to the original inquiries regarding batch size, sequencing policies, data availability, and implementation bottlenecks.
+
+\subsection{RQ1: Impact of Batch Size on Performance and Cost}
+Batch size fundamentally dictates the throughput–latency–cost trade-off. Larger batches significantly reduce the per-transaction L1 gas cost by amortizing the fixed batch settlement and proof verification overheads over a greater number of transactions. However, this economic efficiency comes at the direct expense of latency, as transactions must wait longer in the sequencer queue before the batch is sealed. Furthermore, when using a real RISC0 prover, larger batches also reduce the amortized proof generation overhead per transaction, mitigating the massive 70-80s fixed compilation delay.
+
+\subsection{RQ2: Impact of Sequencer Scheduling Policies}
+The experiments demonstrated that sequencer scheduling policies must be meticulously designed to maintain execution correctness. Naive global sorting policies (like FeePriority or BlobPacking) completely broke single-account nonce ordering, causing the Executor to reject transactions and producing empty batches. While time-windowed policies like TimeBoost suggest improvements in fairness under burst scenarios, true priority scheduling cannot be implemented without a nonce-aware redesign that groups transactions by account before applying priority heuristics.
+
+\subsection{RQ3: Cost Implications of Data Availability Mechanisms}
+Data Availability mode selection is the most significant lever for reducing L1 operational costs. Using EIP-4844 blobs instead of standard calldata resulted in an approximately 70\% reduction in per-transaction costs. Transitioning to off-chain DA further reduced costs by approximately 82.5\% compared to calldata. However, off-chain DA shifts the security assumptions, meaning cost savings must be weighed against the loss of Ethereum's native cryptographic data guarantees.
+
+\subsection{RQ4: Practical Bottlenecks in Implementation}
+Implementing the modular prototype revealed several practical engineering bottlenecks. The most prominent bottleneck is cryptographic proof generation; real proving introduces massive fixed overhead and step-function cycle limits that are difficult to predict without explicit cycle counting. Furthermore, relying on the local Hardhat RPC for rapid, automated submissions highlighted the volatility of L1 finality and the necessity of robust retry mechanisms (implemented via the Submitter's Saga pattern). Finally, the disconnect between the Sequencer's pessimistic cache and the Executor's strict canonical state highlighted the difficulty of maintaining state synchronization across decoupled microservices.

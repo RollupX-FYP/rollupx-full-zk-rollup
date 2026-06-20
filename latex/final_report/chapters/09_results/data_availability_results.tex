@@ -1,6 +1,11 @@
-\section{Calldata vs Blob Efficiency}
+\section{Data Availability Mode Efficiency (Stage 4)}
 \label{sec:data_availability_results}
+Stage 4 benchmarks evaluated the performance, L1 gas efficiency, and storage utilization under different Data Availability (DA) Modes: Calldata, Blob (EIP-4844), and Offchain DA. 
+
 \begin{itemize}
-    \item \textbf{Calldata Footprint:} When using calldata, the Submitter passes the transaction payload directly in the L1 transaction. The marginal L1 cost per transaction observed in Stage 5 was approximately 19,300 gas per transaction, driven by the cost of copying transaction bytes as calldata (16 gas per byte).
-    \item \textbf{Blob Efficiency:} Switching the DA mode to EIP-4844 blobs (as designed in the Submitter architecture) minimizes the L1 execution footprint. Because the EVM only verifies a cryptographic commitment to the blob (rather than storing the data permanently), the on-chain footprint is reduced to the fixed submission cost plus the separate, cheaper "blob gas" fee.
+    \item \textbf{Calldata Footprint:} When using calldata, the Submitter passes the transaction payload directly in the L1 transaction. The cost observed during steady-state traffic was approximately \$0.188 to \$0.194 per transaction, driven by the high cost of storing bytes permanently on Ethereum (16 gas per non-zero byte).
+    \item \textbf{Blob DA Efficiency:} Transitioning the DA mode to EIP-4844 blobs significantly minimizes the L1 execution footprint. Because the EVM only verifies a cryptographic commitment to the blob, the L1 footprint is reduced. The cost dropped to approximately \$0.057 per transaction, achieving a massive \textbf{$\sim$70\% cost reduction} compared to Calldata. 
+    \item \textbf{Offchain DA Efficiency:} Moving to Offchain DA further reduced costs to approximately \$0.033 per transaction, yielding an \textbf{$\sim$82.5\% cost reduction} over Calldata. In this mode, L1 only processes the fixed zk-proof verification and state root update overhead ($\sim$115,732 gas per batch). However, Offchain DA requires significantly different trust assumptions, leaning towards a Validium model rather than a pure Rollup.
 \end{itemize}
+
+During these sweeps, testing the \texttt{BLOB\_TARGET\_BYTES} parameter revealed that under FCFS, batch sealing was driven entirely by timeouts, causing larger byte targets to merely dilute the blob utilization ratio. Furthermore, code audits confirmed that the \texttt{blob\_fill\_target} parameter was completely inactive in the sequencer's sealing logic, highlighting a limitation in the prototype's implementation.

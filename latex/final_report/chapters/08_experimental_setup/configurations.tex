@@ -4,20 +4,24 @@ Component configurations are managed via YAML and TOML templates (e.g., \texttt{
 
 \begin{table}[H]
 \centering
-\caption{Experimental Factors and Controlled Variables}
-\label{tab:experimental_factors}
+\caption{Experiment Matrix: Stages 1 through 5}
+\label{tab:experiment_matrix}
 \small
-\begin{tabularx}{\textwidth}{>{\hsize=0.8\hsize}X >{\hsize=1.0\hsize}X >{\hsize=1.2\hsize}X}
+\begin{tabularx}{\textwidth}{>{\hsize=0.5\hsize}X >{\hsize=1.2\hsize}X >{\hsize=1.3\hsize}X}
 \toprule
-\textbf{Factor (Independent Variable)} & \textbf{Values Tested} & \textbf{Expected Effect} \\
+\textbf{Stage} & \textbf{Focus Area} & \textbf{Key Independent Variables Swept} \\
 \midrule
-Maximum Batch Size & 10, 50, 100, 500 txs & Larger sizes reduce amortized L1 cost but increase queueing latency. \\
+Stage 1 & Fixed Batching \& Latency-Cost Trade-off & Max Batch Size (10, 25, 50, 100, 250, 500, 1000) \\
 \addlinespace
-Data Availability Mode & \texttt{Calldata}, \texttt{EIP-4844 Blob} & Blob mode should significantly reduce L1 gas costs compared to calldata. \\
+Stage 2 & Adaptive Batching Thresholds & Load Thresholds (Low, Medium, High) under varying offered TPS \\
 \addlinespace
-Proof Delay (Mock) & 0s, 5s, 15s, 30s & Higher delays simulate complex proofs, increasing finalization time and potentially causing sequencer queue backpressure. \\
+Stage 3 & Sequencer Scheduling Policies & Scheduling Algorithm (FCFS, FeePriority, TimeBoost, FairBFT, BlobPacking) \\
 \addlinespace
-Sequencing Policy & FCFS, Priority-Fee & Affects individual transaction latency based on fee bids during congestion. \\
+Stage 4 & Data Availability (DA) Modes & DA Mode (Calldata, Blob, Offchain), Blob Target Bytes \\
+\addlinespace
+Stage 5 & Prover Backend \& Cycle Analysis & Prover Mode (Mock vs RISC0), Target Batch Size (50, 100, 200, 500) \\
 \bottomrule
 \end{tabularx}
 \end{table}
+
+The metrics pipeline scripts (\texttt{data-tools/aggregate.py}) require these stages to be executed sequentially, relying on bash scripts inside \texttt{benchmark-suite/scripts/} (e.g., \texttt{run\_experiment.sh}). The pipeline joins metrics by batch ID across the \texttt{sequencer\_batch\_metrics.jsonl}, \texttt{executor\_batch\_metrics.jsonl}, and \texttt{submitter\_metrics.json} files to build a comprehensive lifecycle view of each transaction batch.

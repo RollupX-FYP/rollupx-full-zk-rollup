@@ -10,6 +10,20 @@ The Workload Generator outputs a JSON file (\texttt{workload\_<exp\_id>.json}) c
     \item \texttt{latency\_ms}: The Round-Trip Time observed by the client (approximating soft finality).
 \end{itemize}
 
+\begin{figure}[H]
+    \centering
+\begin{lstlisting}[style=yamlStyle]
+{
+  "batch_id": 1,
+  "l1_tx_hash": "0xabc...",
+  "gas_used": 115732,
+  "da_mode": "blob",
+  "total_cost_eth": 0.0001
+}
+\end{lstlisting}
+    \caption{Example JSON Dump for Submitter Metrics}
+\end{figure}
+
 The Submitter outputs \texttt{submitter\_metrics.json}, containing:
 \begin{itemize}
     \item \texttt{batch\_id}: Internal ID.

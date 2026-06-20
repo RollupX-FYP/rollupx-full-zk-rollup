@@ -1,3 +1,13 @@
-\section{Throughput Results}
+\section{Throughput Results and Configuration Anomalies}
 \label{sec:throughput_results}
 Initial measurements (Stage 1) captured the baseline throughput of the system. The synthetic Poisson generator successfully offered load to the sequencer up to 100 TPS. However, the committed throughput (measured at the L1 Contract level) was ultimately bounded by the L1 block confirmation time of the local Hardhat node (simulating a 12-second block time). Under heavy load, the sequencer correctly applied backpressure and batched transactions up to the defined \texttt{MAX\_BATCH\_SIZE} limits (e.g., 100).
+
+\subsection{Adaptive Batching Failures (Stage 2)}
+Stage 2 attempted to evaluate an Adaptive Batching policy. However, results showed that adaptive batching was not proven effective. Due to configuration issues during experimental reruns, the system behaved identically to fixed batching. Furthermore, an audit of the threshold logic revealed a "hysteresis threshold trap," where the sequencer's size-threshold trigger would never fire at smaller batch sizes under steady arrival, immediately jumping to larger sizes instead.
+
+\subsection{Sequencer Scheduling and Nonce Ordering (Stage 3)}
+Stage 3 evaluated transaction scheduling policies including FCFS, FeePriority, TimeBoost, and BlobPacking. The experiments revealed a systemic flaw: global transaction sorting policies fundamentally break single-account nonce ordering. 
+
+Because the sequencer reordered transactions based on bids or blob sizes without respecting account-level nonce constraints, the Executor (which maintains canonical state) rejected out-of-order transactions. This caused permanent nonce gaps, resulting in empty batches (0 executed transactions). 
+
+Consequently, these empty batches artificially inflated the gas cost to approximately 112k–115k gas/tx. While TimeBoost showed a higher Jain's fairness index under the tested burst scenario, this result is limited because the scheduler experiments were severely affected by these nonce-ordering failures.

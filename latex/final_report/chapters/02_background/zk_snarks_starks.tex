@@ -1,7 +1,9 @@
-\subsection{zk-SNARKs and zk-STARKs}
+\subsection{zk-SNARKs, zk-STARKs, and RISC Zero}
 \label{sec:snarks_starks}
 
 \begin{itemize}
     \item \textbf{zk-SNARKs} (Zero-Knowledge Succinct Non-Interactive Argument of Knowledge) are known for incredibly small proof sizes and fast, constant-time verification. However, they traditionally require a trusted setup phase, which introduces a potential security risk if the setup ceremony is compromised. Groth16 and PLONK are popular SNARK proving systems used in production rollups today.
     \item \textbf{zk-STARKs} (Zero-Knowledge Scalable Transparent Argument of Knowledge) require no trusted setup (relying on transparent cryptography like hash functions) and offer post-quantum security. However, they generally produce significantly larger proof sizes, which can increase the L1 gas cost required for verification \cite{ben2018stark}.
 \end{itemize}
+
+A significant advancement in practical zero-knowledge proving is the emergence of zkVMs (Zero-Knowledge Virtual Machines), such as the RISC Zero zkVM. RISC Zero executes standard RISC-V bytecode and generates a STARK proof attesting to the correct execution of the code. Because STARK proofs are large and expensive to verify on-chain, they are often wrapped and compressed into a SNARK (like Groth16) using bilinear pairings before submission to Layer 1. This hybrid approach leverages the transparent, scalable generation of STARKs while retaining the cheap, constant-size verification of SNARKs.
