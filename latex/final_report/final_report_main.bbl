@@ -1,0 +1,84 @@
+\begin{thebibliography}{10}
+
+\bibitem{nakamoto2008bitcoin}
+S.~Nakamoto, ``Bitcoin: A peer-to-peer electronic cash system.''
+  \url{https://bitcoin.org/bitcoin.pdf}, 2008.
+
+\bibitem{fu2024trilemma}
+Y.~Fu {\em et~al.}, ``The blockchain trilemma,'' 2024.
+
+\bibitem{buterin2014ethereum}
+V.~Buterin {\em et~al.}, ``A next-generation smart contract and decentralized
+  application platform,'' {\em white paper}, vol.~3, no.~37, pp.~2--1, 2014.
+
+\bibitem{etherscan_tps}
+{Etherscan}, ``Ethereum (eth) blockchain explorer.''
+  \url{https://etherscan.io/}, 2025.
+\newblock Accessed: 2026-05-10.
+
+\bibitem{chainspect_tps}
+{Chainspect}, ``Solana vs ethereum tps comparison.''
+  \url{https://chainspect.app/compare/solana-vs-ethereum}, 2025.
+\newblock Accessed: 2026-05-10.
+
+\bibitem{ethdocs_scaling}
+{Ethereum Foundation}, ``Scaling.''
+  \url{https://ethereum.org/developers/docs/scaling/}, 2025.
+\newblock Accessed: 2026-05-10.
+
+\bibitem{ethdocs_gas}
+{Ethereum Foundation}, ``Gas and fees.''
+  \url{https://ethereum.org/developers/docs/gas/}, 2025.
+\newblock Accessed: 2026-05-10.
+
+\bibitem{ethdocs_layer2}
+{Ethereum Foundation}, ``Layer 2.'' \url{https://ethereum.org/layer-2/learn/},
+  2025.
+\newblock Accessed: 2026-05-10.
+
+\bibitem{chaliasos2024analyzing}
+S.~Chaliasos, I.~Reif, A.~Torralba-Agell, J.~Ernstberger, A.~Kattis, {\em
+  et~al.}, ``Analyzing and benchmarking zk-rollups,'' in {\em 6th Conference on
+  Advances in Financial Technologies (AFT 2024)}, vol.~316 of {\em Leibniz
+  International Proceedings in Informatics (LIPIcs)}, pp.~6:1--6:23, 2024.
+
+\bibitem{ben2018stark}
+E.~Ben-Sasson {\em et~al.}, ``Scalable, transparent, and post-quantum secure
+  computational integrity,'' 2018.
+
+\bibitem{saif2024dataavailability}
+A.~Saif {\em et~al.}, ``Data availability in rollups,'' 2024.
+
+\bibitem{eip4844}
+Ethereum, ``Eip-4844: Shard blob transactions,'' 2022.
+
+\bibitem{lavaur2023modular}
+L.~Lavaur {\em et~al.}, ``Modular blockchains,'' 2023.
+
+\bibitem{sanka2021systematic}
+A.~I. Sanka and R.~C. Cheung, ``A systematic review of blockchain scalability:
+  Issues, solutions, analysis and future research,'' {\em Journal of Network
+  and Computer Applications}, vol.~195, p.~103232, 2021.
+
+\bibitem{tran2023implementation}
+A.~C. Tran, V.~V. Thanh, N.~C. Tran, and H.~T. Nguyen, ``An implementation and
+  evaluation of layer 2 for ethereum with zk-rollup,'' in {\em Lecture Notes in
+  Computer Science}, pp.~57--63, Springer, 2023.
+
+\bibitem{habib2025bottlenecks}
+A.~Habib {\em et~al.}, ``Bottlenecks in zk-rollups,'' 2025.
+
+\bibitem{zhou2020solutions}
+Q.~Zhou, H.~Huang, Z.~Zheng, and J.~Bian, ``Solutions to scalability of
+  blockchain: A survey,'' {\em IEEE Access}, vol.~8, pp.~16440--16455, 2020.
+
+\bibitem{motepalli2023sequencers}
+S.~Motepalli {\em et~al.}, ``Sequencer policies in rollups,'' 2023.
+
+\bibitem{chaliasos2024benchmarking}
+S.~Chaliasos {\em et~al.}, ``Benchmarking layer-2 systems,'' 2024.
+
+\bibitem{silva2025zksyncdataset}
+N.~Silva {\em et~al.}, ``zksync era public dataset,'' 2025.
+
+\end{thebibliography}

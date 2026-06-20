@@ -5,7 +5,6 @@
 \usepackage{caption}
 \usepackage{subcaption}
 \usepackage{booktabs}
-\usepackage{hyperref}
 \usepackage{amsmath}
 \usepackage{tabularx}
 \usepackage{float}
@@ -15,7 +14,30 @@
 \usepackage{mathptmx} % Times New Roman
 \usepackage{listings}
 \usepackage{xcolor}
+\usepackage[explicit]{titlesec}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=black,
+    urlcolor=black
+}
 \geometry{a4paper, left=40mm, bottom=40mm, top=25mm, right=25mm}
+
+\renewcommand{\bibname}{Reference List}
+
+\titleformat{\chapter}[display]
+  {\normalfont\fontsize{14}{17}\bfseries}
+  {\MakeUppercase{\chaptertitlename}\ \thechapter}{14pt}{\MakeUppercase{#1}}
+\titleformat{name=\chapter,numberless}[display]
+  {\normalfont\fontsize{14}{17}\bfseries}
+  {}{0pt}{\MakeUppercase{#1}}
+\titleformat{\section}
+  {\normalfont\fontsize{12}{15}\bfseries}
+  {\thesection}{1em}{#1}
+\titleformat{\subsection}
+  {\normalfont\fontsize{12}{15}\bfseries}
+  {\thesubsection}{1em}{#1}
 
 \lstdefinestyle{yamlStyle}{
   language=bash,
@@ -27,72 +49,186 @@
   breaklines=true
 }
 
-\title{Improving Blockchain Scalability: Throughput Enhancement in ZK-Rollups}
-\author{Final Year Research Project}
-\date{\today}
-
 \begin{document}
 
 \pagenumbering{roman}
-\maketitle
 
+% --- Cover Page ---
+\begin{titlepage}
+    \begin{center}
+        \singlespacing
+        \vspace*{2cm}
+        
+        \textbf{\fontsize{16}{24}\selectfont\MakeUppercase{Improving Blockchain Scalability: Throughput Enhancement in ZK-Rollups}}
+        
+        \vspace{3cm}
+        
+        \textbf{\fontsize{14}{21}\selectfont Fernando T.H.L. : 210167E} \\
+        \textbf{\fontsize{14}{21}\selectfont Gamage M.S. : 210176F} \\
+        \textbf{\fontsize{14}{21}\selectfont Lishan S.D. : 210339J} \\
+        \textbf{\fontsize{14}{21}\selectfont Perera M.V.D.P.D.S. : 210466U}
+        
+        \vspace{3cm}
+        
+        \textbf{\fontsize{14}{21}\selectfont Bachelor of Science Engineering Honours in Computer Science and Engineering}
+        
+        \vspace{2cm}
+        
+        \textbf{\fontsize{14}{21}\selectfont Department of Computer Science and Engineering} \\
+        \textbf{\fontsize{14}{21}\selectfont University of Moratuwa, Sri Lanka}
+        
+        \vfill
+        
+        \textbf{\fontsize{14}{21}\selectfont June 2026}
+    \end{center}
+\end{titlepage}
+
+% --- Title Page ---
+\begin{titlepage}
+    \begin{center}
+        \singlespacing
+        \vspace*{2cm}
+        
+        \textbf{\fontsize{16}{24}\selectfont\MakeUppercase{Improving Blockchain Scalability: Throughput Enhancement in ZK-Rollups}}
+        
+        \vspace{3cm}
+        
+        \textbf{\fontsize{14}{21}\selectfont Fernando T.H.L. : 210167E} \\
+        \textbf{\fontsize{14}{21}\selectfont Gamage M.S. : 210176F} \\
+        \textbf{\fontsize{14}{21}\selectfont Lishan S.D. : 210339J} \\
+        \textbf{\fontsize{14}{21}\selectfont Perera M.V.D.P.D.S. : 210466U}
+        
+        \vspace{3cm}
+        
+        \textbf{\fontsize{14}{21}\selectfont This final year project report is submitted in partial fulfillment of the requirements for the Bachelor of Science Engineering Honours in Computer Science and Engineering}
+        
+        \vspace{3cm}
+        
+        \textbf{\fontsize{14}{21}\selectfont Department of Computer Science and Engineering} \\
+        \textbf{\fontsize{14}{21}\selectfont University of Moratuwa, Sri Lanka}
+        
+        \vfill
+        
+        \textbf{\fontsize{14}{21}\selectfont June 2026}
+    \end{center}
+\end{titlepage}
+
+\setcounter{page}{1}
 \onehalfspacing
 
-\chapter*{Declaration}
-I declare that this is my own work and this report does not incorporate without acknowledgement any material previously submitted for a Degree or Diploma in any other University or institute of higher learning and to the best of my knowledge and belief it does not contain any material previously published or written by another person except where the acknowledgement is made in the text.
+\chapter*{Declaration of the Candidates and Supervisor}
+\phantomsection
+\addcontentsline{toc}{chapter}{Declaration of the Candidates and Supervisor}
+
+We declare that this is our own work and this final year project report does not incorporate without acknowledgement any material previously submitted for a Degree or Diploma in any other University or institute of higher learning and to the best of our knowledge and belief it does not contain any material previously published or written by another person except where the acknowledgement is made in the text.
+
+Also, we hereby grant to University of Moratuwa the non-exclusive right to reproduce and distribute our final year project report, in whole or in part in print, electronic or other medium. We retain the right to use this content in whole or part in future works (such as articles or books).
+
+\vspace{1.5cm}
+\noindent
+\begin{tabularx}{\textwidth}{@{}X r@{}}
+Fernando T.H.L.: ....................................... & Date: ....................... \\
+Gamage M.S.: ....................................... & Date: ....................... \\
+Lishan S.D.: ....................................... & Date: ....................... \\
+Perera M.V.D.P.D.S.: ....................................... & Date: ....................... \\
+\end{tabularx}
 
 \vspace{1cm}
-Signature: \rule{4cm}{0.4pt} \hfill Date: \rule{4cm}{0.4pt}
+
+\noindent
+The above candidates have carried out research for the Bachelor of Science Engineering Honours in Computer Science and Engineering final year project report under my supervision.
+
+\vspace{1.5cm}
+\noindent
+\begin{tabularx}{\textwidth}{@{}X r@{}}
+Name of the supervisor: Dr. Sunimal Rathnayake & \\
+Signature of the supervisor: ....................................... & Date: ....................... \\
+\end{tabularx}
 \clearpage
 
-\chapter*{Acknowledgements}
-We would like to express our gratitude to our supervisors and the Department of Computer Science and Engineering, University of Moratuwa.
-\clearpage
-
-\begin{abstract}
-Ethereum Layer-1 provides strong security and decentralization but remains constrained by limited throughput. ZK-Rollups offer a Layer-2 scaling solution by executing transactions off-chain and submitting cryptographic validity proofs to Layer-1. However, practical performance of a research prototype depends on complex interactions between batching, sequencing policies, proof generation overhead, and data availability strategies. This report presents a modular ZK-Rollup benchmarking prototype designed to isolate and evaluate these performance factors under controlled synthetic workloads. We explore the design and implementation of the sequencer, executor, submitter, and smart contracts. Through rigorous benchmarking, we analyze the throughput--latency--cost trade-offs across different batching and data availability configurations. The findings contribute to a deeper understanding of Layer-2 scalability bottlenecks.
-\end{abstract}
+\begin{center}
+  \textbf{\fontsize{12}{14.4}\selectfont Abstract}
+\end{center}
+\phantomsection
+\addcontentsline{toc}{chapter}{Abstract}
+\begin{singlespace}
+\fontsize{11}{13.2}\selectfont
+Ethereum Layer-1 provides strong security and decentralization but remains constrained by limited throughput. ZK-Rollups offer a Layer-2 scaling solution by executing transactions off-chain and submitting cryptographic validity proofs to Layer-1. However, practical performance of a research prototype depends on complex interactions between batching, sequencing policies, proof generation overhead, and data availability strategies. This report presents a modular ZK-Rollup benchmarking prototype designed to isolate and evaluate these performance factors under controlled synthetic workloads. We explore the design and implementation of the sequencer, executor, submitter, and smart contracts. Through rigorous benchmarking, we analyze the throughput--latency--cost trade-offs across different batching and data availability configurations. The results show that larger batches improve gas amortization but increase finality latency, while the TimeBoost scheduling policy improves fairness under burst-load conditions. EIP-4844 blob-based data availability reduces data publication cost by approximately 70\% compared with calldata, though RISC0 proving exhibits step-function latency at segment boundaries.
+\end{singlespace}
+\vspace{1em}
 
 \noindent \textbf{Keywords:} ZK-Rollups, Blockchain Scalability, Data Availability, Zero-Knowledge Proofs, Performance Benchmarking.
 \clearpage
 
+\chapter*{Acknowledgements}
+\phantomsection
+\addcontentsline{toc}{chapter}{Acknowledgements}
+
+We would like to express our sincere gratitude to our supervisor, Dr. Sunimal Rathnayake, for his guidance, feedback, and continuous support throughout this final year project. We also extend our appreciation to the Department of Computer Science and Engineering, University of Moratuwa, for providing the academic environment and resources required to complete this research.
+
+We are grateful to the academic staff, colleagues, and fellow students who provided helpful suggestions and encouragement during the design, implementation, benchmarking, and report preparation stages of this project.
+\clearpage
+
+\phantomsection
+\addcontentsline{toc}{chapter}{Table of Contents}
 \tableofcontents
 \clearpage
 
+\phantomsection
+\addcontentsline{toc}{chapter}{List of Figures}
 \listoffigures
 \clearpage
 
+\phantomsection
+\addcontentsline{toc}{chapter}{List of Tables}
 \listoftables
 \clearpage
 
 \chapter*{List of Abbreviations}
+\phantomsection
+\addcontentsline{toc}{chapter}{List of Abbreviations}
 \begin{tabular}{ll}
 \textbf{DA} & Data Availability \\
+\textbf{EIP} & Ethereum Improvement Proposal \\
 \textbf{FCFS} & First-Come-First-Served \\
+\textbf{L1} & Layer 1 \\
+\textbf{L2} & Layer 2 \\
+\textbf{RISC0} & RISC Zero \\
 \textbf{STF} & State Transition Function \\
 \textbf{TPS} & Transactions Per Second \\
 \textbf{ZK} & Zero-Knowledge \\
+\textbf{ZKP} & Zero-Knowledge Proof \\
 \textbf{zkVM} & Zero-Knowledge Virtual Machine \\
 \end{tabular}
 \clearpage
 
+\chapter*{List of Appendices}
+\phantomsection
+\addcontentsline{toc}{chapter}{List of Appendices}
+
+\begin{tabularx}{\textwidth}{@{}lXr@{}}
+\textbf{Appendix} & \textbf{Description} & \textbf{Page} \\
+Appendix A & Repository Structure & \pageref{app:repo_structure} \\
+Appendix B & Build and Run Guide & \pageref{app:build_run_guide} \\
+Appendix C & Benchmark Execution Guide & \pageref{app:benchmark_guide} \\
+Appendix D & Configuration Reference & \pageref{app:config_reference} \\
+Appendix E & Metrics Output Schema & \pageref{app:metrics_schema} \\
+Appendix F & Important Algorithms & \pageref{app:algorithms} \\
+\end{tabularx}
+\clearpage
+
 \pagenumbering{arabic}
 
-\include{chapters/introduction}
-\include{chapters/background}
-\include{chapters/literature_review}
-\include{chapters/problem_objectives}
-\include{chapters/system_architecture}
-\include{chapters/methodology}
-\include{chapters/implementation}
-\include{chapters/experimental_setup}
-\include{chapters/results}
-\include{chapters/discussion}
-\include{chapters/threats_to_validity}
-\include{chapters/12_lessons_learned/lessons_learned}
-\include{chapters/individual_contributions}
-\include{chapters/conclusion}
+\include{chapters/chap1_introduction}
+\include{chapters/chap2_literature_review}
+\include{chapters/chap3_methodology}
+\include{chapters/chap4_implementation}
+\include{chapters/chap5_evaluation}
+\include{chapters/chap6_conclusion}
 
+\clearpage
+\phantomsection
+\addcontentsline{toc}{chapter}{Reference List}
 \bibliographystyle{ieeetr}
 \bibliography{references}
 
