@@ -6,16 +6,21 @@ Following the methodology of Chaliasos et al. \cite{chaliasos2024analyzing}, the
 
 \begin{table}[H]
 \centering
-\caption{ZK-Rollup Cost Model \cite{chaliasos2024analyzing, saif2024dataavailability}}
-\begin{tabular}{|l|l|l|l|}
-\hline
-\textbf{Cost Category} & \textbf{Examples} & \textbf{Fixed/Marginal} & \textbf{Source} \\ \hline
-L1 Settlement & Commit batch, base fee & Fixed per batch & Chaliasos \cite{chaliasos2024analyzing} \\ \hline
-Proof Verification & Groth16 pairing check & Fixed per batch & Chaliasos \cite{chaliasos2024analyzing} \\ \hline
-Data Availability (DA) & calldata, blob bytes & Marginal / payload-dependent & Saif \cite{saif2024dataavailability} \\ \hline
-Proving Time & witness + proof generation & Marginal / cycles & Chaliasos \cite{chaliasos2024analyzing} \\ \hline
-\end{tabular}
+\caption{ZK-Rollup Cost Model}
+\label{tab:zk_rollup_cost_model}
+\compacttable
+\begin{tabularx}{\textwidth}{@{}p{0.22\textwidth}Y p{0.22\textwidth}p{0.18\textwidth}@{}}
+\toprule
+\textbf{Cost category} & \textbf{Examples} & \textbf{Fixed / marginal} & \textbf{Source} \\
+\midrule
+L1 settlement & Commit batch and pay base transaction fee & Fixed per batch & Chaliasos et al.~\cite{chaliasos2024analyzing} \\
+Proof verification & Groth16 pairing check or verifier contract execution & Fixed per batch & Chaliasos et al.~\cite{chaliasos2024analyzing} \\
+Data availability & Calldata bytes, blob bytes, or external DA commitment & Payload-dependent marginal cost & Saif et al.~\cite{saif2024dataavailability} \\
+Proving time & Witness generation and proof generation & Marginal / cycle-dependent & Chaliasos et al.~\cite{chaliasos2024analyzing} \\
+\bottomrule
+\end{tabularx}
 \end{table}
+\normalsize
 
 The fundamental equation governing Layer-1 gas cost per transaction is:
 $$ \text{Cost per tx} = \left(\frac{\text{fixed batch settlement \& proof cost}}{\text{batch size}}\right) + \text{marginal DA cost per tx} $$

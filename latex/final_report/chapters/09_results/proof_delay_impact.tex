@@ -1,4 +1,12 @@
 \section{Prover Backend and Real Proof Behavior (Stage 5)}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{figures/chapter5/risc0_latency.png}
+    \caption{RISC0 Prover Step-Function Latency.}
+    \label{fig:risc0_latency}
+\end{figure}
+
 \label{sec:proof_delay_impact}
 
 Stage 5 benchmarks replaced the Mock Prover with the real RISC0 Prover Backend (using Groth16 proof compression) to profile cycle behavior and step-function limits independently.
@@ -13,3 +21,5 @@ Regardless of the batch size (swept from 3 to 246 executed transactions), the fi
 
 \input{chapters/09_results/finalization_results}
 \input{chapters/09_results/bottleneck_analysis}
+
+Figure~\ref{fig:risc0_latency} highlights the step-function behavior of the RISC0 proving latency.

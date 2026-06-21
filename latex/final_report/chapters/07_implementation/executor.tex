@@ -1,4 +1,12 @@
 \section{Executor}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{figures/chapter4/executor_arch.png}
+    \caption{Executor Component Architecture.}
+    \label{fig:executor_arch}
+\end{figure}
+
 \label{sec:executor}
 The Executor serves as the host-side state transition and proving coordinator.
 
@@ -10,3 +18,5 @@ The Executor serves as the host-side state transition and proving coordinator.
     \item \textbf{Output:} It emits an enriched batch payload (containing the DA commitment and proof) back to the Submitter stream and logs execution metrics.
     \item \textbf{Limitations:} The executor is a simplified state-transition engine tailored for transfer-style workloads and Merkle state updates (transfer-centric research logic). It is explicitly not a full EVM or zkEVM. 
 \end{itemize}
+
+As depicted in Figure~\ref{fig:executor_arch}, the Executor component processes batches of transactions to generate state transitions.

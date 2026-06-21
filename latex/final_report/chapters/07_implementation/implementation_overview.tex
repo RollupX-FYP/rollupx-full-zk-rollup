@@ -5,13 +5,18 @@ This chapter details the architecture and implementation of the modular ZK-rollu
 \begin{table}[H]
 \centering
 \caption{Implementation Status Table}
-\begin{tabular}{|l|l|l|}
-\hline
-\textbf{Feature} & \textbf{Status} & \textbf{Limitation} \\ \hline
-Sequencer & Implemented & Basic state root tracking \\ \hline
-Executor & Implemented & Transfer-centric research logic \\ \hline
-Prover & Implemented (RISC0/Mock) & Mock/Delay mode used for benchmarks to isolate queueing \\ \hline
-Submitter & Implemented & Relies on local dev-chain (Hardhat) \\ \hline
-Workload Gen & Implemented (Python) & Steady-state synthetic (Poisson) \\ \hline
-\end{tabular}
+\label{tab:implementation_status}
+\compacttable
+\begin{tabularx}{\textwidth}{@{}p{0.24\textwidth}p{0.24\textwidth}Y@{}}
+\toprule
+\textbf{Feature} & \textbf{Status} & \textbf{Limitation} \\
+\midrule
+Sequencer & Implemented & Basic state root tracking and prototype-level scheduling support. \\
+Executor & Implemented & Transfer-centric research logic rather than a full EVM or zkEVM. \\
+Prover & Implemented with RISC0 and mock modes & Mock/delay mode is mainly used for benchmarks to isolate queueing behaviour. \\
+Submitter & Implemented & Relies on a local development chain using Hardhat. \\
+Workload Generator & Implemented in Python & Uses steady-state synthetic Poisson workloads. \\
+\bottomrule
+\end{tabularx}
 \end{table}
+\normalsize

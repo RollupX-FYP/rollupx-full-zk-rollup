@@ -11,15 +11,16 @@ Table \ref{tab:rq_mapping} maps the research questions to the objectives, compon
 \centering
 \caption{Research Question Mapping}
 \label{tab:rq_mapping}
-\small
-\begin{tabularx}{\textwidth}{>{\hsize=0.4\hsize}X >{\hsize=1.2\hsize}X >{\hsize=1.0\hsize}X >{\hsize=1.0\hsize}X >{\hsize=0.4\hsize}X}
+\compacttable
+\begin{tabularx}{\textwidth}{@{}p{0.10\textwidth}Y Y Y p{0.16\textwidth}@{}}
 \toprule
-\textbf{RQ} & \textbf{Related Objective} & \textbf{Related Component} & \textbf{Related Metric} & \textbf{Report Section} \\
+\textbf{RQ} & \textbf{Related objective} & \textbf{Related component} & \textbf{Related metric} & \textbf{Report section} \\
 \midrule
-RQ1 & Design modular architecture & All components & Architecture validation & Ch. \ref{ch:system_architecture}, \ref{ch:implementation} \\
-RQ2 & Evaluate batch/DA modes & Sequencer, Submitter & TPS, Latency, Cost, DA Footprint & Ch. \ref{ch:results}, \ref{ch:discussion} \\
-RQ3 & Isolate prover effects & Executor, Mock Prover & Proof Delay, Finalization Time & Ch. \ref{ch:results}, \ref{ch:discussion} \\
-RQ4 & Identify bottlenecks & Integration Pipeline & Development lessons & Ch. \ref{ch:implementation}, \ref{ch:discussion} \\
+RQ1 & Evaluate batch size effects & Sequencer, Executor, Submitter & TPS, latency, gas cost, proof delay & Sections 3.9, 5.7, 5.8 \\
+RQ2 & Evaluate sequencing policies & Sequencer, Executor & Fairness, latency, execution correctness & Sections 3.9, 5.10 \\
+RQ3 & Compare data availability modes & Submitter, L1 contracts & DA footprint and cost per transaction & Sections 3.9, 5.11 \\
+RQ4 & Identify practical bottlenecks & Integration pipeline & Development issues and trade-offs & Sections 4.13, 5.17 \\
 \bottomrule
 \end{tabularx}
 \end{table}
+\normalsize

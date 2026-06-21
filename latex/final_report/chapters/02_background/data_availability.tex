@@ -1,4 +1,5 @@
 \section{Data Availability (DA)}
+
 \label{sec:data_availability}
 
 Rollup proofs verify computational correctness, but actual transaction data (or state diffs) is required to independently reconstruct and verify the rollup state. This concept is termed Data Availability (DA) \cite{saif2024dataavailability}. For a rollup to be secure and trustless, the sequencer must publish this data so that anyone can run an independent node. If a rollup operator withholds data, users cannot verify the state or recover funds. It must be noted that DA is not simply 'metadata'—it is the core underlying transaction data necessary to derive the state transition.

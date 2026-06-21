@@ -1,4 +1,56 @@
 \subsection{Data Availability Modes}
+
+Figure~\ref{fig:da_modes_taxonomy} summarizes the data availability modes considered in this study. The prototype distinguishes between on-chain data availability, where data or commitments are submitted to Layer 1, and off-chain data availability, where the data is stored outside the base chain with different trust assumptions.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.95\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=1.2cm and 1.5cm,
+    box/.style={
+        rectangle,
+        rounded corners,
+        draw,
+        align=center,
+        minimum width=3.5cm,
+        minimum height=0.9cm,
+        font=\small
+    },
+    smallbox/.style={
+        rectangle,
+        rounded corners,
+        draw,
+        align=center,
+        minimum width=3.2cm,
+        minimum height=0.8cm,
+        font=\small
+    },
+    arrow/.style={-{Latex[length=2mm]}, thick}
+]
+
+\node[box] (root) {Data Availability\\Modes};
+
+\node[box, below left=of root] (onchain) {On-chain DA\\Ethereum-secured};
+\node[box, below right=of root] (offchain) {Off-chain DA\\Additional trust assumptions};
+
+\node[smallbox, below left=of onchain] (calldata) {Calldata\\Permanent L1 transaction data};
+\node[smallbox, below right=of onchain] (blob) {EIP-4844 Blobs\\Temporary blob data\\with L1 commitment};
+
+\node[smallbox, below left=of offchain] (stub) {Local DA Stub\\Used in prototype};
+\node[smallbox, below right=of offchain] (external) {External DA / DAC / DAL\\Conceptual extension};
+
+\draw[arrow] (root) -- (onchain);
+\draw[arrow] (root) -- (offchain);
+\draw[arrow] (onchain) -- (calldata);
+\draw[arrow] (onchain) -- (blob);
+\draw[arrow] (offchain) -- (stub);
+\draw[arrow] (offchain) -- (external);
+
+\end{tikzpicture}
+}
+\caption{Taxonomy of data availability modes considered in the modular ZK-Rollup prototype.}
+\label{fig:da_modes_taxonomy}
+\end{figure}
 The methodology dictates testing two distinct L1 DA submission modes:
 \begin{itemize}
     \item \textbf{Calldata:} Compressing the transaction payload and sending it as standard L1 transaction data.

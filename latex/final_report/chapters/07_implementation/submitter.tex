@@ -1,4 +1,12 @@
 \section{Submitter}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{figures/chapter4/submitter_arch.png}
+    \caption{Submitter Component Architecture.}
+    \label{fig:submitter_arch}
+\end{figure}
+
 \label{sec:submitter}
 The Submitter acts as the bridge relayer, reliably pushing executed batch data from Layer-2 back to the Layer-1 Ethereum network.
 
@@ -8,3 +16,5 @@ The Submitter acts as the bridge relayer, reliably pushing executed batch data f
     \item \textbf{Data Availability Formatter:} The DA Formatter is responsible for structuring the execution payload according to the configured DA mode before submission. Crucially, it supports encoding state diffs into standard \texttt{Calldata} or generating the necessary KZG commitments for \texttt{EIP-4844 Blob} data representations. Off-chain DA is implemented only as a local simulated stub.
     \item \textbf{Output:} Broadcasts transactions to the L1 Hardhat node via \texttt{eth\_sendRawTransaction} and records critical latency and gas metrics to \texttt{submitter\_metrics.json}.
 \end{itemize}
+
+As depicted in Figure~\ref{fig:submitter_arch}, the Submitter component interacts with the L1 smart contracts to finalize transaction batches.

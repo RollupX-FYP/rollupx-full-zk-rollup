@@ -9,111 +9,113 @@
 \contentsline {chapter}{\numberline {1}Introduction}{1}{chapter.1}%
 \contentsline {section}{\numberline {1.1}Blockchain Fundamentals}{1}{section.1.1}%
 \contentsline {subsection}{\numberline {1.1.1}Blockchain Structure}{1}{subsection.1.1.1}%
-\contentsline {subsection}{\numberline {1.1.2}Consensus Protocols}{1}{subsection.1.1.2}%
-\contentsline {subsection}{\numberline {1.1.3}Blockchain Types}{2}{subsection.1.1.3}%
-\contentsline {subsection}{\numberline {1.1.4}Scalability Metrics}{2}{subsection.1.1.4}%
-\contentsline {subsection}{\numberline {1.1.5}The Blockchain Trilemma}{2}{subsection.1.1.5}%
-\contentsline {subsection}{\numberline {1.1.6}The Blockchain Quadrilemma}{3}{subsection.1.1.6}%
-\contentsline {subsection}{\numberline {1.1.7}Ethereum Scalability Limitations}{3}{subsection.1.1.7}%
-\contentsline {section}{\numberline {1.2}Layer-1 vs. Layer-2 Scaling}{3}{section.1.2}%
-\contentsline {section}{\numberline {1.3}Rollups and ZK-Rollups}{4}{section.1.3}%
-\contentsline {subsection}{\numberline {1.3.1}Zero-Knowledge Proofs}{5}{subsection.1.3.1}%
-\contentsline {subsection}{\numberline {1.3.2}zk-SNARKs, zk-STARKs, and RISC Zero}{5}{subsection.1.3.2}%
-\contentsline {section}{\numberline {1.4}Data Availability (DA)}{6}{section.1.4}%
-\contentsline {section}{\numberline {1.5}Motivation}{6}{section.1.5}%
-\contentsline {section}{\numberline {1.6}Problem Statement}{7}{section.1.6}%
-\contentsline {section}{\numberline {1.7}Research Questions}{8}{section.1.7}%
-\contentsline {section}{\numberline {1.8}Research Objectives}{9}{section.1.8}%
-\contentsline {subsection}{\numberline {1.8.1}Mapping Research Objectives to Evaluation Metrics}{9}{subsection.1.8.1}%
-\contentsline {section}{\numberline {1.9}Project Scope and Assumptions}{10}{section.1.9}%
-\contentsline {subsection}{\numberline {1.9.1}Research Question Mapping}{10}{subsection.1.9.1}%
-\contentsline {section}{\numberline {1.10}Contributions}{11}{section.1.10}%
-\contentsline {section}{\numberline {1.11}Document Structure}{11}{section.1.11}%
-\contentsline {chapter}{\numberline {2}Literature Review}{12}{chapter.2}%
-\contentsline {section}{\numberline {2.1}Broad Scalability Taxonomy}{12}{section.2.1}%
-\contentsline {subsection}{\numberline {2.1.1}Write-Performance Scalability}{12}{subsection.2.1.1}%
-\contentsline {subsection}{\numberline {2.1.2}Read-Performance Scalability}{12}{subsection.2.1.2}%
-\contentsline {subsection}{\numberline {2.1.3}Storage Scalability}{13}{subsection.2.1.3}%
-\contentsline {section}{\numberline {2.2}ZK-Rollup Bottleneck Research}{13}{section.2.2}%
-\contentsline {subsection}{\numberline {2.2.1}Sequencer Policies and Batching}{13}{subsection.2.2.1}%
-\contentsline {subsection}{\numberline {2.2.2}Prover Overhead}{13}{subsection.2.2.2}%
-\contentsline {subsection}{\numberline {2.2.3}Data Availability (DA) Dynamics}{13}{subsection.2.2.3}%
-\contentsline {subsection}{\numberline {2.2.4}Summary of Existing Literature}{14}{subsection.2.2.4}%
-\contentsline {section}{\numberline {2.3}Rollup Benchmarking and Public Datasets}{14}{section.2.3}%
-\contentsline {section}{\numberline {2.4}Synthesis and Positioning of This Work}{15}{section.2.4}%
-\contentsline {chapter}{\numberline {3}Methodology / System Design}{17}{chapter.3}%
-\contentsline {section}{\numberline {3.1}High-Level Architecture Overview}{17}{section.3.1}%
-\contentsline {subsection}{\numberline {3.1.1}Prototype vs. Production Rollup Comparison}{17}{subsection.3.1.1}%
-\contentsline {section}{\numberline {3.2}Transaction Lifecycle and Data Flow}{18}{section.3.2}%
-\contentsline {section}{\numberline {3.3}Component Interactions}{19}{section.3.3}%
-\contentsline {section}{\numberline {3.4}Data Flow and Control Flow}{20}{section.3.4}%
-\contentsline {section}{\numberline {3.5}Design Rationale}{20}{section.3.5}%
-\contentsline {section}{\numberline {3.6}Prototype vs. Production Distinctions}{21}{section.3.6}%
-\contentsline {section}{\numberline {3.7}Research Design}{21}{section.3.7}%
-\contentsline {section}{\numberline {3.8}Workload Model}{22}{section.3.8}%
-\contentsline {subsection}{\numberline {3.8.1}Why a Local Hardhat Node and Mock Prover Are Used}{22}{subsection.3.8.1}%
-\contentsline {section}{\numberline {3.9}Configuration Spaces}{23}{section.3.9}%
-\contentsline {subsection}{\numberline {3.9.1}Batching Policy Space}{23}{subsection.3.9.1}%
-\contentsline {subsection}{\numberline {3.9.2}Sequencing Policy Space}{23}{subsection.3.9.2}%
-\contentsline {subsection}{\numberline {3.9.3}Data Availability Modes}{23}{subsection.3.9.3}%
-\contentsline {section}{\numberline {3.10}Analytical Cost Model}{23}{section.3.10}%
-\contentsline {section}{\numberline {3.11}Evaluation Metrics}{24}{section.3.11}%
-\contentsline {section}{\numberline {3.12}Experimental Procedure and Hypotheses}{25}{section.3.12}%
-\contentsline {chapter}{\numberline {4}Implementation}{26}{chapter.4}%
-\contentsline {section}{\numberline {4.1}Implementation Overview}{26}{section.4.1}%
-\contentsline {section}{\numberline {4.2}Workload Generator}{26}{section.4.2}%
-\contentsline {section}{\numberline {4.3}Sequencer}{27}{section.4.3}%
-\contentsline {section}{\numberline {4.4}Executor}{28}{section.4.4}%
-\contentsline {section}{\numberline {4.5}Prover and Benchmark-Mode Delay}{29}{section.4.5}%
-\contentsline {section}{\numberline {4.6}Submitter}{29}{section.4.6}%
-\contentsline {section}{\numberline {4.7}Smart Contracts}{30}{section.4.7}%
-\contentsline {section}{\numberline {4.8}State Synchronization and Nonce Handling}{31}{section.4.8}%
-\contentsline {section}{\numberline {4.9}Benchmarking and Data Collection Tools}{31}{section.4.9}%
-\contentsline {section}{\numberline {4.10}Data Tools}{31}{section.4.10}%
-\contentsline {section}{\numberline {4.11}Configuration Management}{32}{section.4.11}%
-\contentsline {section}{\numberline {4.12}Logging and Metrics}{32}{section.4.12}%
-\contentsline {section}{\numberline {4.13}Integration Challenges}{32}{section.4.13}%
-\contentsline {section}{\numberline {4.14}Development Challenges}{32}{section.4.14}%
-\contentsline {chapter}{\numberline {5}Evaluation and Results}{33}{chapter.5}%
-\contentsline {section}{\numberline {5.1}Environment and Orchestration}{33}{section.5.1}%
-\contentsline {subsection}{\numberline {5.1.1}Local L1 Configuration}{33}{subsection.5.1.1}%
-\contentsline {section}{\numberline {5.2}Software Stack}{34}{section.5.2}%
-\contentsline {subsection}{\numberline {5.2.1}L1 Network Configuration}{34}{subsection.5.2.1}%
-\contentsline {section}{\numberline {5.3}Configurations and Experimental Variables}{34}{section.5.3}%
-\contentsline {section}{\numberline {5.4}Benchmark Scenarios}{35}{section.5.4}%
-\contentsline {section}{\numberline {5.5}Metrics Collection}{36}{section.5.5}%
-\contentsline {section}{\numberline {5.6}Reproducibility Setup}{37}{section.5.6}%
-\contentsline {subsection}{\numberline {5.6.1}Overview of Evaluation Stages}{37}{subsection.5.6.1}%
-\contentsline {subsection}{\numberline {5.6.2}Unsupported and Inconclusive Findings}{38}{subsection.5.6.2}%
-\contentsline {section}{\numberline {5.7}Effect of Batch Size on Latency and Cost (Stage 1)}{38}{section.5.7}%
-\contentsline {section}{\numberline {5.8}Cost Amortization}{39}{section.5.8}%
-\contentsline {section}{\numberline {5.9}Queueing Latency (Soft Finality)}{39}{section.5.9}%
-\contentsline {section}{\numberline {5.10}Throughput Results and Configuration Anomalies}{40}{section.5.10}%
-\contentsline {subsection}{\numberline {5.10.1}Adaptive Batching Failures (Stage 2)}{40}{subsection.5.10.1}%
-\contentsline {subsection}{\numberline {5.10.2}Sequencer Scheduling and Nonce Ordering (Stage 3)}{40}{subsection.5.10.2}%
-\contentsline {section}{\numberline {5.11}Data Availability Mode Efficiency (Stage 4)}{41}{section.5.11}%
-\contentsline {section}{\numberline {5.12}Prover Backend and Real Proof Behavior (Stage 5)}{41}{section.5.12}%
-\contentsline {subsection}{\numberline {5.12.1}Finalization Time (Hard Finality)}{42}{subsection.5.12.1}%
-\contentsline {subsection}{\numberline {5.12.2}Queue Backpressure}{42}{subsection.5.12.2}%
-\contentsline {section}{\numberline {5.13}Summary of Validated Findings}{42}{section.5.13}%
-\contentsline {section}{\numberline {5.14}Answering the Research Questions}{43}{section.5.14}%
-\contentsline {subsection}{\numberline {5.14.1}RQ1: Impact of Batch Size on Performance and Cost}{43}{subsection.5.14.1}%
-\contentsline {subsection}{\numberline {5.14.2}RQ2: Impact of Sequencer Scheduling Policies}{43}{subsection.5.14.2}%
-\contentsline {subsection}{\numberline {5.14.3}RQ3: Cost Implications of Data Availability Mechanisms}{44}{subsection.5.14.3}%
-\contentsline {subsection}{\numberline {5.14.4}RQ4: Practical Bottlenecks in Implementation}{44}{subsection.5.14.4}%
-\contentsline {section}{\numberline {5.15}The Throughput--Latency--Cost Trade-off}{44}{section.5.15}%
-\contentsline {section}{\numberline {5.16}Batching Dynamics and Outliers}{45}{section.5.16}%
-\contentsline {subsection}{\numberline {5.16.1}RQ3: Data Availability Implications}{45}{subsection.5.16.1}%
-\contentsline {subsection}{\numberline {5.16.2}RQ1: Impact of Batch Size on Cost and Latency}{45}{subsection.5.16.2}%
-\contentsline {section}{\numberline {5.17}Design Implications and Trade-offs}{46}{section.5.17}%
-\contentsline {subsection}{\numberline {5.17.1}RQ4: Practical Bottlenecks and Trade-offs}{46}{subsection.5.17.1}%
-\contentsline {chapter}{\numberline {6}Conclusions and Recommendations}{48}{chapter.6}%
-\contentsline {section}{\numberline {6.1}Conclusion}{48}{section.6.1}%
-\contentsline {section}{\numberline {6.2}Future Work}{49}{section.6.2}%
-\contentsline {chapter}{Reference List}{50}{section*.31}%
-\contentsline {chapter}{\numberline {A}Repository Structure}{52}{appendix.A}%
-\contentsline {chapter}{\numberline {B}Build and Run Guide}{53}{appendix.B}%
-\contentsline {chapter}{\numberline {C}Benchmark Execution Guide}{55}{appendix.C}%
-\contentsline {chapter}{\numberline {D}Configuration Reference}{56}{appendix.D}%
-\contentsline {chapter}{\numberline {E}Metrics Output Schema}{57}{appendix.E}%
-\contentsline {chapter}{\numberline {F}Important Algorithms}{58}{appendix.F}%
+\contentsline {subsection}{\numberline {1.1.2}Consensus Protocols}{2}{subsection.1.1.2}%
+\contentsline {subsection}{\numberline {1.1.3}Blockchain Types}{3}{subsection.1.1.3}%
+\contentsline {subsection}{\numberline {1.1.4}Scalability Metrics}{3}{subsection.1.1.4}%
+\contentsline {subsection}{\numberline {1.1.5}The Blockchain Trilemma}{3}{subsection.1.1.5}%
+\contentsline {subsection}{\numberline {1.1.6}The Blockchain Quadrilemma}{4}{subsection.1.1.6}%
+\contentsline {subsection}{\numberline {1.1.7}Ethereum Scalability Limitations}{5}{subsection.1.1.7}%
+\contentsline {section}{\numberline {1.2}Layer-1 vs. Layer-2 Scaling}{5}{section.1.2}%
+\contentsline {section}{\numberline {1.3}Rollups and ZK-Rollups}{7}{section.1.3}%
+\contentsline {subsection}{\numberline {1.3.1}Zero-Knowledge Proofs}{7}{subsection.1.3.1}%
+\contentsline {subsection}{\numberline {1.3.2}zk-SNARKs, zk-STARKs, and RISC Zero}{8}{subsection.1.3.2}%
+\contentsline {section}{\numberline {1.4}Data Availability (DA)}{8}{section.1.4}%
+\contentsline {section}{\numberline {1.5}Motivation}{9}{section.1.5}%
+\contentsline {section}{\numberline {1.6}Problem Statement}{10}{section.1.6}%
+\contentsline {section}{\numberline {1.7}Research Questions}{11}{section.1.7}%
+\contentsline {section}{\numberline {1.8}Research Objectives}{11}{section.1.8}%
+\contentsline {subsection}{\numberline {1.8.1}Mapping Research Objectives to Evaluation Metrics}{12}{subsection.1.8.1}%
+\contentsline {section}{\numberline {1.9}Project Scope and Assumptions}{13}{section.1.9}%
+\contentsline {subsection}{\numberline {1.9.1}Research Question Mapping}{13}{subsection.1.9.1}%
+\contentsline {section}{\numberline {1.10}Contributions}{13}{section.1.10}%
+\contentsline {section}{\numberline {1.11}Document Structure}{14}{section.1.11}%
+\contentsline {chapter}{\numberline {2}Literature Review}{15}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Broad Scalability Taxonomy}{15}{section.2.1}%
+\contentsline {subsection}{\numberline {2.1.1}Write-Performance Scalability}{15}{subsection.2.1.1}%
+\contentsline {subsection}{\numberline {2.1.2}Read-Performance Scalability}{15}{subsection.2.1.2}%
+\contentsline {subsection}{\numberline {2.1.3}Storage Scalability}{16}{subsection.2.1.3}%
+\contentsline {section}{\numberline {2.2}ZK-Rollup Bottleneck Research}{16}{section.2.2}%
+\contentsline {subsection}{\numberline {2.2.1}Sequencer Policies and Batching}{16}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {2.2.2}Prover Overhead}{16}{subsection.2.2.2}%
+\contentsline {subsection}{\numberline {2.2.3}Data Availability (DA) Dynamics}{16}{subsection.2.2.3}%
+\contentsline {subsection}{\numberline {2.2.4}Summary of Existing Literature}{17}{subsection.2.2.4}%
+\contentsline {section}{\numberline {2.3}Rollup Benchmarking and Public Datasets}{17}{section.2.3}%
+\contentsline {section}{\numberline {2.4}Synthesis and Positioning of This Work}{18}{section.2.4}%
+\contentsline {chapter}{\numberline {3}Methodology / System Design}{20}{chapter.3}%
+\contentsline {section}{\numberline {3.1}High-Level Architecture Overview}{20}{section.3.1}%
+\contentsline {subsection}{\numberline {3.1.1}Prototype vs. Production Rollup Comparison}{20}{subsection.3.1.1}%
+\contentsline {section}{\numberline {3.2}Transaction Lifecycle and Data Flow}{21}{section.3.2}%
+\contentsline {section}{\numberline {3.3}Component Interactions}{23}{section.3.3}%
+\contentsline {section}{\numberline {3.4}Data Flow and Control Flow}{24}{section.3.4}%
+\contentsline {section}{\numberline {3.5}Design Rationale}{24}{section.3.5}%
+\contentsline {section}{\numberline {3.6}Prototype vs. Production Distinctions}{25}{section.3.6}%
+\contentsline {section}{\numberline {3.7}Research Design}{25}{section.3.7}%
+\contentsline {section}{\numberline {3.8}Workload Model}{26}{section.3.8}%
+\contentsline {subsection}{\numberline {3.8.1}Why a Local Hardhat Node and Mock Prover Are Used}{26}{subsection.3.8.1}%
+\contentsline {section}{\numberline {3.9}Configuration Spaces}{27}{section.3.9}%
+\contentsline {subsection}{\numberline {3.9.1}Batching Policy Space}{27}{subsection.3.9.1}%
+\contentsline {subsection}{\numberline {3.9.2}Sequencing Policy Space}{27}{subsection.3.9.2}%
+\contentsline {subsection}{\numberline {3.9.3}Data Availability Modes}{27}{subsection.3.9.3}%
+\contentsline {section}{\numberline {3.10}Analytical Cost Model}{28}{section.3.10}%
+\contentsline {section}{\numberline {3.11}Evaluation Metrics}{28}{section.3.11}%
+\contentsline {section}{\numberline {3.12}Experimental Procedure and Hypotheses}{29}{section.3.12}%
+\contentsline {chapter}{\numberline {4}Implementation}{31}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Implementation Overview}{31}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Workload Generator}{31}{section.4.2}%
+\contentsline {section}{\numberline {4.3}Sequencer}{32}{section.4.3}%
+\contentsline {section}{\numberline {4.4}Executor}{33}{section.4.4}%
+\contentsline {section}{\numberline {4.5}Prover and Benchmark-Mode Delay}{34}{section.4.5}%
+\contentsline {section}{\numberline {4.6}Submitter}{35}{section.4.6}%
+\contentsline {section}{\numberline {4.7}Smart Contracts}{36}{section.4.7}%
+\contentsline {section}{\numberline {4.8}State Synchronization and Nonce Handling}{36}{section.4.8}%
+\contentsline {section}{\numberline {4.9}Benchmarking and Data Collection Tools}{37}{section.4.9}%
+\contentsline {section}{\numberline {4.10}Data Tools}{37}{section.4.10}%
+\contentsline {section}{\numberline {4.11}Configuration Management}{37}{section.4.11}%
+\contentsline {section}{\numberline {4.12}Logging and Metrics}{38}{section.4.12}%
+\contentsline {section}{\numberline {4.13}Integration Challenges}{38}{section.4.13}%
+\contentsline {section}{\numberline {4.14}Development Challenges}{38}{section.4.14}%
+\contentsline {chapter}{\numberline {5}Evaluation and Results}{39}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Environment and Orchestration}{39}{section.5.1}%
+\contentsline {subsection}{\numberline {5.1.1}Local L1 Configuration}{39}{subsection.5.1.1}%
+\contentsline {section}{\numberline {5.2}Software Stack}{40}{section.5.2}%
+\contentsline {subsection}{\numberline {5.2.1}L1 Network Configuration}{40}{subsection.5.2.1}%
+\contentsline {section}{\numberline {5.3}Configurations and Experimental Variables}{40}{section.5.3}%
+\contentsline {section}{\numberline {5.4}Benchmark Scenarios}{41}{section.5.4}%
+\contentsline {section}{\numberline {5.5}Metrics Collection}{42}{section.5.5}%
+\contentsline {section}{\numberline {5.6}Reproducibility Setup}{43}{section.5.6}%
+\contentsline {subsection}{\numberline {5.6.1}Overview of Evaluation Stages}{43}{subsection.5.6.1}%
+\contentsline {subsection}{\numberline {5.6.2}Unsupported and Inconclusive Findings}{44}{subsection.5.6.2}%
+\contentsline {section}{\numberline {5.7}Effect of Batch Size on Latency and Cost (Stage 1)}{44}{section.5.7}%
+\contentsline {section}{\numberline {5.8}Cost Amortization}{45}{section.5.8}%
+\contentsline {section}{\numberline {5.9}Queueing Latency (Soft Finality)}{46}{section.5.9}%
+\contentsline {section}{\numberline {5.10}Throughput Results and Configuration Anomalies}{46}{section.5.10}%
+\contentsline {subsection}{\numberline {5.10.1}Adaptive Batching Failures (Stage 2)}{46}{subsection.5.10.1}%
+\contentsline {subsection}{\numberline {5.10.2}Sequencer Scheduling and Nonce Ordering (Stage 3)}{47}{subsection.5.10.2}%
+\contentsline {section}{\numberline {5.11}Data Availability Mode Efficiency (Stage 4)}{47}{section.5.11}%
+\contentsline {section}{\numberline {5.12}Prover Backend and Real Proof Behavior (Stage 5)}{49}{section.5.12}%
+\contentsline {subsection}{\numberline {5.12.1}Finalization Time (Hard Finality)}{50}{subsection.5.12.1}%
+\contentsline {subsection}{\numberline {5.12.2}Queue Backpressure}{50}{subsection.5.12.2}%
+\contentsline {section}{\numberline {5.13}Summary of Validated Findings}{50}{section.5.13}%
+\contentsline {section}{\numberline {5.14}Answering the Research Questions}{51}{section.5.14}%
+\contentsline {subsection}{\numberline {5.14.1}RQ1: Impact of Batch Size on Performance and Cost}{51}{subsection.5.14.1}%
+\contentsline {subsection}{\numberline {5.14.2}RQ2: Impact of Sequencer Scheduling Policies}{51}{subsection.5.14.2}%
+\contentsline {subsection}{\numberline {5.14.3}RQ3: Cost Implications of Data Availability Mechanisms}{51}{subsection.5.14.3}%
+\contentsline {subsection}{\numberline {5.14.4}RQ4: Practical Bottlenecks in Implementation}{52}{subsection.5.14.4}%
+\contentsline {section}{\numberline {5.15}The Throughput--Latency--Cost Trade-off}{52}{section.5.15}%
+\contentsline {section}{\numberline {5.16}Batching Dynamics and Outliers}{52}{section.5.16}%
+\contentsline {subsection}{\numberline {5.16.1}RQ3: Data Availability Implications}{53}{subsection.5.16.1}%
+\contentsline {subsection}{\numberline {5.16.2}RQ1: Impact of Batch Size on Cost and Latency}{53}{subsection.5.16.2}%
+\contentsline {section}{\numberline {5.17}Design Implications and Trade-offs}{53}{section.5.17}%
+\contentsline {subsection}{\numberline {5.17.1}RQ4: Practical Bottlenecks and Trade-offs}{54}{subsection.5.17.1}%
+\contentsline {chapter}{\numberline {6}Conclusions and Recommendations}{56}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Conclusion}{56}{section.6.1}%
+\contentsline {section}{\numberline {6.2}Future Work}{57}{section.6.2}%
+\contentsline {chapter}{Reference List}{58}{section*.43}%
+\contentsline {chapter}{\numberline {A}Repository Structure}{60}{appendix.A}%
+\contentsline {chapter}{\numberline {B}Build and Run Guide}{61}{appendix.B}%
+\contentsline {chapter}{\numberline {C}Benchmark Execution Guide}{63}{appendix.C}%
+\contentsline {chapter}{\numberline {D}Configuration Reference}{64}{appendix.D}%
+\contentsline {chapter}{\numberline {E}Metrics Output Schema}{65}{appendix.E}%
+\contentsline {chapter}{\numberline {F}Important Algorithms}{66}{appendix.F}%
+\contentsline {section}{Gantt Chart}{67}{section*.48}%
+\contentsline {section}{Workload Calculation}{68}{figure.caption.49}%

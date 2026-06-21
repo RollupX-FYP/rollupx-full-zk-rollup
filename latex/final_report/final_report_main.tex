@@ -9,6 +9,34 @@
 \usepackage{tabularx}
 \usepackage{float}
 \usepackage{cite}
+\usepackage{array}
+\usepackage{ragged2e}
+\usepackage{makecell}
+\usepackage{longtable}
+\usepackage{pdflscape}
+\usepackage{adjustbox}
+\usepackage{microtype}
+\usepackage{xurl}
+\usepackage{seqsplit}
+\usepackage{placeins}
+
+% Prevent small right-margin overflows
+\emergencystretch=3em
+
+% Better X column for wrapped tables
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+
+% Breakable inline code / filenames
+\newcommand{\code}[1]{\texttt{\seqsplit{#1}}}
+
+% Standard compact table style
+\newcommand{\compacttable}{%
+  \small
+  \setlength{\tabcolsep}{3pt}
+  \renewcommand{\arraystretch}{1.15}
+}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
 \usepackage{geometry}
 \usepackage{setspace}
 \usepackage{mathptmx} % Times New Roman
@@ -219,12 +247,12 @@ Appendix F & Important Algorithms & \pageref{app:algorithms} \\
 
 \pagenumbering{arabic}
 
-\include{chapters/chap1_introduction}
-\include{chapters/chap2_literature_review}
-\include{chapters/chap3_methodology}
-\include{chapters/chap4_implementation}
-\include{chapters/chap5_evaluation}
-\include{chapters/chap6_conclusion}
+\input{chapters/chap1_introduction}
+\input{chapters/chap2_literature_review}
+\input{chapters/chap3_methodology}
+\input{chapters/chap4_implementation}
+\input{chapters/chap5_evaluation}
+\input{chapters/chap6_conclusion}
 
 \clearpage
 \phantomsection
@@ -233,6 +261,6 @@ Appendix F & Important Algorithms & \pageref{app:algorithms} \\
 \bibliography{references}
 
 \appendix
-\include{chapters/appendices}
+\input{chapters/appendices}
 
 \end{document}

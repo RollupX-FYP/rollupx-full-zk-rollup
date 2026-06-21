@@ -1,28 +1,28 @@
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {1.1}{\ignorespaces Ethereum vs High-throughput L1s}}{3}{table.caption.16}%
-\contentsline {table}{\numberline {1.2}{\ignorespaces Research Question Mapping}}{10}{table.caption.17}%
+\contentsline {table}{\numberline {1.1}{\ignorespaces Ethereum vs High-throughput L1s}}{5}{table.caption.18}%
+\contentsline {table}{\numberline {1.2}{\ignorespaces Research Question Mapping}}{13}{table.caption.20}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {2.1}{\ignorespaces Comparison of Key Literature on Blockchain Scalability and ZK-Rollups}}{14}{table.caption.18}%
-\contentsline {table}{\numberline {2.2}{\ignorespaces Synthesis of Literature and Project Positioning}}{15}{table.caption.19}%
+\contentsline {table}{\numberline {2.1}{\ignorespaces Comparison of Key Literature on Blockchain Scalability and ZK-Rollups}}{17}{table.caption.21}%
+\contentsline {table}{\numberline {2.2}{\ignorespaces Synthesis of Literature and Project Positioning}}{18}{table.caption.22}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {3.1}{\ignorespaces Component Responsibility Summary}}{20}{table.caption.20}%
-\contentsline {table}{\numberline {3.2}{\ignorespaces Prototype vs. Production Rollup Architecture}}{21}{table.caption.21}%
-\contentsline {table}{\numberline {3.3}{\ignorespaces ZK-Rollup Cost Model \cite {chaliasos2024analyzing, saif2024dataavailability}}}{23}{table.caption.22}%
-\contentsline {table}{\numberline {3.4}{\ignorespaces Key Benchmarking Metrics}}{24}{table.caption.23}%
+\contentsline {table}{\numberline {3.1}{\ignorespaces Component Responsibility Summary}}{24}{table.caption.25}%
+\contentsline {table}{\numberline {3.2}{\ignorespaces Prototype vs. Production Rollup Architecture}}{25}{table.caption.26}%
+\contentsline {table}{\numberline {3.3}{\ignorespaces ZK-Rollup Cost Model}}{28}{table.caption.28}%
+\contentsline {table}{\numberline {3.4}{\ignorespaces Key Benchmarking Metrics}}{29}{table.caption.29}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {4.1}{\ignorespaces Implementation Status Table}}{26}{table.caption.24}%
+\contentsline {table}{\numberline {4.1}{\ignorespaces Implementation Status Table}}{31}{table.caption.31}%
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {5.1}{\ignorespaces Experiment Matrix: Stages 1 through 5}}{35}{table.caption.25}%
-\contentsline {table}{\numberline {5.2}{\ignorespaces Benchmark Scenario Matrix}}{36}{table.caption.26}%
-\contentsline {table}{\numberline {5.3}{\ignorespaces Metric Definitions}}{36}{table.caption.27}%
-\contentsline {table}{\numberline {5.4}{\ignorespaces Reproducibility Commands Table}}{37}{table.caption.28}%
-\contentsline {table}{\numberline {5.5}{\ignorespaces Prototype Scope Boundary}}{47}{table.caption.29}%
-\contentsline {table}{\numberline {5.6}{\ignorespaces Why Research-Grade Instead of Production-Grade}}{47}{table.caption.30}%
-\addvspace {10\p@ }
-\addvspace {10\p@ }
+\contentsline {table}{\numberline {5.1}{\ignorespaces Experiment Matrix: Stages 1 through 5}}{41}{table.caption.34}%
+\contentsline {table}{\numberline {5.2}{\ignorespaces Benchmark Scenario Matrix}}{42}{table.caption.35}%
+\contentsline {table}{\numberline {5.3}{\ignorespaces Metric Definitions}}{42}{table.caption.36}%
+\contentsline {table}{\numberline {5.4}{\ignorespaces Reproducibility Commands}}{43}{table.caption.37}%
+\contentsline {table}{\numberline {5.5}{\ignorespaces Prototype Scope Boundary}}{55}{table.caption.41}%
+\contentsline {table}{\numberline {5.6}{\ignorespaces Why Research-Grade Instead of Production-Grade}}{55}{table.caption.42}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }
-\contentsline {table}{\numberline {D.1}{\ignorespaces Key Configuration Parameters}}{56}{table.caption.34}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {D.1}{\ignorespaces Key Configuration Parameters}}{64}{table.caption.46}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }

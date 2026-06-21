@@ -1,4 +1,11 @@
 \section{Effect of Batch Size on Latency and Cost (Stage 1)}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{figures/chapter5/batch_vs_latency_cost.png}
+    \caption{Effect of batch size on latency and cost.}
+    \label{fig:batch_vs_latency_cost}
+\end{figure}
 \label{sec:effect_of_batch_size}
 
 Stage 1 sweeps evaluated the performance of a Fixed Batching Policy under varying constraints of maximum batch size. Analysis of the raw data reveals the fundamental latency-cost trade-off inherent in rollup design: larger batch sizes reduce per-transaction L1 gas costs by amortizing fixed submission overhead, but exponentially increase mempool queuing delays.
@@ -9,3 +16,4 @@ It is critical to note that the raw Stage 1 metrics exhibited boundary-effect di
 
 \input{chapters/09_results/cost_results}
 \input{chapters/09_results/latency_results}
+Figure~\ref{fig:batch_vs_latency_cost} illustrates the relationship between batch size, latency, and cost per transaction.
