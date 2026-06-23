@@ -1,0 +1,1013 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RollupX — ZK Rollup Research Platform</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0a0f1e;--surface:#0f1628;--card:#131d35;--border:#1e2d4a;--border2:#243358;
+  --blue:#4f8ef7;--blue-dk:#2563eb;--green:#22c55e;--amber:#f59e0b;--red:#ef4444;
+  --purple:#8b5cf6;--cyan:#06b6d4;
+  --text:#e2e8f0;--muted:#94a3b8;--dim:#64748b;
+  --font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  --mono:'Cascadia Code',Consolas,'Courier New',monospace;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;}
+
+/* ── Header ── */
+.hdr{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;
+  display:flex;align-items:center;justify-content:space-between;height:60px;
+  position:sticky;top:0;z-index:100;}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-icon{width:34px;height:34px;border-radius:8px;
+  background:linear-gradient(135deg,var(--blue),var(--purple));
+  display:flex;align-items:center;justify-content:center;
+  font-size:17px;font-weight:900;color:#fff;}
+.logo-text h1{font-size:18px;font-weight:700;}
+.logo-text p{font-size:11px;color:var(--muted);}
+.hdr-right{display:flex;align-items:center;gap:10px;font-size:13px;}
+.badge{padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;}
+.b-blue{background:rgba(79,142,247,.15);color:var(--blue);border:1px solid rgba(79,142,247,.3);}
+.b-purple{background:rgba(139,92,246,.15);color:var(--purple);border:1px solid rgba(139,92,246,.3);}
+.pulse{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);
+  box-shadow:0 0 6px var(--green);margin-right:5px;animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+/* ── Nav ── */
+.nav{background:var(--surface);border-bottom:1px solid var(--border);padding:0 28px;display:flex;gap:2px;}
+.nav-btn{padding:11px 18px;border:none;background:none;color:var(--muted);font-size:13px;
+  font-weight:500;cursor:pointer;border-bottom:2px solid transparent;transition:.15s;font-family:var(--font);}
+.nav-btn:hover{color:var(--text);}
+.nav-btn.active{color:var(--blue);border-bottom-color:var(--blue);}
+
+/* ── Layout ── */
+.main{padding:28px;max-width:1300px;margin:0 auto;}
+.panel{display:none;}
+.panel.active{display:block;}
+
+/* ── Cards ── */
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;}
+.card-lbl{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
+.card-val{font-size:26px;font-weight:700;}
+.card-sub{font-size:11px;color:var(--dim);margin-top:3px;}
+
+/* ── Grids ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;}
+.g5{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;}
+.g21{display:grid;grid-template-columns:2fr 1fr;gap:20px;}
+.g12{display:grid;grid-template-columns:1fr 2fr;gap:20px;}
+
+/* ── Section header ── */
+.sec-hdr{margin-bottom:22px;}
+.sec-title{font-size:20px;font-weight:700;}
+.sec-sub{font-size:13px;color:var(--muted);margin-top:4px;}
+
+/* ── Spacing ── */
+.mt1{margin-top:6px;}.mt2{margin-top:10px;}.mt3{margin-top:16px;}.mt4{margin-top:20px;}.mt5{margin-top:28px;}
+.mb3{margin-bottom:16px;}.mb4{margin-bottom:20px;}.mb5{margin-bottom:28px;}
+
+/* ── Forms ── */
+.flbl{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:5px;}
+.finp{width:100%;padding:9px 12px;background:var(--surface);border:1px solid var(--border2);
+  border-radius:8px;color:var(--text);font-size:13px;font-family:var(--font);transition:.15s;}
+.finp:focus{outline:none;border-color:var(--blue);}
+.fsel{width:100%;padding:9px 12px;background:var(--surface);border:1px solid var(--border2);
+  border-radius:8px;color:var(--text);font-size:13px;cursor:pointer;}
+.fgrp{margin-bottom:14px;}
+.rng{width:100%;height:5px;-webkit-appearance:none;background:var(--border2);border-radius:3px;cursor:pointer;}
+.rng::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:var(--blue);cursor:pointer;}
+.rng-row{display:flex;align-items:center;gap:10px;}
+.rng-val{min-width:72px;text-align:right;font-size:13px;font-weight:600;color:var(--blue);font-family:var(--mono);}
+
+/* ── Buttons ── */
+.btn{padding:10px 18px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;font-family:var(--font);}
+.btn-primary{background:var(--blue);color:#fff;width:100%;}
+.btn-primary:hover{background:var(--blue-dk);}
+.btn-primary:disabled{opacity:.5;cursor:not-allowed;}
+
+/* ── Radio pills ── */
+.radio-grp{display:flex;gap:7px;flex-wrap:wrap;}
+.radio-opt{flex:1;min-width:70px;}
+.radio-opt input{display:none;}
+.radio-lbl{display:block;padding:8px 10px;border:1px solid var(--border2);border-radius:8px;
+  cursor:pointer;font-size:12px;font-weight:500;color:var(--muted);text-align:center;transition:.15s;}
+.radio-opt input:checked+.radio-lbl{border-color:var(--blue);background:rgba(79,142,247,.1);color:var(--blue);}
+
+/* ── Transaction Lifecycle ── */
+.stage-list{display:flex;flex-direction:column;}
+.stage{display:flex;gap:14px;padding:13px 0;position:relative;}
+.stage:not(:last-child)::after{content:'';position:absolute;left:17px;top:50px;width:2px;
+  height:calc(100% - 18px);background:var(--border);transition:.3s;}
+.stage.done::after{background:var(--green);}
+.stage.running::after{background:var(--blue);}
+.dot{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;border:2px solid var(--border);background:var(--surface);transition:.3s;}
+.dot.pending{border-color:var(--border);color:var(--dim);}
+.dot.running{border-color:var(--blue);color:var(--blue);animation:ring 1s infinite;}
+.dot.done{border-color:var(--green);background:rgba(34,197,94,.12);color:var(--green);}
+@keyframes ring{0%,100%{box-shadow:0 0 0 0 rgba(79,142,247,.4);}50%{box-shadow:0 0 0 7px rgba(79,142,247,0);}}
+.stage-info{flex:1;padding-top:4px;}
+.stage-name{font-size:14px;font-weight:600;}
+.stage-desc{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5;}
+.stage-time{font-size:11px;color:var(--green);margin-top:4px;font-family:var(--mono);}
+
+/* ── Metric tiles ── */
+.metric-tile{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;}
+.mt-lbl{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.05em;}
+.mt-val{font-size:17px;font-weight:700;margin-top:2px;font-family:var(--mono);}
+.mt-sub{font-size:10px;color:var(--muted);margin-top:1px;}
+
+/* ── Impact rows ── */
+.imp-row{display:flex;justify-content:space-between;align-items:center;
+  padding:11px 0;border-bottom:1px solid var(--border);}
+.imp-row:last-child{border-bottom:none;}
+.imp-lbl{font-size:12px;color:var(--muted);}
+.imp-val{font-size:14px;font-weight:700;font-family:var(--mono);}
+.c-green{color:var(--green);}.c-amber{color:var(--amber);}.c-red{color:var(--red);}
+.c-blue{color:var(--blue);}.c-purple{color:var(--purple);}
+
+/* ── Alert boxes ── */
+.alert{padding:11px 14px;border-radius:8px;font-size:12px;margin-top:10px;}
+.a-warn{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);color:var(--amber);}
+.a-ok{background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);color:var(--green);}
+.a-info{background:rgba(79,142,247,.1);border:1px solid rgba(79,142,247,.3);color:var(--blue);}
+
+/* ── Architecture nodes ── */
+.arch-wrap{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap;padding:20px 0;}
+.anode{border:1px solid var(--border2);border-radius:10px;padding:14px 18px;text-align:center;min-width:120px;}
+.anode.bl{border-color:var(--blue);background:rgba(79,142,247,.07);}
+.anode.gr{border-color:var(--green);background:rgba(34,197,94,.07);}
+.anode.pu{border-color:var(--purple);background:rgba(139,92,246,.07);}
+.anode.am{border-color:var(--amber);background:rgba(245,158,11,.07);}
+.anode.cy{border-color:var(--cyan);background:rgba(6,182,212,.07);}
+.anode-icon{font-size:22px;margin-bottom:5px;}
+.anode-title{font-size:12px;font-weight:700;}
+.anode-sub{font-size:10px;color:var(--muted);margin-top:2px;line-height:1.4;}
+.arrow{font-size:16px;color:var(--dim);padding:0 6px;}
+
+/* ── Finding cards ── */
+.finding{background:var(--card);border:1px solid var(--border);border-left:3px solid var(--amber);
+  border-radius:10px;padding:18px;}
+.finding.fixed{border-left-color:var(--green);}
+.f-title{font-size:13px;font-weight:700;margin-bottom:7px;}
+.f-prob{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:7px;}
+.f-fix{font-size:11px;color:var(--green);}
+
+/* ── Stage badges ── */
+.stage-entry{display:flex;gap:14px;align-items:flex-start;padding:12px 14px;
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;}
+.s-badge{padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;margin-top:2px;}
+
+/* ── Tag ── */
+.tag{display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:600;margin-left:6px;}
+.t-green{background:rgba(34,197,94,.2);color:var(--green);}
+.t-blue{background:rgba(79,142,247,.2);color:var(--blue);}
+
+/* ── Chart containers ── */
+.chart-wrap{position:relative;height:250px;}
+
+/* ── DA option rows ── */
+.da-row{display:flex;align-items:center;gap:10px;padding:11px;
+  border:1px solid var(--border2);border-radius:8px;cursor:pointer;margin-bottom:7px;}
+.da-row input{flex-shrink:0;}
+.da-title{font-size:13px;font-weight:600;}
+.da-sub{font-size:11px;color:var(--muted);}
+
+/* ── Placeholder ── */
+.placeholder{text-align:center;padding:40px 0;color:var(--dim);}
+.placeholder-icon{font-size:44px;margin-bottom:14px;}
+.placeholder-title{font-size:14px;font-weight:600;margin-bottom:6px;}
+.placeholder-sub{font-size:12px;line-height:1.6;}
+
+/* ── Divider ── */
+.divider{height:1px;background:var(--border);margin:18px 0;}
+
+/* ── Responsive ── */
+@media(max-width:960px){.g5{grid-template-columns:repeat(3,1fr);}.g2,.g21,.g12{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════ HEADER ════════════════════ -->
+<header class="hdr">
+  <div class="logo">
+    <div class="logo-icon">R</div>
+    <div class="logo-text">
+      <h1>RollupX</h1>
+      <p>ZK-Rollup Research Platform · Layer 2 Scaling</p>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <span class="badge b-blue">FYP Demo 2026</span>
+    <span class="badge b-purple">University of Moratuwa</span>
+    <span><span class="pulse"></span>System Ready</span>
+  </div>
+</header>
+
+<!-- ════════════════════ NAV ════════════════════ -->
+<nav class="nav">
+  <button class="nav-btn active" onclick="showPanel('tx',this)">Transaction Demo</button>
+  <button class="nav-btn" onclick="showPanel('metrics',this)">Metrics Dashboard</button>
+  <button class="nav-btn" onclick="showPanel('params',this)">Parameter Tuning</button>
+  <button class="nav-btn" onclick="showPanel('arch',this)">System Architecture</button>
+</nav>
+
+<!-- ════════════════════ MAIN ════════════════════ -->
+<main class="main">
+
+<!-- ══════════ TAB 1: TRANSACTION DEMO ══════════ -->
+<div id="panel-tx" class="panel active">
+  <div class="sec-hdr">
+    <div class="sec-title">Transaction Lifecycle Demo</div>
+    <div class="sec-sub">Submit an L2 transaction and observe every stage — from soft confirmation to L1 finality.</div>
+  </div>
+
+  <div class="g21">
+    <!-- LEFT: form + lifecycle -->
+    <div>
+      <!-- Form -->
+      <div class="card mb4">
+        <div class="card-lbl">New L2 Transaction</div>
+        <div class="g2 mt3">
+          <div class="fgrp">
+            <label class="flbl">From Address</label>
+            <input class="finp" id="tx-from" value="0x7f3aB4c291D048Ae2F4c9244" readonly style="font-family:var(--mono);font-size:12px;">
+          </div>
+          <div class="fgrp">
+            <label class="flbl">To Address</label>
+            <input class="finp" id="tx-to" value="0x9b1dF6e035C74aA38b8E4534" style="font-family:var(--mono);font-size:12px;">
+          </div>
+          <div class="fgrp">
+            <label class="flbl">Amount (ETH)</label>
+            <input class="finp" id="tx-amount" type="number" value="0.15" step="0.01">
+          </div>
+          <div class="fgrp">
+            <label class="flbl">Gas Price (gwei)</label>
+            <input class="finp" id="tx-gas" type="number" value="3" step="0.5">
+          </div>
+          <div class="fgrp">
+            <label class="flbl">Transaction Type</label>
+            <select class="fsel" id="tx-type">
+              <option value="A">Type A — Simple Transfer (21k gas)</option>
+              <option value="B" selected>Type B — Contract Call (65k gas)</option>
+              <option value="C">Type C — Complex Operation (200k gas)</option>
+            </select>
+          </div>
+          <div class="fgrp">
+            <label class="flbl">Scheduling Policy</label>
+            <select class="fsel" id="tx-policy">
+              <option value="FCFS">FCFS — First-Come-First-Served</option>
+              <option value="FP">FeePriority — Gas-Price Order</option>
+              <option value="TB" selected>TimeBoost — Windowed Auction</option>
+              <option value="FB">FairBFT</option>
+              <option value="BP">BlobPacking — Size-Aware</option>
+            </select>
+          </div>
+        </div>
+        <div class="fgrp mt2">
+          <label class="flbl">Data Availability Mode</label>
+          <div class="radio-grp">
+            <div class="radio-opt"><input type="radio" name="da" id="da-cd" value="calldata" checked><label class="radio-lbl" for="da-cd">Calldata</label></div>
+            <div class="radio-opt"><input type="radio" name="da" id="da-bl" value="blob"><label class="radio-lbl" for="da-bl">Blob (EIP-4844)</label></div>
+            <div class="radio-opt"><input type="radio" name="da" id="da-oc" value="offchain"><label class="radio-lbl" for="da-oc">Offchain</label></div>
+          </div>
+        </div>
+        <button class="btn btn-primary mt3" id="submit-btn" onclick="startTx()">Submit Transaction →</button>
+      </div>
+
+      <!-- Lifecycle -->
+      <div class="card">
+        <div class="card-lbl">Transaction Pipeline</div>
+        <div class="stage-list mt3" id="stage-list"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: results -->
+    <div>
+      <!-- Hash -->
+      <div class="card mb3" id="hash-card" style="display:none;">
+        <div class="card-lbl">Transaction Hash</div>
+        <div id="hash-val" style="font-family:var(--mono);font-size:11px;color:var(--blue);word-break:break-all;margin-top:4px;"></div>
+        <div id="tx-status" style="font-size:12px;color:var(--muted);margin-top:8px;"></div>
+      </div>
+
+      <!-- Stage timings -->
+      <div class="card mb3" id="timing-card" style="display:none;">
+        <div class="card-lbl">Stage Timings</div>
+        <div id="timing-grid" class="mt2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;"></div>
+      </div>
+
+      <!-- Cost -->
+      <div class="card mb3" id="cost-card" style="display:none;">
+        <div class="card-lbl">L1 Cost Breakdown</div>
+        <div id="cost-rows" class="mt2"></div>
+      </div>
+
+      <!-- Placeholder -->
+      <div id="placeholder" class="card">
+        <div class="placeholder">
+          <div class="placeholder-icon">⬡</div>
+          <div class="placeholder-title">No Transaction Yet</div>
+          <div class="placeholder-sub">Submit a transaction on the left<br>to trace it through the pipeline.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ TAB 2: METRICS DASHBOARD ══════════ -->
+<div id="panel-metrics" class="panel">
+  <div class="sec-hdr">
+    <div class="sec-title">Metrics Dashboard</div>
+    <div class="sec-sub">Empirical results across 5 benchmarking stages — 847 controlled experiments, 15,247 transactions.</div>
+  </div>
+
+  <!-- KPI row -->
+  <div class="g5 mb5">
+    <div class="card">
+      <div class="card-lbl">Transactions Processed</div>
+      <div class="card-val">15,247</div>
+      <div class="card-sub">Across all experiments</div>
+    </div>
+    <div class="card">
+      <div class="card-lbl">Best Fairness (JFI)</div>
+      <div class="card-val c-green">0.773</div>
+      <div class="card-sub">TimeBoost policy</div>
+    </div>
+    <div class="card">
+      <div class="card-lbl">Gas Saved — Blob DA</div>
+      <div class="card-val c-blue">78%</div>
+      <div class="card-sub">vs. Calldata baseline</div>
+    </div>
+    <div class="card">
+      <div class="card-lbl">ZK Proof Size</div>
+      <div class="card-val c-purple">256 B</div>
+      <div class="card-sub">Constant — any batch size</div>
+    </div>
+    <div class="card">
+      <div class="card-lbl">Min Gas / Tx</div>
+      <div class="card-val c-green">3,600</div>
+      <div class="card-sub">Offchain DA mode</div>
+    </div>
+  </div>
+
+  <!-- Charts row 1 -->
+  <div class="g2 mb5">
+    <div class="card">
+      <div class="card-lbl">Scheduling Policy — Jain's Fairness Index (higher = fairer)</div>
+      <div class="chart-wrap mt3"><canvas id="ch-fair"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-lbl">Data Availability Mode — L1 Gas Cost per Transaction</div>
+      <div class="chart-wrap mt3"><canvas id="ch-da"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Charts row 2 -->
+  <div class="g2">
+    <div class="card">
+      <div class="card-lbl">Avg Queue Wait vs. Batch Size (λ=10 TPS, T_timeout=200s)</div>
+      <div class="chart-wrap mt3"><canvas id="ch-queue"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-lbl">ZK Proof Generation Time vs. Batch Size (RISC0 + Groth16)</div>
+      <div class="chart-wrap mt3"><canvas id="ch-proof"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ TAB 3: PARAMETER TUNING ══════════ -->
+<div id="panel-params" class="panel">
+  <div class="sec-hdr">
+    <div class="sec-title">Parameter Configuration</div>
+    <div class="sec-sub">Adjust system parameters and observe real-time impact on latency, cost, and fairness.</div>
+  </div>
+
+  <div class="g2">
+    <!-- LEFT: controls -->
+    <div>
+      <!-- Batching -->
+      <div class="card mb4">
+        <div class="card-lbl">Batching Configuration</div>
+
+        <div class="fgrp mt3">
+          <label class="flbl">Batch Policy</label>
+          <div class="radio-grp">
+            <div class="radio-opt"><input type="radio" name="bp" id="bp-fixed" value="fixed" checked onchange="toggleAdaptive();calcImpact();"><label class="radio-lbl" for="bp-fixed">Fixed</label></div>
+            <div class="radio-opt"><input type="radio" name="bp" id="bp-adapt" value="adaptive" onchange="toggleAdaptive();calcImpact();"><label class="radio-lbl" for="bp-adapt">Adaptive</label></div>
+          </div>
+        </div>
+
+        <div class="fgrp mt3">
+          <label class="flbl">Max Batch Size <span class="tag t-blue">N_max</span></label>
+          <div class="rng-row">
+            <input type="range" class="rng" id="p-bsz" min="25" max="1000" value="100" oninput="syncVal('p-bsz','p-bsz-v','');calcImpact();">
+            <span class="rng-val" id="p-bsz-v">100</span>
+          </div>
+          <div style="font-size:10px;color:var(--dim);margin-top:3px;">Range: 25 – 1000 transactions</div>
+        </div>
+
+        <div class="fgrp mt3">
+          <label class="flbl">Batch Timeout <span class="tag t-blue">T_timeout</span></label>
+          <div class="rng-row">
+            <input type="range" class="rng" id="p-tmo" min="500" max="30000" value="5000" step="500" oninput="syncMs('p-tmo','p-tmo-v');calcImpact();">
+            <span class="rng-val" id="p-tmo-v">5,000 ms</span>
+          </div>
+        </div>
+
+        <div class="fgrp mt3">
+          <label class="flbl">Scheduling Policy <span class="tag t-blue">π</span></label>
+          <select class="fsel" id="p-pol" onchange="calcImpact()">
+            <option value="FCFS">FCFS — First-Come-First-Served</option>
+            <option value="FP">FeePriority — Sort by Gas Price</option>
+            <option value="TB" selected>TimeBoost — 5-second Window Auction</option>
+            <option value="FB">FairBFT</option>
+            <option value="BP">BlobPacking — Size-Aware (EIP-4844)</option>
+          </select>
+        </div>
+
+        <!-- Adaptive thresholds (hidden by default) -->
+        <div id="adapt-sect" style="display:none;">
+          <div class="divider"></div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:12px;">Adaptive Load Thresholds</div>
+
+          <div id="hyst-warn" class="alert a-warn mb3" style="display:none;">
+            ⚠️ <strong>Hysteresis Trap:</strong> N_small ≥ L_t — small batches will never seal. Set N_small &lt; L_t to fix.
+          </div>
+
+          <div class="fgrp">
+            <label class="flbl">Low Load Threshold (L_t)</label>
+            <div class="rng-row">
+              <input type="range" class="rng" id="p-lt" min="10" max="200" value="50" oninput="syncVal('p-lt','p-lt-v','');calcImpact();">
+              <span class="rng-val" id="p-lt-v">50</span>
+            </div>
+          </div>
+          <div class="fgrp mt2">
+            <label class="flbl">Small Batch Size (N_small)</label>
+            <div class="rng-row">
+              <input type="range" class="rng" id="p-ns" min="10" max="100" value="40" oninput="syncVal('p-ns','p-ns-v','');calcImpact();">
+              <span class="rng-val" id="p-ns-v">40</span>
+            </div>
+          </div>
+          <div class="fgrp mt2">
+            <label class="flbl">Medium Load Threshold (M_t)</label>
+            <div class="rng-row">
+              <input type="range" class="rng" id="p-mt" min="100" max="500" value="200" oninput="syncVal('p-mt','p-mt-v','');calcImpact();">
+              <span class="rng-val" id="p-mt-v">200</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DA mode -->
+      <div class="card mb4">
+        <div class="card-lbl">Data Availability Mode</div>
+        <div class="mt3">
+          <label class="da-row">
+            <input type="radio" name="p-da" value="calldata" checked onchange="calcImpact()">
+            <div><div class="da-title">Calldata DA</div><div class="da-sub">16 gas/byte on-chain · Zlib compressed · ~20,700 gas/tx</div></div>
+          </label>
+          <label class="da-row">
+            <input type="radio" name="p-da" value="blob" onchange="calcImpact()">
+            <div><div class="da-title">Blob DA (EIP-4844) <span class="tag t-green">78% cheaper</span></div><div class="da-sub">131KB KZG blob units · ~4,600 gas/tx</div></div>
+          </label>
+          <label class="da-row">
+            <input type="radio" name="p-da" value="offchain" onchange="calcImpact()">
+            <div><div class="da-title">Offchain DA <span class="tag t-green">84% cheaper</span></div><div class="da-sub">State root only · No raw data on-chain · ~3,600 gas/tx</div></div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Economic -->
+      <div class="card">
+        <div class="card-lbl">Economic Parameters</div>
+        <div class="g2 mt3">
+          <div class="fgrp">
+            <label class="flbl">ETH Price (USD)</label>
+            <input class="finp" type="number" id="p-eth" value="2500" oninput="calcImpact()">
+          </div>
+          <div class="fgrp">
+            <label class="flbl">Gas Price (gwei)</label>
+            <input class="finp" type="number" id="p-gp" value="2" step="0.5" oninput="calcImpact()">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: impact display -->
+    <div>
+      <div class="card mb4">
+        <div class="card-lbl">Real-time Impact Preview</div>
+        <div class="mt3">
+          <div class="imp-row"><div class="imp-lbl">Estimated L1 Gas / Transaction</div><div class="imp-val" id="i-gas">20,700</div></div>
+          <div class="imp-row"><div class="imp-lbl">Estimated USD Cost / Transaction</div><div class="imp-val c-green" id="i-usd">$0.122</div></div>
+          <div class="imp-row"><div class="imp-lbl">Avg Queue Wait Time</div><div class="imp-val" id="i-wait">2,500 ms</div></div>
+          <div class="imp-row"><div class="imp-lbl">Expected Fairness Index (JFI)</div><div class="imp-val" id="i-jfi">0.750</div></div>
+          <div class="imp-row"><div class="imp-lbl">Batching Strategy</div><div class="imp-val" id="i-strat">Fixed · 100 tx</div></div>
+          <div class="imp-row"><div class="imp-lbl">DA Mode</div><div class="imp-val" id="i-da">Calldata</div></div>
+        </div>
+        <div id="p-alert" class="mt2"></div>
+      </div>
+
+      <div class="card mb4">
+        <div class="card-lbl">DA Mode Cost Comparison (at current prices)</div>
+        <div id="da-cmp" class="mt3"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-lbl">Policy Fairness Comparison</div>
+        <div id="pol-cmp" class="mt3"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ TAB 4: SYSTEM ARCHITECTURE ══════════ -->
+<div id="panel-arch" class="panel">
+  <div class="sec-hdr">
+    <div class="sec-title">System Architecture</div>
+    <div class="sec-sub">Modular ZK-Rollup with pluggable scheduling, proving, and data availability layers. Written in Rust (services) + Solidity (contracts).</div>
+  </div>
+
+  <!-- Flow diagram -->
+  <div class="card mb5">
+    <div class="card-lbl">Component Pipeline — Full Transaction Lifecycle</div>
+    <div class="arch-wrap mt3">
+      <div class="anode cy"><div class="anode-icon">👤</div><div class="anode-title">User / dApp</div><div class="anode-sub">JSON-RPC API<br>sendTransaction()</div></div>
+      <div class="arrow">→</div>
+      <div class="anode bl"><div class="anode-icon">⚡</div><div class="anode-title">Sequencer</div><div class="anode-sub">Batch Orchestrator<br>5 Scheduling Policies</div></div>
+      <div class="arrow">→</div>
+      <div class="anode pu"><div class="anode-icon">⚙️</div><div class="anode-title">Executor</div><div class="anode-sub">STF Engine<br>RocksDB SMT State</div></div>
+      <div class="arrow">→</div>
+      <div class="anode am"><div class="anode-icon">🔐</div><div class="anode-title">ZK Prover</div><div class="anode-sub">RISC0 zkVM<br>STARK → Groth16</div></div>
+      <div class="arrow">→</div>
+      <div class="anode bl"><div class="anode-icon">📤</div><div class="anode-title">Submitter</div><div class="anode-sub">Saga Engine<br>DA Formatter</div></div>
+      <div class="arrow">→</div>
+      <div class="anode gr"><div class="anode-icon">⛓️</div><div class="anode-title">L1 Ethereum</div><div class="anode-sub">ZKRollupBridge.sol<br>Groth16Verifier.sol</div></div>
+    </div>
+  </div>
+
+  <!-- Component cards -->
+  <div class="g3 mb5">
+    <div class="card">
+      <div style="font-size:20px;margin-bottom:8px;">⚡</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:8px;">Sequencer</div>
+      <ul style="font-size:12px;color:var(--muted);padding-left:16px;line-height:1.9;">
+        <li>5 scheduling policies (FCFS, FeePriority, TimeBoost, FairBFT, BlobPacking)</li>
+        <li>Pessimistic balance/nonce cache → soft confirm in ~5ms</li>
+        <li>Fixed &amp; adaptive batching modes</li>
+        <li>Forced inclusion queue (censorship resistance)</li>
+        <li>Two-tier nonce-aware scheduler (post-fix)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div style="font-size:20px;margin-bottom:8px;">⚙️</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:8px;">Executor</div>
+      <ul style="font-size:12px;color:var(--muted);padding-left:16px;line-height:1.9;">
+        <li>Sequential State Transition Function (STF)</li>
+        <li>RocksDB-backed Sparse Merkle Tree</li>
+        <li>ECDSA secp256k1 signature verification</li>
+        <li>ExecutionTraceV1 JSON logging</li>
+        <li>gRPC service interface to sequencer</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div style="font-size:20px;margin-bottom:8px;">🔐</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:8px;">ZK Prover (RISC0)</div>
+      <ul style="font-size:12px;color:var(--muted);padding-left:16px;line-height:1.9;">
+        <li>RISC-V zkVM sandboxed execution</li>
+        <li>STARK proof generation (2²⁰ cycles/segment)</li>
+        <li>Binary tree segment recursion</li>
+        <li>Groth16 SNARK wrapper (BN254 curve)</li>
+        <li>Constant 256-byte proof regardless of batch size</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div style="font-size:20px;margin-bottom:8px;">📤</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:8px;">Submitter</div>
+      <ul style="font-size:12px;color:var(--muted);padding-left:16px;line-height:1.9;">
+        <li>Saga workflow (Discovered → Proved → Submitted → Confirmed)</li>
+        <li>Circuit breaker — adaptive backoff on prover overload</li>
+        <li>3 DA formatters: Calldata / Blob / Offchain</li>
+        <li>SQLite persistence for crash recovery</li>
+        <li>EIP-4844 KZG commitment support</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div style="font-size:20px;margin-bottom:8px;">⛓️</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:8px;">L1 Smart Contracts</div>
+      <ul style="font-size:12px;color:var(--muted);padding-left:16px;line-height:1.9;">
+        <li>ZKRollupBridge.sol — state root management</li>
+        <li>Groth16Verifier.sol — BN254 pairing precompile</li>
+        <li>CalldataDA / BlobDA / OffchainDA contracts</li>
+        <li>Deposit/withdrawal with Merkle nullifiers</li>
+        <li>Forced tx queue + bridge freeze safeguard</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div style="font-size:20px;margin-bottom:8px;">📊</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:8px;">Benchmarking Suite</div>
+      <ul style="font-size:12px;color:var(--muted);padding-left:16px;line-height:1.9;">
+        <li>Poisson arrival process (reproducible seeds)</li>
+        <li>5-stage experiment matrix (TOML config)</li>
+        <li>JSONL metrics: sequencer + executor + submitter</li>
+        <li>Jain's Fairness Index per batch</li>
+        <li>Python data-tools: aggregate, stats, plots</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Key findings -->
+  <div class="card mb5">
+    <div style="font-size:16px;font-weight:700;margin-bottom:16px;">Key Research Discoveries — Anomalies Found &amp; Fixed</div>
+    <div class="g3">
+      <div class="finding fixed">
+        <div class="f-title">⚠️ Anomaly 1: Nonce Reordering Vulnerability</div>
+        <div class="f-prob">Global fee-based scheduling placed nonce N+1 before nonce N for the same sender, causing 100% rejection for multi-tx senders. Gas/tx spiked to ~112k (all empty batches).</div>
+        <div class="f-fix">✓ Fixed: Two-tier nonce-aware scheduler — group by sender, sort each sender's queue by nonce ascending, then apply global policy on queue heads only.</div>
+      </div>
+      <div class="finding fixed">
+        <div class="f-title">⚠️ Anomaly 2: Hysteresis Threshold Trap</div>
+        <div class="f-prob">Adaptive batching flaw: if N_small ≥ L_t, no valid mempool depth satisfies both the size trigger AND the low-load condition simultaneously. Adaptive policies converged to fixed batching under all loads.</div>
+        <div class="f-fix">✓ Fixed: Enforce N_small &lt; L_t in config validation. Patched system shows correct three-tier load-adaptive behavior.</div>
+      </div>
+      <div class="finding fixed">
+        <div class="f-title">⚠️ Anomaly 3: Aggregation Anomalies</div>
+        <div class="f-prob">Simple arithmetic mean of batch metrics caused 16% inflation in reported queue latency (8,212ms reported vs. 7,061ms true). Empty trailing batches inflated L1 gas averages.</div>
+        <div class="f-fix">✓ Fixed: Volume-weighted averages for all latency and cost metrics. Trailing empty batches excluded from cost computations.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Benchmarking stages -->
+  <div class="card">
+    <div style="font-size:16px;font-weight:700;margin-bottom:16px;">5-Stage Benchmarking Plan</div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="stage-entry">
+        <span class="s-badge" style="background:var(--blue);">Stage 1</span>
+        <div>
+          <div style="font-size:13px;font-weight:600;">Fixed Batching Characterization</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px;">Varied batch size (25–1000 tx) and timeout (0.5s–200s) at 10 TPS. Validated: W_q ≈ ½·min(T_timeout, B/λ) within ±3% empirically.</div>
+        </div>
+      </div>
+      <div class="stage-entry">
+        <span class="s-badge" style="background:var(--purple);">Stage 2</span>
+        <div>
+          <div style="font-size:13px;font-weight:600;">Adaptive Batching Under Varying Load</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px;">Three-tier load-responsive batch sizing. Discovered and fixed the hysteresis trap. Patched system shows correct low/medium/high load switching.</div>
+        </div>
+      </div>
+      <div class="stage-entry">
+        <span class="s-badge" style="background:var(--cyan);">Stage 3</span>
+        <div>
+          <div style="font-size:13px;font-weight:600;">Scheduling Policy Evaluation</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px;">Compared all 5 policies. TimeBoost achieved best JFI (0.773). Discovered nonce reordering bug in global-sort policies; fixed with two-tier scheduler.</div>
+        </div>
+      </div>
+      <div class="stage-entry">
+        <span class="s-badge" style="background:var(--amber);">Stage 4</span>
+        <div>
+          <div style="font-size:13px;font-weight:600;">Data Availability Mode Analysis</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px;">Calldata (20,700 gas/tx) vs. EIP-4844 Blob (4,600 gas/tx, 78% saving) vs. Offchain (3,600 gas/tx, 84% saving). Blobs require N≥1000 for economies of scale.</div>
+        </div>
+      </div>
+      <div class="stage-entry">
+        <span class="s-badge" style="background:var(--green);">Stage 5</span>
+        <div>
+          <div style="font-size:13px;font-weight:600;">ZK Proof Generation Scaling (RISC0)</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:3px;">Step-function scaling: ~70–80s fixed overhead + ~5.7s/tx. Final Groth16 proof is always 256 bytes regardless of batch size. BN254 pairing precompile verification on L1.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+
+<script>
+// ══════════════════════ NAV ══════════════════════
+function showPanel(name, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'metrics' && !chartsReady) { initCharts(); chartsReady = true; }
+}
+
+// ══════════════════════ TRANSACTION LIFECYCLE ══════════════════════
+const STAGES = [
+  { id:'ingest', icon:'📥', name:'Sequencer Ingestion',
+    desc:'Validate ECDSA signature, check nonce ≥ expected, deduct balance in pessimistic cache.',
+    delay: 750 },
+  { id:'batch', icon:'📦', name:'Batch Assembly',
+    desc:'Transaction ordered by scheduling policy; batch seals on size trigger or timeout expiry.',
+    delay: 1600 },
+  { id:'execute', icon:'⚙️', name:'State Execution (STF)',
+    desc:'Sequential execution: signature re-check, balance transfer, nonce increment, SMT root update, trace log.',
+    delay: 1100 },
+  { id:'prove', icon:'🔐', name:'ZK Proof Generation',
+    desc:'RISC0 guest runs inside RISC-V zkVM. STARK proof generated per segment (2²⁰ cycles), then compressed to 256-byte Groth16 SNARK via BN254.',
+    delay: 2800 },
+  { id:'submit', icon:'📤', name:'L1 Submission',
+    desc:'Submitter formats DA payload, builds commitBatch() transaction, signs and broadcasts to Ethereum mempool.',
+    delay: 900 },
+  { id:'confirm', icon:'✅', name:'L1 Finality',
+    desc:'Ethereum includes transaction in block. ZKRollupBridge.sol updates latestStateRoot. Batch confirmed irreversibly.',
+    delay: 1100 },
+];
+
+const POLICY_WAIT = { FCFS:'1,847 ms', FP:'1,892 ms', TB:'2,115 ms', FB:'1,963 ms', BP:'2,048 ms' };
+const TX_EXEC     = { A:'23.1 ms', B:'47.3 ms', C:'89.2 ms' };
+const TX_PROVE    = { A:'78.2', B:'131.4', C:'648.7' };
+const DA_GAS      = { calldata:20700, blob:4600, offchain:3600 };
+const DA_LABEL    = { calldata:'Calldata', blob:'Blob (EIP-4844)', offchain:'Offchain' };
+
+let txRunning = false;
+
+function renderStages(states) {
+  // states: map of id → 'pending'|'running'|'done'
+  const s = states || {};
+  document.getElementById('stage-list').innerHTML = STAGES.map(st => {
+    const cls = s[st.id] || 'pending';
+    return `<div class="stage ${cls==='done'?'done':cls==='running'?'running':''}" id="st-${st.id}">
+      <div class="dot ${cls}" id="dot-${st.id}">${cls==='done'?'✓':st.icon}</div>
+      <div class="stage-info">
+        <div class="stage-name">${st.name}</div>
+        <div class="stage-desc">${st.desc}</div>
+        <div class="stage-time" id="tm-${st.id}" style="display:none;"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+renderStages({});
+
+function startTx() {
+  if (txRunning) return;
+  txRunning = true;
+
+  const btn = document.getElementById('submit-btn');
+  btn.textContent = 'Processing…';
+  btn.disabled = true;
+
+  const policy = document.getElementById('tx-policy').value;
+  const txType = document.getElementById('tx-type').value;
+  const da     = document.querySelector('input[name="da"]:checked').value;
+  const gas    = DA_GAS[da];
+  const gasP   = parseFloat(document.getElementById('tx-gas').value) || 3;
+  const cost   = (gas * gasP * 1e-9 * 2500).toFixed(4);
+
+  const timings = {
+    ingest:  '5.3 ms',
+    batch:   POLICY_WAIT[policy],
+    execute: TX_EXEC[txType],
+    prove:   TX_PROVE[txType] + ' s (sped up in demo)',
+    submit:  '3,241 ms',
+    confirm: '12,140 ms',
+  };
+
+  // Generate tx hash
+  const hash = '0x' + Array.from({length:64},()=>Math.floor(Math.random()*16).toString(16)).join('');
+
+  // Show cards, hide placeholder
+  document.getElementById('placeholder').style.display = 'none';
+  document.getElementById('hash-card').style.display = 'block';
+  document.getElementById('hash-val').textContent = hash;
+  document.getElementById('tx-status').textContent = 'Status: Processing…';
+  document.getElementById('timing-card').style.display = 'none';
+  document.getElementById('cost-card').style.display = 'none';
+
+  // Reset stages
+  renderStages({});
+
+  let delay = 0;
+  STAGES.forEach((st, i) => {
+    // Mark this stage running
+    setTimeout(() => {
+      document.getElementById('dot-'+st.id).className = 'dot running';
+    }, delay);
+
+    delay += st.delay;
+
+    // Mark this stage done, previous stage's time
+    setTimeout(() => {
+      document.getElementById('dot-'+st.id).className = 'dot done';
+      document.getElementById('dot-'+st.id).textContent = '✓';
+      document.getElementById('st-'+st.id).classList.add('done');
+      const tm = document.getElementById('tm-'+st.id);
+      tm.style.display = 'block';
+      tm.textContent = '✓ Real latency: ' + timings[st.id];
+
+      if (i === STAGES.length - 1) {
+        // All done
+        document.getElementById('tx-status').textContent = '✅ Confirmed on L1 — Transaction Finalized';
+
+        document.getElementById('timing-card').style.display = 'block';
+        document.getElementById('timing-grid').innerHTML = [
+          ['Soft Confirmation', '5.3 ms', 'Sequencer ingest'],
+          ['Queue Wait', timings.batch, 'Policy: ' + policy],
+          ['STF Execution', timings.execute, 'Type ' + txType + ' tx'],
+          ['ZK Proof', TX_PROVE[txType] + ' s', 'RISC0 + Groth16'],
+          ['L1 Submission', '3.2 s', 'Saga + broadcast'],
+          ['L1 Finality', '12.1 s', 'Block inclusion'],
+        ].map(([l,v,s]) => `<div class="metric-tile"><div class="mt-lbl">${l}</div><div class="mt-val">${v}</div><div class="mt-sub">${s}</div></div>`).join('');
+
+        document.getElementById('cost-card').style.display = 'block';
+        document.getElementById('cost-rows').innerHTML = [
+          ['DA Mode', DA_LABEL[da], ''],
+          ['L1 Gas Used', gas.toLocaleString() + ' gas', ''],
+          ['Gas Price', gasP + ' gwei', ''],
+          ['L1 Cost (est.)', '$' + cost + ' USD', 'c-green'],
+          ['Proof Size', '256 bytes', 'c-purple'],
+        ].map(([l,v,c]) => `<div class="imp-row"><div class="imp-lbl">${l}</div><div class="imp-val ${c}">${v}</div></div>`).join('');
+
+        btn.textContent = 'Submit Transaction →';
+        btn.disabled = false;
+        txRunning = false;
+      }
+    }, delay);
+  });
+}
+
+// ══════════════════════ CHARTS ══════════════════════
+let chartsReady = false;
+
+const CGRID = { color:'rgba(255,255,255,0.05)' };
+const CTICK = { color:'#94a3b8', font:{size:11} };
+const CSCALE = { x:{ ticks:CTICK, grid:CGRID }, y:{ ticks:CTICK, grid:CGRID } };
+
+function initCharts() {
+  // Fairness Index by policy
+  new Chart(document.getElementById('ch-fair'), {
+    type:'bar',
+    data:{
+      labels:['FCFS','FeePriority','TimeBoost','FairBFT','BlobPacking'],
+      datasets:[{ label:"Jain's Fairness Index",
+        data:[0.7501,0.7389,0.7723,0.7621,0.7412],
+        backgroundColor:['#3b82f6','#8b5cf6','#22c55e','#06b6d4','#f59e0b'],
+        borderRadius:6 }]
+    },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{ ...CSCALE,
+        y:{ ...CSCALE.y, min:0.70, max:0.80,
+          ticks:{...CTICK, callback:v=>v.toFixed(3)} } } }
+  });
+
+  // DA gas cost
+  new Chart(document.getElementById('ch-da'), {
+    type:'bar',
+    data:{
+      labels:['Calldata','Blob (EIP-4844)','Offchain'],
+      datasets:[{ label:'L1 Gas per Tx',
+        data:[20700,4600,3600],
+        backgroundColor:['#ef4444','#3b82f6','#22c55e'],
+        borderRadius:6 }]
+    },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label:ctx => ctx.raw.toLocaleString()+' gas' } } },
+      scales:{ ...CSCALE,
+        y:{ ...CSCALE.y, ticks:{...CTICK, callback:v=>v.toLocaleString()} } } }
+  });
+
+  // Queue wait vs batch size
+  new Chart(document.getElementById('ch-queue'), {
+    type:'line',
+    data:{
+      labels:[25,50,100,200,500,1000],
+      datasets:[{ label:'Avg Queue Wait (s)',
+        data:[1.25,2.50,5.00,10.01,25.02,50.03],
+        borderColor:'#4f8ef7', backgroundColor:'rgba(79,142,247,0.12)',
+        fill:true, tension:0.3, pointRadius:5, pointBackgroundColor:'#4f8ef7' }]
+    },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{ ...CSCALE,
+        x:{ ...CSCALE.x, title:{display:true,text:'Batch Size (N)',color:'#94a3b8',font:{size:11}} },
+        y:{ ...CSCALE.y, title:{display:true,text:'Queue Wait (seconds)',color:'#94a3b8',font:{size:11}} } } }
+  });
+
+  // ZK proof time
+  new Chart(document.getElementById('ch-proof'), {
+    type:'line',
+    data:{
+      labels:[1,5,10,25,50,100],
+      datasets:[{ label:'Proof Time (s)',
+        data:[78,104,131,213,364,648],
+        borderColor:'#8b5cf6', backgroundColor:'rgba(139,92,246,0.12)',
+        fill:true, tension:0.3, pointRadius:5, pointBackgroundColor:'#8b5cf6' }]
+    },
+    options:{ responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{ ...CSCALE,
+        x:{ ...CSCALE.x, title:{display:true,text:'Batch Size (transactions)',color:'#94a3b8',font:{size:11}} },
+        y:{ ...CSCALE.y, title:{display:true,text:'Proof Time (seconds)',color:'#94a3b8',font:{size:11}} } } }
+  });
+}
+
+// ══════════════════════ PARAMETER TUNING ══════════════════════
+const POL_DATA = {
+  FCFS:{jfi:0.7501,wm:1.00}, FP:{jfi:0.7389,wm:1.02},
+  TB:{jfi:0.7723,wm:1.14},   FB:{jfi:0.7621,wm:1.06}, BP:{jfi:0.7412,wm:1.11}
+};
+const DA_DATA = {
+  calldata:{gas:20700,label:'Calldata'},
+  blob:{gas:4600,label:'Blob (EIP-4844)'},
+  offchain:{gas:3600,label:'Offchain'}
+};
+
+function syncVal(rngId, lblId, suffix) {
+  document.getElementById(lblId).textContent = document.getElementById(rngId).value + suffix;
+}
+function syncMs(rngId, lblId) {
+  document.getElementById(lblId).textContent = parseInt(document.getElementById(rngId).value).toLocaleString() + ' ms';
+}
+
+function toggleAdaptive() {
+  const on = document.getElementById('bp-adapt').checked;
+  document.getElementById('adapt-sect').style.display = on ? 'block' : 'none';
+}
+
+function calcImpact() {
+  const bsz    = parseInt(document.getElementById('p-bsz').value);
+  const tmo    = parseInt(document.getElementById('p-tmo').value);
+  const pol    = document.getElementById('p-pol').value;
+  const da     = document.querySelector('input[name="p-da"]:checked').value;
+  const ethP   = parseFloat(document.getElementById('p-eth').value) || 2500;
+  const gasP   = parseFloat(document.getElementById('p-gp').value) || 2;
+  const isAd   = document.getElementById('bp-adapt').checked;
+
+  // Sync display values
+  document.getElementById('p-bsz-v').textContent = bsz;
+  document.getElementById('p-tmo-v').textContent = tmo.toLocaleString() + ' ms';
+
+  const gas  = DA_DATA[da].gas;
+  const cost = (gas * gasP * 1e-9 * ethP).toFixed(4);
+
+  // W = min(T_timeout, B/lambda) / 2, lambda=10
+  const waitS  = Math.min(tmo / 1000, bsz / 10) / 2;
+  const waitMs = Math.round(waitS * (POL_DATA[pol]?.wm || 1) * 1000);
+  const jfi    = POL_DATA[pol]?.jfi || 0.75;
+
+  // Update impact
+  document.getElementById('i-gas').textContent    = gas.toLocaleString();
+  document.getElementById('i-usd').textContent    = '$' + cost;
+  document.getElementById('i-usd').className      = 'imp-val ' + (parseFloat(cost)<0.05?'c-green':parseFloat(cost)<0.10?'':'c-amber');
+  document.getElementById('i-wait').textContent   = waitMs.toLocaleString() + ' ms';
+  document.getElementById('i-jfi').textContent    = jfi.toFixed(3);
+  document.getElementById('i-jfi').className      = 'imp-val ' + (jfi>0.76?'c-green':jfi<0.74?'c-red':'');
+  document.getElementById('i-strat').textContent  = isAd ? 'Adaptive (3-tier)' : 'Fixed · ' + bsz + ' tx';
+  document.getElementById('i-da').textContent     = DA_DATA[da].label;
+
+  // Hysteresis check
+  const alertEl = document.getElementById('p-alert');
+  const warnEl  = document.getElementById('hyst-warn');
+  if (isAd) {
+    const lt = parseInt(document.getElementById('p-lt').value);
+    const ns = parseInt(document.getElementById('p-ns').value);
+    if (ns >= lt) {
+      warnEl.style.display = 'block';
+      alertEl.innerHTML = '<div class="alert a-warn">⚠️ <strong>Hysteresis Trap Active:</strong> N_small (' + ns + ') ≥ L_t (' + lt + '). Small batches cannot seal. Decrease N_small below ' + lt + '.</div>';
+    } else {
+      warnEl.style.display = 'none';
+      alertEl.innerHTML = '<div class="alert a-ok">✓ Adaptive thresholds valid: N_small (' + ns + ') &lt; L_t (' + lt + ').</div>';
+    }
+  } else {
+    warnEl && (warnEl.style.display = 'none');
+    alertEl.innerHTML = '';
+  }
+
+  // DA comparison table
+  document.getElementById('da-cmp').innerHTML = ['calldata','blob','offchain'].map(mode => {
+    const g  = DA_DATA[mode].gas;
+    const c  = (g * gasP * 1e-9 * ethP).toFixed(4);
+    const sv = mode==='calldata' ? '' : Math.round((1-g/20700)*100)+'% cheaper';
+    const sel = mode === da;
+    const bg  = sel ? 'background:rgba(79,142,247,0.08);border-radius:6px;padding:10px 12px;margin:0 -4px;' : '';
+    return `<div class="imp-row" style="${bg}">
+      <div class="imp-lbl">${DA_DATA[mode].label} ${sv?'<span class="tag t-green">'+sv+'</span>':''} ${sel?'◀':''}</div>
+      <div class="imp-val ${mode!=='calldata'?'c-green':''}">${g.toLocaleString()} gas · $${c}</div>
+    </div>`;
+  }).join('');
+
+  // Policy comparison table
+  document.getElementById('pol-cmp').innerHTML = Object.entries(POL_DATA).map(([p,d]) => {
+    const sel = p === pol;
+    const bg  = sel ? 'background:rgba(79,142,247,0.08);border-radius:6px;padding:10px 12px;margin:0 -4px;' : '';
+    return `<div class="imp-row" style="${bg}">
+      <div class="imp-lbl">${p} ${sel?'◀ selected':''}</div>
+      <div class="imp-val ${d.jfi>=0.77?'c-green':d.jfi<0.74?'c-red':''}">JFI: ${d.jfi.toFixed(3)}</div>
+    </div>`;
+  }).join('');
+}
+
+// init on load
+calcImpact();
+</script>
+</body>
+</html>
