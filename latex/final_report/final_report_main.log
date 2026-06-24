@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.6.20)  20 JUN 2026 18:06
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2026.6.21)  21 JUN 2026 01:37
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -1015,7 +1015,7 @@ pdfTeX warning (ext4): destination with the same identifier (name{page.i}) has
 been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.142 \end{titlepage}
+l.148 \end{titlepage}
                       [1]
 (/usr/share/texlive/texmf-dist/tex/latex/psnfss/ot1ztmcm.fd)
 (/usr/share/texlive/texmf-dist/tex/latex/psnfss/omlztmcm.fd)
@@ -1025,7 +1025,7 @@ pdfTeX warning (ext4): destination with the same identifier (name{page.i}) has
 been already used, duplicate ignored
 <to be read again> 
                    \relax 
-l.175 \clearpage
+l.182 \clearpage
                  [1
 
 ] [2
@@ -1067,13 +1067,14 @@ Chapter 1.
 (./chapters/02_background/background.tex)
 (./chapters/02_background/blockchain_fundamentals.tex
 (./chapters/02_background/blockchain_structure.tex
-<figures/chapter1/merkle_tree.png, id=762, 335.45325pt x 358.941pt>
+<figures/chapter1/merkle_tree.png, id=766, 335.45325pt x 358.941pt>
 File: figures/chapter1/merkle_tree.png Graphic file (type png)
 <use figures/chapter1/merkle_tree.png>
 Package pdftex.def Info: figures/chapter1/merkle_tree.png  used on input line 7
 .
 (pdftex.def)             Requested size: 371.30595pt x 397.31738pt.
  [1
+
 
 
 ])
@@ -1087,7 +1088,7 @@ LaTeX Font Info:    Trying to load font information for TS1+ptm on input line 4
 File: ts1ptm.fd 2001/06/04 font definitions for TS1/ptm.
 ))
 (./chapters/02_background/blockchain_trilemma.tex
-<figures/chapter1/blockchain_trilemma.jpg, id=776, 184.19257pt x 184.19257pt>
+<figures/chapter1/blockchain_trilemma.jpg, id=780, 184.19257pt x 184.19257pt>
 File: figures/chapter1/blockchain_trilemma.jpg Graphic file (type jpg)
 <use figures/chapter1/blockchain_trilemma.jpg>
 Package pdftex.def Info: figures/chapter1/blockchain_trilemma.jpg  used on inpu
@@ -1103,7 +1104,7 @@ Underfull \hbox (badness 10000) in paragraph at lines 16--16
 [4 <./figures/chapter1/blockchain_trilemma.jpg>])
 (./chapters/02_background/layer2_scaling.tex [5])
 (./chapters/02_background/rollups.tex
-<figures/chapter2/generic_zk_workflow.png, id=818, 363.15675pt x 320.397pt>
+<figures/chapter2/generic_zk_workflow.png, id=822, 363.15675pt x 320.397pt>
 File: figures/chapter2/generic_zk_workflow.png Graphic file (type png)
 <use figures/chapter2/generic_zk_workflow.png>
 Package pdftex.def Info: figures/chapter2/generic_zk_workflow.png  used on inpu
@@ -1378,7 +1379,7 @@ Chapter 3.
 (./chapters/05_system_architecture/architecture_overview.tex [20
 
 ]
-<figures/chapter3/system_architecture.png, id=956, 1436.4867pt x 521.7894pt>
+<figures/chapter3/system_architecture.png, id=958, 1436.4867pt x 521.7894pt>
 File: figures/chapter3/system_architecture.png Graphic file (type png)
 <use figures/chapter3/system_architecture.png>
 Package pdftex.def Info: figures/chapter3/system_architecture.png  used on inpu
@@ -1386,7 +1387,7 @@ t line 19.
 (pdftex.def)             Requested size: 371.30595pt x 134.87381pt.
 )
 (./chapters/05_system_architecture/transaction_lifecycle.tex
-<figures/chapter3/tx_lifecycle.png, id=959, 266.1945pt x 175.25475pt>
+<figures/chapter3/tx_lifecycle.png, id=961, 266.1945pt x 175.25475pt>
 File: figures/chapter3/tx_lifecycle.png Graphic file (type png)
 <use figures/chapter3/tx_lifecycle.png>
 Package pdftex.def Info: figures/chapter3/tx_lifecycle.png  used on input line 
@@ -1479,18 +1480,12 @@ Underfull \hbox (badness 10000) in paragraph at lines 21--21
  []
 
 ) (./chapters/06_methodology/evaluation_metrics.tex
-Overfull \hbox (13.83044pt too wide) in paragraph at lines 3--4
-\OT1/ptm/m/n/12 (-20) Telemetry data is col-lected as raw JSON/CSV met-rics in 
-the \OT1/cmtt/m/n/12 benchmark-suite/metrics/
- []
-
-
 Underfull \hbox (badness 1436) in paragraph at lines 20--20
 []|\OT1/ptm/m/n/10.95 (+20) Size of the com-pressed data
  []
 
 [28]) (./chapters/06_methodology/experimental_procedure.tex
-<figures/chapter3/experiment_pipeline.pdf, id=1022, 295.41467pt x 57.30508pt>
+<figures/chapter3/experiment_pipeline.pdf, id=1028, 295.41467pt x 57.30508pt>
 File: figures/chapter3/experiment_pipeline.pdf Graphic file (type pdf)
 <use figures/chapter3/experiment_pipeline.pdf>
 Package pdftex.def Info: figures/chapter3/experiment_pipeline.pdf  used on inpu
@@ -1500,18 +1495,8 @@ t line 7.
 tation.tex [30]
 Chapter 4.
 (./chapters/07_implementation/implementation_overview.tex
-Underfull \hbox (badness 10000) in paragraph at lines 20--20
-[]|\OT1/ptm/m/n/10.95 (+20) Implemented with
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 20--20
-\OT1/ptm/m/n/10.95 (+20) RISC0 and mock
- []
-
-
-Underfull \hbox (badness 10000) in paragraph at lines 20--20
-[]|\OT1/ptm/m/n/10.95 (+20) Implemented in
+Underfull \hbox (badness 2111) in paragraph at lines 20--20
+[]|\OT1/ptm/m/n/10.95 (+20) Implemented with RISC0
  []
 
 ) (./chapters/07_implementation/workload_generator.tex [31
@@ -1524,7 +1509,7 @@ Underfull \hbox (badness 1087) in paragraph at lines 8--9
 
 ) (./chapters/07_implementation/sequencer.tex [32])
 (./chapters/07_implementation/executor.tex
-<figures/chapter4/executor_arch.png, id=1060, 2985.1525pt x 583.17876pt>
+<figures/chapter4/executor_arch.png, id=1066, 2985.1525pt x 583.17876pt>
 File: figures/chapter4/executor_arch.png Graphic file (type png)
 <use figures/chapter4/executor_arch.png>
 Package pdftex.def Info: figures/chapter4/executor_arch.png  used on input line
@@ -1533,16 +1518,22 @@ Package pdftex.def Info: figures/chapter4/executor_arch.png  used on input line
  [33 <./figures/chapter4/executor_arch.png>]) (./chapters/07_implementation/pro
 ver.tex [34])
 (./chapters/07_implementation/submitter.tex
-<figures/chapter4/submitter_arch.png, id=1071, 525.162pt x 404.712pt>
+<figures/chapter4/submitter_arch.png, id=1077, 525.162pt x 404.712pt>
 File: figures/chapter4/submitter_arch.png Graphic file (type png)
 <use figures/chapter4/submitter_arch.png>
 Package pdftex.def Info: figures/chapter4/submitter_arch.png  used on input lin
 e 5.
 (pdftex.def)             Requested size: 371.30595pt x 286.14333pt.
  [35 <./figures/chapter4/submitter_arch.png>]
-Overfull \hbox (32.51825pt too wide) in paragraph at lines 17--18
-[]\OT1/ptm/b/n/12 (-20) Output: \OT1/ptm/m/n/12 (-20) Broad-casts trans-ac-tion
-s to the L1 Hard-hat node via \OT1/cmtt/m/n/12 eth[]sendRawTransaction
+Underfull \hbox (badness 2521) in paragraph at lines 17--18
+[]\OT1/ptm/b/n/12 (+20) Output: \OT1/ptm/m/n/12 (+20) Broad-casts trans-ac-tion
+s to the L1 Hard-hat node via \OT1/cmtt/m/n/12 e t h [] s
+ []
+
+
+Underfull \hbox (badness 2253) in paragraph at lines 17--18
+\OT1/cmtt/m/n/12 e n d R a w T r a n s a c t i o n \OT1/ptm/m/n/12 (+20) and re
+cords crit-i-cal la-tency and gas met-rics to
  []
 
 ) (./chapters/07_implementation/smart_contracts.tex)
@@ -1561,13 +1552,8 @@ ripts (e.g., \OT1/cmtt/m/n/12 run[]experiment.sh \OT1/ptm/m/n/12 (+20) and
 (./chapters/chap5_evaluation.tex [38]
 Chapter 5.
 (./chapters/08_experimental_setup/experimental_setup.tex)
-(./chapters/08_experimental_setup/environment.tex
-Overfull \hbox (29.83351pt too wide) in paragraph at lines 11--12
-\OT1/ptm/m/n/12 (-20) The lo-cal L1 net-work is pro-vided by a cus-tom Docker i
-m-age (\OT1/cmtt/m/n/12 contracts/Dockerfile.node\OT1/ptm/m/n/12 (-20) )
- []
-
-) (./chapters/08_experimental_setup/software_stack.tex [39
+(./chapters/08_experimental_setup/environment.tex)
+(./chapters/08_experimental_setup/software_stack.tex [39
 
 ])
 (./chapters/08_experimental_setup/deployment_setup.tex)
@@ -1639,7 +1625,7 @@ Underfull \hbox (badness 1052) in paragraph at lines 22--2
  []
 
 [43]) (./chapters/09_results/effect_of_batch_size.tex
-<figures/chapter5/batch_vs_latency_cost.png, id=1114, 1145.2386pt x 426.8748pt>
+<figures/chapter5/batch_vs_latency_cost.png, id=1120, 1145.2386pt x 426.8748pt>
 
 File: figures/chapter5/batch_vs_latency_cost.png Graphic file (type png)
 <use figures/chapter5/batch_vs_latency_cost.png>
@@ -1652,7 +1638,7 @@ t_results.tex)
 (./chapters/09_results/throughput_results.tex [46])
 (./chapters/09_results/da_mode_comparison.tex
 (./chapters/09_results/data_availability_results.tex
-<figures/chapter5/da_cost_comparison.png, id=1131, 578.16pt x 361.35pt>
+<figures/chapter5/da_cost_comparison.png, id=1137, 578.16pt x 361.35pt>
 File: figures/chapter5/da_cost_comparison.png Graphic file (type png)
 <use figures/chapter5/da_cost_comparison.png>
 Package pdftex.def Info: figures/chapter5/da_cost_comparison.png  used on input
@@ -1660,7 +1646,7 @@ Package pdftex.def Info: figures/chapter5/da_cost_comparison.png  used on input
 (pdftex.def)             Requested size: 371.30595pt x 232.0627pt.
  [47 <./figures/chapter5/da_cost_comparison.png>])) (./chapters/09_results/proo
 f_delay_impact.tex
-<figures/chapter5/risc0_latency.png, id=1138, 578.16pt x 361.35pt>
+<figures/chapter5/risc0_latency.png, id=1144, 578.16pt x 361.35pt>
 File: figures/chapter5/risc0_latency.png Graphic file (type png)
 <use figures/chapter5/risc0_latency.png>
 Package pdftex.def Info: figures/chapter5/risc0_latency.png  used on input line
@@ -1678,32 +1664,32 @@ tency.png>])) (./chapters/09_results/summary_of_findings.tex)
 (./chapters/10_discussion/prover_discussion.tex)
 (./chapters/10_discussion/design_implications.tex [53])
 (./chapters/10_discussion/prototype_vs_production_discussion.tex [54]
-Underfull \hbox (badness 1527) in paragraph at lines 28--28
+Underfull \hbox (badness 1527) in paragraph at lines 30--30
 []|\OT1/ptm/b/n/12 (+20) Research-Grade Pro-
  []
 
 
-Underfull \hbox (badness 1189) in paragraph at lines 30--30
+Underfull \hbox (badness 1189) in paragraph at lines 32--32
 []|\OT1/ptm/m/n/12 (+20) Full EVM or cus-tom
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 31--31
+Underfull \hbox (badness 10000) in paragraph at lines 33--33
 []|\OT1/ptm/m/n/12 (+20) Real pro-duc-tion
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 31--31
+Underfull \hbox (badness 10000) in paragraph at lines 33--33
 []|\OT1/ptm/m/n/12 (+20) Mock/parameterized
  []
 
 
-Underfull \hbox (badness 10000) in paragraph at lines 32--32
+Underfull \hbox (badness 10000) in paragraph at lines 34--34
 []|\OT1/ptm/m/n/12 (+20) GPU/high-
  []
 
 
-Underfull \hbox (badness 2689) in paragraph at lines 32--32
+Underfull \hbox (badness 2689) in paragraph at lines 34--34
 []|\OT1/ptm/m/n/12 (+20) Student/research hard-
  []
 
@@ -1719,82 +1705,24 @@ Chapter 6.
 ]) (./chapters/appendices.tex
 (./chapters/appendices/repository_structure.tex [59]
 Appendix A.
-
-Overfull \hbox (13.51024pt too wide) in paragraph at lines 16--16
-[]\OT1/cmtt/m/n/12 |-- benchmark-suite/   # Workload generator and orchestratio
-n scripts[] 
- []
-
-
-Overfull \hbox (69.08527pt too wide) in paragraph at lines 16--16
-[]\OT1/cmtt/m/n/12 |-- data-tools/        # Python scripts for telemetry aggreg
-ation and plotting[] 
- []
-
-
-Overfull \hbox (32.03525pt too wide) in paragraph at lines 16--16
-[]\OT1/cmtt/m/n/12 |-- docs/              # System architecture and component d
-ocumentation[] 
- []
-
-
-Overfull \hbox (93.78528pt too wide) in paragraph at lines 16--16
-[]\OT1/cmtt/m/n/12 |-- executor/          # Rust executor (state transitions an
-d proving integration)[] 
- []
-
-
-Overfull \hbox (56.73526pt too wide) in paragraph at lines 16--16
-[]\OT1/cmtt/m/n/12 |-- sequencer/         # Rust sequencer (transaction ingesti
-on and batching)[] 
- []
-
-
-Overfull \hbox (44.38525pt too wide) in paragraph at lines 16--16
-[]\OT1/cmtt/m/n/12 |-- submitter/         # Rust submitter (DA formatting and L
-1 interaction)[] 
- []
-
-
-Overfull \hbox (38.21025pt too wide) in paragraph at lines 16--16
-[]\OT1/cmtt/m/n/12 |-- latex/             # LaTeX sources for reports, papers, 
-and proposals[] 
- []
-
-) (./chapters/appendices/build_run_guide.tex [60
+(/usr/share/texlive/texmf-dist/tex/latex/listings/lstlang1.sty
+File: lstlang1.sty 2023/02/27 1.9 listings language file
+)
+(/usr/share/texlive/texmf-dist/tex/latex/listings/lstlang1.sty
+File: lstlang1.sty 2023/02/27 1.9 listings language file
+))
+(./chapters/appendices/build_run_guide.tex [60
 
 ]
 Appendix B.
-
-Overfull \hbox (50.56026pt too wide) in paragraph at lines 44--44
-[]\OT1/cmtt/m/n/12 cd contracts && npx hardhat run scripts/deploy-local.ts --ne
-twork localhost[] 
- []
-
 [61
 
-]
-Overfull \hbox (1.16023pt too wide) in paragraph at lines 44--44
-[]\OT1/cmtt/m/n/12 cargo run --manifest-path submitter/Cargo.toml --bin submitt
-er -- \[] 
- []
-
-) (./chapters/appendices/benchmark_guide.tex [62]
+]) (./chapters/appendices/benchmark_guide.tex [62]
 Appendix C.
 ) (./chapters/appendices/configuration_reference.tex [63
 
 ]
 Appendix D.
-(/usr/share/texlive/texmf-dist/tex/latex/listings/lstlang1.sty
-File: lstlang1.sty 2023/02/27 1.9 listings language file
-)
-(/usr/share/texlive/texmf-dist/tex/latex/listings/lstlang1.sty
-File: lstlang1.sty 2023/02/27 1.9 listings language file
-)
-Overfull \hbox (14.86455pt too wide) in paragraph at lines 39--39
-[]|\OT1/cmtt/m/n/10.95 timeout[]interval[]ms| 
- []
-
 
 Underfull \hbox (badness 2469) in paragraph at lines 39--39
 []|\OT1/ptm/m/n/10.95 (+20) Swaps the L1 data post-ing
@@ -1808,33 +1736,17 @@ Appendix E.
 
 ]
 Appendix F.
-
-Overfull \hbox (1.16023pt too wide) in paragraph at lines 26--26
-[]    \OT1/cmtt/m/n/12 // Pull transactions from the pool ordered by the active
- policy[] 
- []
-
-
-Overfull \hbox (118.48529pt too wide) in paragraph at lines 26--26
-[]    \OT1/cmtt/m/n/12 if current_batch_txs.length >= max_batch_size OR time_el
-apsed >= timeout_interval:[] 
- []
-
 ) [66
 
 ]
-
-Package hyperref Warning: The anchor of a bookmark and its parent's must not
-(hyperref)                be the same. Added a new anchor on input line 11.
-
-<figures/appendix/gantt_chart.png, id=1259, 3159.55406pt x 2664.95625pt>
+<figures/appendix/gantt_chart.png, id=1325, 3159.55406pt x 2664.95625pt>
 File: figures/appendix/gantt_chart.png Graphic file (type png)
 <use figures/appendix/gantt_chart.png>
 Package pdftex.def Info: figures/appendix/gantt_chart.png  used on input line 1
 4.
 (pdftex.def)             Requested size: 371.30595pt x 313.15274pt.
-[67 <./figures/appendix/gantt_chart.png>]
-<figures/appendix/workload.png, id=1265, 469.755pt x 394.47375pt>
+ [67 <./figures/appendix/gantt_chart.png>]
+<figures/appendix/workload.png, id=1331, 469.755pt x 394.47375pt>
 File: figures/appendix/workload.png Graphic file (type png)
 <use figures/appendix/workload.png>
 Package pdftex.def Info: figures/appendix/workload.png  used on input line 25.
@@ -1845,16 +1757,16 @@ LaTeX2e <2023-11-01> patch level 1
 L3 programming layer <2024-01-22>
  ***********
 Package rerunfilecheck Info: File `final_report_main.out' has not changed.
-(rerunfilecheck)             Checksum: A6C980FE7AFF8B54823FEF1BE181B388;23296.
+(rerunfilecheck)             Checksum: 073D406899F3541ADFF3FEFFA37F5EDD;23300.
  ) 
 Here is how much of TeX's memory you used:
- 30445 strings out of 476106
- 578675 string characters out of 5793933
- 1958975 words of memory out of 5000000
- 50907 multiletter control sequences out of 15000+600000
- 607887 words of font info for 373 fonts, out of 8000000 for 9000
+ 30596 strings out of 476106
+ 580631 string characters out of 5793933
+ 2026975 words of memory out of 5000000
+ 50993 multiletter control sequences out of 15000+600000
+ 608125 words of font info for 377 fonts, out of 8000000 for 9000
  59 hyphenation exceptions out of 8191
- 88i,12n,128p,1252b,1447s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 88i,12n,128p,1252b,2071s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmex10.pfb></us
 r/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi10.pfb></usr/shar
 e/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr10.pfb></usr/share/texli
@@ -1866,10 +1778,10 @@ ts/type1/public/amsfonts/cm/cmsy9.pfb></usr/share/texlive/texmf-dist/fonts/type
 ic/amsfonts/cm/cmtt12.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/
 utmb8a.pfb></usr/share/texlive/texmf-dist/fonts/type1/urw/times/utmr8a.pfb></us
 r/share/texlive/texmf-dist/fonts/type1/urw/times/utmri8a.pfb>
-Output written on final_report_main.pdf (81 pages, 2143607 bytes).
+Output written on final_report_main.pdf (81 pages, 2150811 bytes).
 PDF statistics:
- 1385 PDF objects out of 1440 (max. 8388607)
- 1205 compressed objects within 13 object streams
- 302 named destinations out of 1000 (max. 500000)
+ 1462 PDF objects out of 1728 (max. 8388607)
+ 1280 compressed objects within 13 object streams
+ 361 named destinations out of 1000 (max. 500000)
  64534 words of extra memory for PDF output out of 74296 (max. 10000000)
 

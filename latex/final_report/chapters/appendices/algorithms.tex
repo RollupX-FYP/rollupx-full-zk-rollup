@@ -2,7 +2,7 @@
 \label{app:algorithms}
 This appendix provides simplified pseudocode for the Sequencer's core batch orchestration logic, demonstrating the interaction between the size trigger and the timeout trigger.
 
-\begin{verbatim}
+\begin{lstlisting}[style=yamlStyle]
 Algorithm: Batch Orchestrator Loop
 Input: max_batch_size, timeout_interval
 State: current_batch_txs = [], last_seal_time = now()
@@ -23,4 +23,4 @@ loop indefinitely:
             last_seal_time = now()
     
     sleep(tick_duration)
-\end{verbatim}
+\end{lstlisting}

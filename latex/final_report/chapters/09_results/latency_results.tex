@@ -1,12 +1,22 @@
 \section{Queueing Latency (Soft Finality)}
 \label{sec:latency_results}
-The Stage 1 experiments established a clear relationship between batch size configurations and queueing latency (the time a transaction waits in the sequencer pool before the batch is sealed).
-
-As the timeout interval was increased (from 500 ms to 10,000 ms), the average queue wait time scaled linearly until it hit the ceiling defined by the \texttt{MAX\_BATCH\_SIZE}. For example:
+The Stage 1 experiments established a clear, mathematically predictable relationship between batch size, arrival rate, and queueing latency (the duration a transaction resides in the mempool before being sealed).
+Under a uniform transaction arrival rate $\lambda$ (TPS), the time required to accumulate a batch of size $B_{\text{max}}$ is $B_{\text{max}}/\lambda$. The average wait time $W_q$ of transactions in a sealed batch is half the sealing interval, governed by the interaction of the timeout limit $T_{\text{timeout}}$ and the batch size cap:
+\begin{equation}
+W_q \approx \frac{1}{2} \min\left(T_{\text{timeout}}, \frac{B_{\text{max}}}{\lambda}\right)
+\end{equation}
+Evaluating this model against the experimental results at a steady arrival rate $\lambda \approx 18.5$ TPS (achieved under 25 offered TPS due to sequential gRPC client bottlenecks) yields high predictive accuracy:
 \begin{itemize}
-    \item \textbf{Timeout 500 ms}: Actual queue wait was 256.4 ms.
-    \item \textbf{Timeout 2000 ms}: Actual queue wait was 1017.2 ms.
-    \item \textbf{Timeout 10000 ms}: The batch filled to the size cap (100 txs) in roughly 5.4 seconds due to the arrival rate, resulting in an actual queue wait of 2937.1 ms instead of the full 10 seconds.
+    \item \textbf{Timeout 500 ms (s1\_to\_00500):} Theoretical wait is $250.0$ ms. The measured average queue wait was \textbf{256.4 ms}.
+    \item \textbf{Timeout 1000 ms (s1\_to\_01000):} Theoretical wait is $500.0$ ms. The measured average queue wait was \textbf{516.3 ms}.
+    \item \textbf{Timeout 2000 ms (s1\_to\_02000):} Theoretical wait is $1000.0$ ms. The measured average queue wait was \textbf{1017.2 ms}.
+    \item \textbf{Timeout 5000 ms (s1\_to\_05000):} Theoretical wait is $2500.0$ ms. The measured average queue wait was \textbf{2487.0 ms}.
+    \item \textbf{Timeout 10000 ms (s1\_to\_10000):} The batch fills to the size cap ($B_{\text{max}} = 100$) before the timeout triggers. The sealing interval is $100 / 18.5 \approx 5.4$ s, giving a theoretical wait of $2700.0$ ms. The measured average queue wait was \textbf{2937.1 ms}.
 \end{itemize}
-
-A proposed visualization for these findings is a dual-axis plot showing Timeout on the X-axis, Average Queue Wait Time on the Left Y-Axis, and Average Batch Size on the Right Y-Axis. This plot clearly illustrates how the timeout acts as the primary batch sealing trigger until the size cap is reached.
+\subsection{Tail-Batch Latency Distortion}
+A key methodological discovery in the benchmarking pipeline is the presence of severe tail-latency inflation due to boundary-effect distortion in finite test runs. For example, in the \texttt{s1\_bs\_0100} run, the reported average queue wait time was heavily skewed to \textbf{8,212.6 ms}, far exceeding the theoretical ~2,700 ms. 
+An audit of the batch-level telemetry showed that batches 1 through 35 exhibited a normal wait time of ~2,700 ms. However, Batch 36 (the final batch containing 80 transactions) waited for \textbf{198,247 ms} (nearly 200 seconds) because the workload generator stopped, and the sequencer held the transactions in the mempool until the 200s timeout expired. Because the aggregator computes a simple arithmetic mean of the batch averages:
+\begin{equation}
+\text{Reported Mean} = \frac{35 \times 2,700\text{ ms} + 198,247\text{ ms}}{36} \approx 8,212\text{ ms}
+\end{equation}
+This tail outlier distorts the reported average. In practice, evaluating user experience must rely on the median ($P_{50}$) or apply an end-of-test mempool flush to prevent tail-latency inflation.

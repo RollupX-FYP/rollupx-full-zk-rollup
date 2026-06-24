@@ -1,29 +1,135 @@
+
 \section{Analytical Cost Model}
 \label{sec:cost_models}
-The empirical benchmarking uses static configurations swept explicitly to gather data on cost behavior. While theoretical "dynamic batching cost models" (which algorithmically predict optimal batch sizes based on fluctuating L1 base fees) are discussed in early project proposals, they are analytical constructs and are explicitly not implemented in the active runtime codebase.
 
-Following the methodology of Chaliasos et al. \cite{chaliasos2024analyzing}, the cost model utilized for analyzing results splits into fixed batch costs (L1 settlement base fees, proof verification) and marginal transaction costs (DA bytes, witness generation, execution). 
+The empirical benchmarking framework uses static configuration sweeps to study cost behaviour under controlled conditions. Although early project proposals discussed dynamic batching cost models, where the system would estimate an optimal batch size based on changing Layer-1 base fees, this dynamic optimization logic is not implemented in the active runtime codebase. Instead, the implemented system records gas, data availability, and submission telemetry for each benchmark configuration and applies an analytical cost model during result analysis.
 
-\begin{table}[H]
+```latex
+Following the cost decomposition used by Chaliasos et al.~\cite{chaliasos2024analyzing} and data availability analysis by Saif et al.~\cite{saif2024dataavailability}, the model separates rollup costs into fixed batch costs and marginal transaction costs. Fixed costs are incurred once per batch and are amortized across all transactions in that batch. Marginal costs increase with the number or size of transactions, such as data availability bytes, witness generation, execution effort, and proving overhead.
+
+\begin{table}[!htbp]
 \centering
 \caption{ZK-Rollup Cost Model}
 \label{tab:zk_rollup_cost_model}
-\compacttable
-\begin{tabularx}{\textwidth}{@{}p{0.22\textwidth}Y p{0.22\textwidth}p{0.18\textwidth}@{}}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.18}
+\begin{tabularx}{\textwidth}{@{}p{0.23\textwidth}p{0.20\textwidth}Y@{}}
 \toprule
-\textbf{Cost category} & \textbf{Examples} & \textbf{Fixed / marginal} & \textbf{Source} \\
+\textbf{Cost category} & \textbf{Cost type} & \textbf{Description} \\
 \midrule
-L1 settlement & Commit batch and pay base transaction fee & Fixed per batch & Chaliasos et al.~\cite{chaliasos2024analyzing} \\
-Proof verification & Groth16 pairing check or verifier contract execution & Fixed per batch & Chaliasos et al.~\cite{chaliasos2024analyzing} \\
-Data availability & Calldata bytes, blob bytes, or external DA commitment & Payload-dependent marginal cost & Saif et al.~\cite{saif2024dataavailability} \\
-Proving time & Witness generation and proof generation & Marginal / cycle-dependent & Chaliasos et al.~\cite{chaliasos2024analyzing} \\
+
+Layer-1 settlement 
+& Fixed per batch 
+& Cost of submitting a batch commitment transaction, updating the state root, and paying the base Layer-1 execution cost. \\
+
+\addlinespace
+
+Proof verification 
+& Fixed per batch 
+& Cost of executing the verifier contract, such as a Groth16 verifier call or a mock verifier call. \\
+
+\addlinespace
+
+Data availability 
+& Marginal 
+& Cost associated with publishing or committing batch data, including calldata bytes, EIP-4844 blob bytes, or off-chain DA commitment metadata. \\
+
+\addlinespace
+
+Proving overhead 
+& Cycle-dependent 
+& Cost associated with witness generation, zkVM execution, proof generation, and proof compression. \\
+
 \bottomrule
 \end{tabularx}
-\end{table}
 \normalsize
+\end{table}
 
-The fundamental equation governing Layer-1 gas cost per transaction is:
-$$ \text{Cost per tx} = \left(\frac{\text{fixed batch settlement \& proof cost}}{\text{batch size}}\right) + \text{marginal DA cost per tx} $$
-Larger batches reduce the amortized fixed cost per transaction but inherently increase queueing latency. 
+The basic cost relationship used in the analysis is shown in Equation~\ref{eq:cost_per_tx}. It captures the main rollup trade-off: increasing the batch size reduces the fixed cost per transaction, but it can also increase queueing latency because transactions may wait longer before the batch is sealed.
 
-It is important to note that the USD cost metrics reported in this document are derived from this gas model combined with assumed static environment parameters (e.g., \texttt{ETH\_PRICE\_USD} = \$2500, \texttt{REGULAR\_GAS\_PRICE\_GWEI} = 2.0). However, due to L1 base fee fluctuations, gas units (e.g., L1 Gas Used per batch) remain the only stable, comparable metric for cross-configuration efficiency evaluations.
+\begin{equation}
+\label{eq:cost_per_tx}
+\begin{aligned}
+\text{Cost per transaction}
+&=
+\frac{
+\text{fixed batch settlement cost} + \text{proof verification cost}
+}{
+\text{batch size}
+}
+\\
+&\quad + \text{marginal DA cost per transaction}
+\end{aligned}
+\end{equation}
+
+
+
+
+In the implemented benchmarking stack, the cost model is evaluated using runtime telemetry generated by the Submitter and later processed by the analytics pipeline. The default static environment assumptions are \texttt{ETH\_PRICE\_USD = 2500}, \texttt{REGULAR\_GAS\_PRICE\_GWEI = 2.0}, and \texttt{BLOB\_GAS\_PRICE\_GWEI = 0.001}. These values are used when measured runtime values are unavailable. As a result, USD-denominated costs are treated as explanatory estimates, while gas units and Wei-denominated values are used as the more stable basis for cross-configuration comparison.
+
+For regular Layer-1 gas, the implementation computes cost by multiplying the measured \texttt{regular\_gas\_used} by a selected gas price reference. If a valid measured runtime gas price is available, the measured value is used. Otherwise, the configured reference gas price is used. For blob-based data availability, blob cost is applied only when the selected DA mode is blob. If the benchmark run uses a real EIP-4844 blob transaction and measured blob gas values are available, the implementation uses measured blob gas and blob gas price. If real blob gas measurements are not available, the model uses estimated blob gas usage instead.
+
+\begin{table}[!htbp]
+\centering
+\caption{Implemented Cost Model Variables}
+\label{tab:implemented_cost_model_variables}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.18}
+\begin{tabularx}{\textwidth}{@{}p{0.36\textwidth}Y@{}}
+\toprule
+\textbf{Variable / field} & \textbf{Role in cost calculation} \\
+\midrule
+
+\texttt{regular\_gas\_used} 
+& Layer-1 execution gas consumed by the batch submission transaction. \\
+
+\addlinespace
+
+\makecell[l]{\texttt{regular\_gas\_price}\\\texttt{\_reference\_wei}} 
+& Gas price used for regular gas cost calculation. The measured runtime gas price is preferred when available; otherwise, the configured reference value is used. \\
+
+\addlinespace
+
+\texttt{blob\_gas\_used} 
+& Blob gas consumed by a real EIP-4844 blob transaction when measured values are available. \\
+
+\addlinespace
+
+\texttt{blob\_gas\_price\_wei} 
+& Blob gas price used for blob cost calculation. The measured blob gas price is preferred when available. \\
+
+\addlinespace
+
+\makecell[l]{\texttt{estimated\_blob}\\\texttt{\_gas\_used}} 
+& Estimated blob gas used when blob behaviour is simulated or when measured blob gas values are unavailable. \\
+
+\addlinespace
+
+\texttt{total\_cost\_wei} 
+& Sum of regular Layer-1 gas cost and blob-related cost, expressed in Wei. \\
+
+\addlinespace
+
+\texttt{cost\_per\_tx\_wei} 
+& Total batch cost divided by the number of transactions in the batch. \\
+
+\addlinespace
+
+\texttt{cost\_source} 
+& Indicates whether the cost value is measured, hybrid, or estimated. \\
+
+\addlinespace
+
+\texttt{blob\_cost\_source} 
+& Indicates whether blob cost was measured directly or estimated. \\
+
+\bottomrule
+\end{tabularx}
+\normalsize
+\end{table}
+
+The implementation classifies cost values according to their source. A \texttt{measured} cost source indicates that the required runtime gas values were available. A \texttt{hybrid} source indicates that regular gas was measured but blob gas was estimated. An \texttt{estimated} source indicates that reference assumptions were used because measured values were unavailable. This distinction is important because it prevents simulated blob experiments from being interpreted as fully measured EIP-4844 results.
+
+The Python aggregation pipeline summarizes these batch-level values into run-level metrics such as average total cost, average cost per transaction, average regular gas used, average blob gas used, and average USD cost estimate. However, because ETH price and gas prices fluctuate in real networks, the primary comparison in this study is based on gas units, data availability bytes, and cost per transaction in Wei. These metrics provide a more stable basis for evaluating the relative efficiency of different batching and data availability configurations.

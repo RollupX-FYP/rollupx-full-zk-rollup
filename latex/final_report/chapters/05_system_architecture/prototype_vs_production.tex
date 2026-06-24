@@ -1,23 +1,66 @@
+
+
 \section{Prototype vs. Production Distinctions}
 \label{sec:prototype_vs_production}
-To contextualize the architecture, Table \ref{tab:prototype_vs_production} outlines the key differences between this research prototype and a production mainnet rollup.
 
-\begin{table}[H]
+To correctly interpret the scope of the proposed framework, it is necessary to distinguish the research prototype from a production-grade mainnet ZK-rollup. The prototype is not intended to compete with deployed rollup systems or provide real-world security guarantees. Instead, it is designed as a controlled benchmarking environment for studying how selected rollup design choices affect throughput, latency, finalization time, proving overhead, and data availability cost. Table~\ref{tab:prototype_vs_production} summarizes the main distinctions.
+
+\begin{table}[!htbp]
 \centering
 \caption{Prototype vs. Production Rollup Architecture}
 \label{tab:prototype_vs_production}
-\small
-\begin{tabularx}{\textwidth}{>{\hsize=0.8\hsize}X >{\hsize=1.0\hsize}X >{\hsize=1.2\hsize}X}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.18}
+\begin{tabularx}{\textwidth}{@{}p{0.18\textwidth}Y Y@{}}
 \toprule
-\textbf{Feature} & \textbf{Production Rollup (e.g., zkSync Era)} & \textbf{This Research Prototype} \\
+\textbf{Aspect} & \textbf{Production rollup} & \textbf{This research prototype} \\
 \midrule
-Execution Environment & Full zkEVM, capable of running arbitrary Solidity smart contracts. & Simplified state-transition engine tailored for transfer-style workloads. \\
+
+Execution 
+& Supports full or near-full EVM compatibility for general smart contracts. 
+& Uses a simplified transfer-centric state-transition engine for controlled workloads. \\
+
 \addlinespace
-Proving System & Massively parallelized, hardware-accelerated recursive proving (e.g., Boojum/PLONK). & Parameterized mock-delay or basic RISC0 host for bottleneck isolation. \\
+
+Proving 
+& Uses optimized production proving infrastructure, often with recursion and parallelization. 
+& Uses mock proving delays and selected RISC0 experiments to isolate prover bottlenecks. \\
+
 \addlinespace
-L1 Network & Deployed on Ethereum Mainnet. & Benchmarked against a local, controlled Hardhat node to eliminate external network jitter. \\
+
+Sequencing 
+& Designed for high availability, fault tolerance, and real user demand. 
+& Uses a configurable local sequencer to test batching and ordering policies. \\
+
 \addlinespace
-Data Availability & Often integrates with external DA layers (e.g., Celestia) alongside L1. & Focuses strictly on L1 DA (Calldata and EIP-4844 blobs); off-chain DA is a simulated stub. \\
+
+Layer 1 
+& Runs against public networks where gas prices and congestion vary. 
+& Runs against a local Hardhat Layer-1 node to improve repeatability. \\
+
+\addlinespace
+
+Data availability 
+& Uses mainnet-compatible DA mechanisms such as calldata, blobs, or external DA layers. 
+& Evaluates calldata, EIP-4844 blob-style submission, and a local off-chain DA stub. \\
+
+\addlinespace
+
+Security 
+& Must provide safety, liveness, and data availability guarantees in adversarial settings. 
+& Runs in a controlled, non-Byzantine environment and does not claim production security. \\
+
+\addlinespace
+
+Objective 
+& Provides secure scaling infrastructure for real users and applications. 
+& Provides a reproducible benchmarking framework for ZK-rollup trade-off analysis. \\
+
 \bottomrule
 \end{tabularx}
+\normalsize
 \end{table}
+
+These distinctions define the intended contribution of the project. The value of the prototype lies in its ability to isolate and measure specific design variables rather than in providing a complete production rollup implementation. By simplifying execution, controlling the Layer-1 environment, and exposing configurable components, the framework allows systematic experiments on batching, sequencing, proving, and data availability choices.
+

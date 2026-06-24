@@ -1,18 +1,28 @@
-\section{Data Availability Mode Efficiency (Stage 4)}
-
+\section{Data Availability Mode Economics (Stage 4)}
+\label{sec:data_availability_results}
+To optimize data posting costs, we compare three Data Availability (DA) modes: Calldata, EIP-4844 Blobs, and Off-chain DA. We model the rollup L1 submission cost per transaction ($C_{\text{tx}}$) as:
+\begin{equation}
+C_{\text{tx}} = \left(R_{\text{gas}} \cdot G_{\text{base}} + \text{DA\_Gas}_{\text{tx}}\right) \cdot P_{\text{ETH}}
+\end{equation}
+where $R_{\text{gas}}$ represents the fixed execution overhead (validity proof verification and state root update overhead), $G_{\text{base}}$ is the base fee, and $\text{DA\_Gas}_{\text{tx}}$ is the variable cost. Our baseline market reflects post-Dencun parameters: $P_{\text{ETH}} = \$3,000$, regular gas base fee reference $G_{\text{base}} = 10.0$ gwei, and blob gas fee reference $G_{\text{blob}} = 1.0$ gwei.
+We evaluate these modes using a steady transaction arrival rate (25 TPS offered). The resulting gas scaling and USD cost characteristics are shown in Figure~\ref{fig:da_gas_scaling} and Figure~\ref{fig:da_cost_comparison} respectively.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{figures/chapter5/plot_da_gas_per_tx_vs_batch_size.png}
+    \caption{Amortized L1 Gas per Transaction across Calldata, EIP-4844 Blob, and Off-chain Data Availability (DA) Modes.}
+    \label{fig:da_gas_scaling}
+\end{figure}
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.90\textwidth]{figures/chapter5/da_cost_comparison.png}
-    \caption{Data Availability Mode Cost Comparison.}
+    \caption{Amortized Cost per Transaction (USD) across Calldata, EIP-4844 Blob, and Off-chain Data Availability (DA) Modes under baseline parameters.}
     \label{fig:da_cost_comparison}
 \end{figure}
-\label{sec:data_availability_results}
-Stage 4 benchmarks evaluated the performance, L1 gas efficiency, and storage utilization under different Data Availability (DA) Modes: Calldata, Blob (EIP-4844), and Offchain DA. 
-
+\subsection{Comparative Analysis of DA Modes}
 \begin{itemize}
-    \item \textbf{Calldata Footprint:} When using calldata, the Submitter passes the transaction payload directly in the L1 transaction. The cost observed during steady-state traffic was approximately \$0.188 to \$0.194 per transaction, driven by the high cost of storing bytes permanently on Ethereum (16 gas per non-zero byte).
-    \item \textbf{Blob DA Efficiency:} Transitioning the DA mode to EIP-4844 blobs significantly minimizes the L1 execution footprint. Because the EVM only verifies a cryptographic commitment to the blob, the L1 footprint is reduced. The cost dropped to approximately \$0.057 per transaction, achieving a massive \textbf{$\sim$70\% cost reduction} compared to Calldata. 
-    \item \textbf{Offchain DA Efficiency:} Moving to Offchain DA further reduced costs to approximately \$0.033 per transaction, yielding an \textbf{$\sim$82.5\% cost reduction} over Calldata. In this mode, L1 only processes the fixed zk-proof verification and state root update overhead ($\sim$115,732 gas per batch). However, Offchain DA requires significantly different trust assumptions, leaning towards a Validium model rather than a pure Rollup.
+    \item \textbf{Calldata DA (Linear Scaling):} Under Calldata DA, transaction payloads are posted directly to L1 execution space, where variable calldata gas fees (charged at 16 gas per non-zero byte) scale linearly with batch size. Variable posting fees dominate the total batch cost, resulting in a flat per-transaction cost curve that offers negligible economies of scale as batch size increases. The regular gas cost per transaction remains constant around \textbf{20,739 gas/tx} (\$0.188 per tx) at configured batch sizes.
+    \item \textbf{Blob DA (EIP-4844, Exponential Scaling):} Transitioning to EIP-4844 Blobs decouples on-chain data publication from L1 execution gas by using a separate blob gas market. The regular L1 gas footprint drops to ~118,290 gas per batch for proof verification, while blob bytes are billed independently. At a batch size of 37, this yields a cost of \textbf{4,596 gas/tx} (\$0.057 per tx), representing a \textbf{70\% cost saving} over Calldata. As batch size increases, the fixed L1 verifier gas is amortized, resulting in an exponential cost-amortization curve.
+    \item \textbf{Off-chain DA (Constant Cost):} Submits no transaction data to L1. Transaction data is stored externally, and the L1 transaction only verifies the state transition proof and updates the state root, consuming ~115,732 gas. At a batch size of 37, this costs \textbf{3,615 gas/tx} (\$0.033 per tx), representing an \textbf{82.5\% cost reduction} over Calldata. However, Off-chain DA requires significantly different trust assumptions, changing the security model from a Rollup to a Validium.
 \end{itemize}
-
-During these sweeps, testing the \texttt{BLOB\_TARGET\_BYTES} parameter revealed that under FCFS, batch sealing was driven entirely by timeouts, causing larger byte targets to merely dilute the blob utilization ratio. Furthermore, code audits confirmed that the \texttt{blob\_fill\_target} parameter was completely inactive in the sequencer's sealing logic, highlighting a limitation in the prototype's implementation.
+\subsection{EIP-4844 Parameter Sweeps}
+To evaluate the impact of EIP-4844 parameters, we swept the \texttt{BLOB\_TARGET\_BYTES} from 32 KB to 120 KB under the First-Come-First-Served (FCFS) policy. Under steady load, this parameter sweep does not affect batch size (averaging ~36.9 txs) or L1 submission costs (\$1.46 per batch). Because FCFS batch sealing is driven entirely by the 2-second timeout, the physical batch data size remains constant (~17.8 KB). Consequently, increasing the target bytes simply dilutes the blob utilization ratio linearly (from 54.5\% down to 15.0\%) without triggering size-based sealing or dynamic batch adjustments.

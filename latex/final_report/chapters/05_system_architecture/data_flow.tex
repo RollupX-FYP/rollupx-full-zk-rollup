@@ -1,3 +1,12 @@
+```latex
 \section{Data Flow and Control Flow}
 \label{sec:data_control_flow}
-Data flows strictly unidirectionally from the Sequencer through the Executor to the Submitter via highly typed gRPC channels. Control flow is handled asynchronously within each component; for example, the Submitter's Saga engine operates independently of the Sequencer's batch generation loops, allowing the system to handle L1 RPC instability without halting L2 ingestion.
+
+The prototype separates data flow from control flow to keep the benchmarking pipeline modular and observable. Data flow refers to the movement of transaction batches, execution outputs, proof artifacts, data availability payloads, and telemetry records across the system. Control flow refers to the internal scheduling, retry handling, batching triggers, and orchestration logic used by each component.
+
+The primary data flow is mostly unidirectional. Transactions first enter the Sequencer, where they are validated, ordered, and grouped into batches. Sealed batches are then forwarded to the Executor through strongly typed gRPC interfaces. After execution and proof generation, the resulting batch payload is streamed to the Submitter. The Submitter then prepares the data availability payload and broadcasts the corresponding update to the Layer-1 smart contracts.
+
+Control flow is handled independently within each component. For example, the Sequencer runs its own batch-generation loop based on size and timeout triggers, while the Executor manages execution and prover invocation for received batches. Similarly, the Submitter operates a Saga-style submission workflow that manages Layer-1 gas estimation, nonce handling, retry attempts, and recovery from temporary RPC failures. Because this control logic is isolated from transaction ingestion, temporary Layer-1 instability does not immediately halt the Sequencer or prevent Layer-2 batches from being formed.
+
+This separation is important for controlled experimentation. It allows the project to observe whether a bottleneck originates from batching, execution, proving, submission, or Layer-1 settlement. As a result, the framework can support reproducible benchmark comparisons while preserving clear boundaries between the major stages of the rollup pipeline.
+```

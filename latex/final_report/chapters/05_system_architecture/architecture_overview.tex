@@ -1,25 +1,75 @@
+```latex
 \section{High-Level Architecture Overview}
 \label{sec:architecture_overview}
-The prototype developed for this project separates the standard ZK-Rollup pipeline into distinct, containerized microservices. This modular architecture follows Domain-Driven Design (DDD) principles and is explicitly designed to support observability, rapid configuration changes, and controlled benchmarking rather than functioning as a secure production deployment.
 
-The system's end-to-end execution flow is strictly defined as:
-\begin{center}
-\texttt{Workload Generator $\rightarrow$ Sequencer $\rightarrow$ Executor (gRPC) $\rightarrow$ Submitter $\rightarrow$ L1 Contracts}
-\end{center}
+The prototype developed in this project separates the standard ZK-rollup pipeline into a set of distinct, containerized microservices. This modular architecture is designed primarily as a research-grade benchmarking framework rather than as a production deployment. Its purpose is to make the internal stages of a ZK-rollup pipeline observable, configurable, and independently testable under controlled experimental conditions.
 
-This pipeline processes telemetry data by consuming raw JSON/CSV metrics from each component, allowing a Data Tools analytics pipeline to aggregate and analyze the metrics. Local environment execution is orchestrated via \texttt{docker compose} utilizing specific profiles to boot the core stack, the benchmark generator, and the reporting tools. By decoupling the transaction lifecycle—validation, batching, execution/proving, and submission—the prototype enables isolating the specific variables (like batch size or DA mode) required to answer the research questions.
+The end-to-end execution flow begins with the Workload Generator, which produces controlled synthetic transaction traffic. These transactions are then submitted to the Sequencer, where they are validated, ordered, and grouped into batches. The sealed batches are forwarded to the Executor, which applies the state-transition logic and produces updated state commitments. Depending on the benchmark configuration, the Prover generates either mock proof artifacts or RISC0-based proof outputs. Finally, the Submitter formats the data availability payload and submits the verified state update to the Layer-1 smart contracts.
 
-\subsection{Prototype vs. Production Rollup Comparison}
-It is critical to distinguish this \textit{research prototype} from a \textit{production rollup}. Production rollups (like zkSync Era or Polygon zkEVM) require full Ethereum Virtual Machine (EVM) compatibility, complex fraud/validity proof mechanisms handling massive state trees, and decentralized sequencer networks designed to prevent censorship. They operate in a Byzantine environment requiring strong liveness and safety guarantees.
+This structure is intentionally simpler than a production ZK-rollup. The goal is not to reproduce every feature of systems such as zkSync Era, Scroll, Starknet, or Polygon zkEVM. Instead, the goal is to provide a compact and controllable research tool. Each stage is separated so that a specific design factor, such as batch size, sequencing policy, prover delay, or data availability mode, can be changed while keeping the rest of the experimental environment stable.
 
-In contrast, our prototype operates a \textit{transfer-centric research logic}. It does not implement a full zkEVM. Instead, it implements a simplified state-transition engine tailored for transfer-style workloads and Merkle state updates. Furthermore, the prototype operates in a controlled, non-Byzantine local Hardhat environment. Data Availability (DA) supports calldata and EIP-4844 blobs natively via the L1 node, but off-chain DA is implemented only as a local simulated stub, not a real integration with decentralized networks like IPFS or Celestia. This focused scope allows for precise measurement of specific configuration trade-offs—such as batch size limits or DA selection—without the massive engineering overhead of a production-grade system.
+The logical execution flow of this modular benchmarking framework is summarized in Figure~\ref{fig:end_to_end_execution_flow}.
 
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.90\textwidth]{figures/chapter3/system_architecture.png}
-    \caption{High-level architecture of the proposed modular ZK-Rollup benchmarking prototype.}
-    \label{fig:system_architecture}
+\begin{figure}[!htbp]
+\centering
+\begin{tikzpicture}[
+    font=\footnotesize,
+    node distance=0.48cm,
+    stage/.style={
+        rectangle,
+        rounded corners,
+        draw,
+        align=center,
+        minimum width=8.7cm,
+        minimum height=0.62cm,
+        text width=8.3cm
+    },
+    arrow/.style={-{Latex[length=2mm]}, thick}
+]
 
+\node[stage] (workload) {\textbf{Workload Generator}: Synthetic transaction traffic};
+\node[stage, below=of workload] (sequencer) {\textbf{Sequencer}: Transaction validation, ordering, and batching};
+\node[stage, below=of sequencer] (executor) {\textbf{Executor}: State-transition execution and state-root update};
+\node[stage, below=of executor] (prover) {\textbf{Prover}: Mock proof delay or RISC0 proof generation};
+\node[stage, below=of prover] (submitter) {\textbf{Submitter}: DA formatting and Layer-1 submission};
+\node[stage, below=of submitter] (l1) {\textbf{L1 Smart Contracts}: DA commitment validation, proof verification, and state-root update};
+\node[stage, below=of l1] (metrics) {\textbf{Metrics and Data Tools}: JSON/CSV telemetry aggregation and analysis};
+
+\draw[arrow] (workload) -- (sequencer);
+\draw[arrow] (sequencer) -- (executor);
+\draw[arrow] (executor) -- (prover);
+\draw[arrow] (prover) -- (submitter);
+\draw[arrow] (submitter) -- (l1);
+\draw[arrow] (l1) -- (metrics);
+
+\end{tikzpicture}
+\caption{End-to-end execution flow of the modular ZK-rollup benchmarking framework.}
+\label{fig:end_to_end_execution_flow}
 \end{figure}
 
-As shown in Figure~\ref{fig:system_architecture}, the prototype separates transaction ingestion, sequencing, execution, proving, submission, and data availability into modular components.
+Each component in Figure~\ref{fig:end_to_end_execution_flow} represents a separately observable stage of the benchmarking pipeline. The Workload Generator controls the input traffic pattern, allowing the same workload model to be reused across different experimental configurations. The Sequencer is responsible for transaction validation, ordering, and batch formation. The Executor applies the simplified state-transition function and produces updated state commitments. The Prover stage models the proof-generation bottleneck using either benchmark-mode delay or RISC0-based proving. The Submitter bridges the executed batch to Layer 1 by preparing the proof output, data availability payload, and state update.
+
+The system also collects telemetry from each major stage of the pipeline. Raw JSON and CSV metrics are produced by the Sequencer, Executor, Submitter, and workload tools. These metrics are later processed by the Data Tools pipeline for aggregation and analysis. Local execution is orchestrated using \texttt{docker compose} profiles, allowing the core stack, benchmark generator, and reporting tools to be started independently. By decoupling validation, batching, execution, proving, submission, and metrics collection, the prototype enables controlled experimentation on variables such as batch size, sequencing policy, prover delay, and data availability mode.
+
+Figure~\ref{fig:system_architecture} presents the broader system architecture of the proposed framework. While Figure~\ref{fig:end_to_end_execution_flow} focuses on the logical execution flow, Figure~\ref{fig:system_architecture} shows the implemented microservice-level structure, including the interaction between the RollupX Layer-2 services, the local Ethereum Layer-1 environment, and the analytics pipeline.
+
+\begin{figure}[!htbp]
+\centering
+\includegraphics[width=0.95\textwidth]{poster/images/architec.png}
+\caption{High-level architecture of the proposed modular ZK-rollup benchmarking framework.}
+\label{fig:system_architecture}
+\end{figure}
+
+\FloatBarrier
+
+\subsection{Prototype vs. Production Rollup Comparison}
+\label{subsec:prototype_vs_production}
+
+It is important to distinguish the proposed research prototype from a production ZK-rollup. Production rollups such as zkSync Era, Scroll, Starknet, and Polygon zkEVM are designed for real user deployment. They require full or near-full Ethereum Virtual Machine compatibility, complex validity-proof pipelines, large-scale state management, robust sequencer infrastructure, censorship-resistance mechanisms, and strong liveness and safety guarantees in adversarial environments.
+
+In contrast, the prototype developed in this project is intentionally scoped as a research-grade benchmarking framework. It does not attempt to implement a full zkEVM or compete with production rollups. Instead, it implements a simplified transfer-centric state-transition engine suitable for controlled benchmarking. This design choice reduces implementation complexity while still preserving the key stages required to study rollup performance: sequencing, batching, execution, proving, data availability formatting, and Layer-1 submission.
+
+The prototype runs in a controlled, non-Byzantine local Hardhat environment. Data availability is evaluated through calldata, EIP-4844 blob-based submission, and a local off-chain DA stub. The off-chain DA mode is used only as a simulated research configuration and does not represent a complete integration with external data availability networks such as IPFS, Celestia, or EigenDA.
+
+This focused scope is central to the project's contribution. By avoiding the engineering overhead of a production-grade rollup, the framework allows researchers to isolate and measure the effect of individual configuration choices. For example, batch size limits, timeout values, scheduling policies, prover modes, and data availability modes can be varied under the same synthetic workload. This makes the prototype useful as a reproducible research tool for analyzing throughput, latency, finalization time, proving overhead, and cost trade-offs in ZK-rollup systems.
+```

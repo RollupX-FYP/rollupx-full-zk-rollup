@@ -1,30 +1,40 @@
+
 \section{Component Interactions}
 \label{sec:component_interactions}
 
-The system components interact synchronously across well-defined boundaries. Table \ref{tab:component_responsibility} summarizes the language and core responsibility of each component in the pipeline.
+The modular framework is organized around clearly defined component boundaries. Each component performs a specific role in the ZK-rollup benchmarking pipeline and communicates with the next stage through a controlled interface. This separation improves observability and allows individual stages, such as sequencing, execution, proving, and submission, to be evaluated independently. Table~\ref{tab:component_responsibility} summarizes the implementation language and core responsibility of each component.
 
 \begin{table}[H]
 \centering
 \caption{Component Responsibility Summary}
 \label{tab:component_responsibility}
-\small
-\begin{tabularx}{\textwidth}{>{\hsize=0.6\hsize}X >{\hsize=0.6\hsize}X >{\hsize=1.8\hsize}X}
+\compacttable
+\begin{tabularx}{\textwidth}{@{}p{0.20\textwidth}p{0.17\textwidth}Y@{}}
 \toprule
-\textbf{Component} & \textbf{Language} & \textbf{Core Responsibility} \\
+\textbf{Component} & \textbf{Language} & \textbf{Core responsibility} \\
 \midrule
-Workload Gen. & Python & Synthesize controlled traffic (Poisson arrivals) and simulate varying network load. \\
+Workload Generator & Python & Generates controlled synthetic transaction traffic using seeded Poisson arrivals and supports repeatable benchmark workloads. \\
 \addlinespace
-Sequencer & Rust & Validate, order, and batch L2 transactions using policies like FCFS; enforce timeout triggers. \\
+
+Sequencer & Rust & Receives, validates, orders, and batches Layer-2 transactions using configurable scheduling and sealing policies. \\
 \addlinespace
-Executor & Rust & Receive gRPC batches, execute a transfer-centric state transition over a RocksDB Sparse Merkle Tree, and invoke the Prover. \\
+
+Executor & Rust & Receives sealed batches through gRPC, applies the transfer-centric state-transition function, updates the Sparse Merkle Tree state, and invokes the prover subsystem. \\
 \addlinespace
-Prover & Rust & A subsystem of the Executor using \texttt{risc0\_prover} (or mock delays) to generate cryptographic validity artifacts. \\
+
+Prover & Rust & Generates proof artifacts using either benchmark-mode mock delays or the \texttt{risc0\_prover} backend for selected real-proof experiments. \\
 \addlinespace
-Submitter & Rust & Handle L1 Ethereum Adapter interactions, manage DA formatting (Calldata/Blobs), and ensure reliable transaction broadcast via a Saga loop. \\
+
+Submitter & Rust & Formats the executed batch for the selected data availability mode, manages Layer-1 submission, estimates gas, and handles retry logic through a Saga-style workflow. \\
 \addlinespace
-Contracts & Solidity & L1 bridge; validates DA commitments, verifies proofs via \texttt{MockVerifier} or Groth16, and finalizes the batch. \\
+
+Smart Contracts & Solidity & Provide the Layer-1 bridge logic for validating data availability commitments, verifying proofs through \texttt{MockVerifier} or Groth16, and updating the canonical rollup state root. \\
 \bottomrule
 \end{tabularx}
 \end{table}
+\normalsize
 
-The interactions ensure a strict cryptographic link. The Sequencer's transaction handling is isolated from batch creation. When a batch is sealed, it is sent to the Executor via gRPC. The Executor maintains a trace of the execution and invokes the prover backend. The resulting enriched payload (DA commitment and proof) is broadcast via a stream to the Submitter, which handles the final L1 gas estimation and submission.
+The interaction pattern follows a staged pipeline. The Workload Generator submits synthetic transactions to the Sequencer, which validates and groups them into sealed batches. Once a batch is formed, it is sent to the Executor through gRPC. The Executor applies the state-transition logic, records an execution trace, and invokes the configured prover backend. The resulting payload, which includes the updated state commitment, data availability commitment, and proof artifact, is then streamed to the Submitter. Finally, the Submitter prepares the Layer-1 transaction, estimates the required gas, and broadcasts the batch update to the local Ethereum smart contracts.
+
+This separation of responsibilities is important for the research objective of the project. Because each component is independently observable, the framework can isolate how specific design choices affect overall rollup behavior. For example, the Sequencer can be reconfigured to test different batching or scheduling policies, while the Submitter can be reconfigured to compare calldata, EIP-4844 blob-based submission, and off-chain DA stubs under the same workload conditions.
+

@@ -5,8 +5,8 @@ To systematically map the performance frontier, RollupX is evaluated using a Pyt
 \begin{itemize}
     \item \textbf{Batch Size (\(B_{\text{max}}\)):} The maximum number of transactions allowed in a single L2 batch before it is sealed.
     \item \textbf{Timeout (\(T_{\text{timeout}}\)):} The maximum time the sequencer waits before sealing and flushing a batch.
-    \item \textbf{Sequencing Policies:} The rules used by the sequencer to order transactions in the mempool. We test standard First-Come-First-Served (FCFS), FeePriority and TimeBoost ~\cite{timeboost_docs}
-    \item \textbf{Data Availability (DA) Modes:} The storage path used for L2 transaction data on L1. We evaluate Calldata , EIP-4844 Blobs~\cite{eip4844}, and Offchain DA.
+    \item \textbf{Sequencing Policies:} The rules used by the sequencer to order transactions in the mempool. We test standard First-Come-First-Served (FCFS), FeePriority, FairBFT and TimeBoost ~\cite{timeboost_docs}
+    \item \textbf{Data Availability (DA) Modes:} The storage path used for L2 transaction data on L1. We evaluate Calldata, EIP-4844 Blobs~\cite{eip4844}, and Offchain DA.
     \item \textbf{Prover Backends:} The environment validating L2 state transitions. We compare a Mock Prover and the Real Prover.
 \end{itemize}
 

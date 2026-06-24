@@ -1,22 +1,102 @@
+
 \section{Evaluation Metrics}
 \label{sec:evaluation_metrics}
-Telemetry data is collected as raw JSON/CSV metrics in the \texttt{benchmark-suite/metrics/} directory. The Data Tools analytics pipeline subsequently processes this data using Python aggregation scripts to compute the final metrics.
 
-\begin{table}[H]
+Telemetry data is collected from the workload generator, Sequencer, Executor, Prover, and Submitter during each benchmark run. These components emit raw JSON, JSONL, and CSV files into the \path{benchmark-suite/metrics/} directory. The Data Tools analytics pipeline then processes these outputs using Python aggregation scripts to compute run-level metrics for throughput, latency, finalization, proving overhead, data availability footprint, and cost.
+
+The evaluation metrics are selected to capture both general distributed-system performance and rollup-specific trade-offs. Throughput and latency measure the user-facing performance of the Layer-2 pipeline. Finalization time measures how long a sealed batch takes to reach Layer-1 settlement. Gas and cost metrics capture the economic impact of submitting batches to Layer 1. Data availability metrics measure the payload footprint that directly affects calldata or blob-related cost. Table~\ref{tab:metrics} summarizes the main metrics used in the evaluation.
+
+\begin{table}[!htbp]
 \centering
-\caption{Key Benchmarking Metrics}
-\label{tab:metrics}
-\small
-\begin{tabularx}{\textwidth}{l X c X}
+\caption{Performance Metrics Used in Benchmarking}
+\label{tab:performance_metrics}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.18}
+\begin{tabularx}{\textwidth}{@{}p{0.26\textwidth}p{0.14\textwidth}Y@{}}
 \toprule
-\textbf{Metric} & \textbf{Definition} & \textbf{Unit} & \textbf{Why it matters} \\
+\textbf{Metric} & \textbf{Unit} & \textbf{Definition and purpose} \\
 \midrule
-Throughput & Rate of successful transaction inclusion & TPS & Indicates capacity limits of the system \\
-Latency & Time from transaction submission to soft finality & ms & Affects user experience \\
-Finalization & Time from batch sealing to hard finality on L1 & ms & Affects system security and dispute windows \\
-Gas Cost & L1 execution cost per transaction or per batch & Wei & Determines the economic viability of the rollup \\
-DA Footprint & Size of the compressed data posted to L1 & Bytes & Directly correlates with calldata costs \\
+
+Throughput 
+& TPS 
+& Measures the rate of successfully processed transactions during a benchmark run. It indicates the effective processing capacity of the rollup pipeline. \\
+
+\addlinespace
+
+Run success rate 
+& \% 
+& Measures the fraction of submitted transactions that are accepted and successfully processed. It helps identify whether the system remains stable under the offered workload. \\
+
+\addlinespace
+
+Soft finality latency 
+& ms 
+& Measures the time from transaction submission or Sequencer intake until the transaction is included in a sealed batch. It represents the first user-visible confirmation point. \\
+
+\addlinespace
+
+Hard finality latency 
+& ms 
+& Measures the time from batch sealing or submission until the corresponding update is settled on Layer 1. It captures the delay between Layer-2 batching and Layer-1 finalization. \\
+
+\addlinespace
+
+Proof time 
+& ms / s 
+& Measures the time spent in mock proof delay or real prover execution. It is used to identify whether the Prover becomes the main bottleneck. \\
+
 \bottomrule
 \end{tabularx}
+\normalsize
 \end{table}
-Key metrics include Committed TPS (transactions committed to L1 per second), average and P95 latency, proof delay (seconds per proof), DA bytes posted, cost per transaction, and batch finalization time \cite{chaliasos2024analyzing}. As dictated by the benchmarking plan, statistical analysis must report mean, median, standard deviation, 95\% confidence intervals, and latency percentiles (P50, P90, P95, P99) to accurately reflect the skew often found in distributed system queueing networks.
+
+\begin{table}[!htbp]
+\centering
+\caption{Cost and Data Availability Metrics Used in Benchmarking}
+\label{tab:cost_da_metrics}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.18}
+\begin{tabularx}{\textwidth}{@{}p{0.26\textwidth}p{0.14\textwidth}Y@{}}
+\toprule
+\textbf{Metric} & \textbf{Unit} & \textbf{Definition and purpose} \\
+\midrule
+
+Layer-1 gas used 
+& Gas units 
+& Measures the gas consumed by the Layer-1 batch submission transaction. It is the most stable metric for comparing settlement overhead across configurations. \\
+
+\addlinespace
+
+Cost per tx 
+& Wei / USD 
+& Estimates the total batch cost divided by the number of transactions in the batch. Wei-based values are used for stable comparison, while USD values are treated as explanatory estimates. \\
+
+\addlinespace
+
+DA footprint 
+& Bytes 
+& Measures the size of the encoded or compressed batch payload submitted through the selected data availability mode. It directly affects calldata or blob-related cost. \\
+
+\addlinespace
+
+Compression ratio 
+& Ratio 
+& Measures the reduction between raw transaction data and the compressed or encoded payload. It indicates the effectiveness of payload reduction before data availability submission. \\
+
+\addlinespace
+
+Blob utilization 
+& \% 
+& Measures how much of the target blob capacity is filled by the batch payload. It is mainly used when evaluating EIP-4844-style blob submission. \\
+
+\bottomrule
+\end{tabularx}
+\normalsize
+\end{table}
+
+
+In addition to average values, the analysis reports distributional statistics because latency and queueing behaviour in distributed systems are often skewed. The reported statistics include mean, median, standard deviation, 95\% confidence intervals, and latency percentiles such as P50, P90, P95, and P99. These values are particularly important for identifying tail-latency effects under high-load and burst-load conditions.
+
+The aggregation pipeline also links metrics across different telemetry sources. For example, Sequencer metrics describe queueing and batch formation, Executor metrics describe execution and proving time, and Submitter metrics describe Layer-1 gas usage, data availability footprint, and submission latency. Combining these metrics allows the evaluation to identify whether a bottleneck originates from batching, execution, proving, data availability formatting, or Layer-1 submission.

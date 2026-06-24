@@ -1,6 +1,13 @@
 \section{Sequencer}
 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.90\textwidth]{final_report/figures/chapter4/sequencer_archi.png}
+    \caption{Sequencer Component Architecture.}
+    \label{fig:sequencer_arch}
+\end{figure}
 \label{sec:sequencer}
+
 The Sequencer is the entry point for L2 transactions. It is responsible for ingesting, validating, and grouping transactions into batches before forwarding them to the execution stage. Strict architectural rules dictate that the sequencer interacts with its database via a defined \texttt{Storage} trait and keeps business logic separate from the \texttt{src/bin/} entry point.
 
 \begin{itemize}

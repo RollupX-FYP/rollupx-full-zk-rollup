@@ -1,5 +1,14 @@
 \begin{thebibliography}{10}
 
+\bibitem{chaliasos2024analyzing}
+S.~Chaliasos, I.~Reif, A.~Torralba-Agell, J.~Ernstberger, A.~Kattis, {\em
+  et~al.}, ``Analyzing and benchmarking zk-rollups,'' in {\em 6th Conference on
+  Advances in Financial Technologies (AFT 2024)}, vol.~316 of {\em Leibniz
+  International Proceedings in Informatics (LIPIcs)}, pp.~6:1--6:23, 2024.
+
+\bibitem{saif2024dataavailability}
+A.~Saif {\em et~al.}, ``Data availability in rollups,'' 2024.
+
 \bibitem{nakamoto2008bitcoin}
 S.~Nakamoto, ``Bitcoin: A peer-to-peer electronic cash system.''
   \url{https://bitcoin.org/bitcoin.pdf}, 2008.
@@ -36,18 +45,9 @@ V.~Buterin {\em et~al.}, ``A next-generation smart contract and decentralized
   2025.
 \newblock Accessed: 2026-05-10.
 
-\bibitem{chaliasos2024analyzing}
-S.~Chaliasos, I.~Reif, A.~Torralba-Agell, J.~Ernstberger, A.~Kattis, {\em
-  et~al.}, ``Analyzing and benchmarking zk-rollups,'' in {\em 6th Conference on
-  Advances in Financial Technologies (AFT 2024)}, vol.~316 of {\em Leibniz
-  International Proceedings in Informatics (LIPIcs)}, pp.~6:1--6:23, 2024.
-
 \bibitem{ben2018stark}
 E.~Ben-Sasson {\em et~al.}, ``Scalable, transparent, and post-quantum secure
   computational integrity,'' 2018.
-
-\bibitem{saif2024dataavailability}
-A.~Saif {\em et~al.}, ``Data availability in rollups,'' 2024.
 
 \bibitem{eip4844}
 Ethereum, ``Eip-4844: Shard blob transactions,'' 2022.

@@ -67,10 +67,10 @@
 \contentsline {section}{\numberline {4.5}Prover and Benchmark-Mode Delay}{34}{section.4.5}%
 \contentsline {section}{\numberline {4.6}Submitter}{35}{section.4.6}%
 \contentsline {section}{\numberline {4.7}Smart Contracts}{36}{section.4.7}%
-\contentsline {section}{\numberline {4.8}State Synchronization and Nonce Handling}{36}{section.4.8}%
+\contentsline {section}{\numberline {4.8}State Synchronization and Nonce Handling}{37}{section.4.8}%
 \contentsline {section}{\numberline {4.9}Benchmarking and Data Collection Tools}{37}{section.4.9}%
 \contentsline {section}{\numberline {4.10}Data Tools}{37}{section.4.10}%
-\contentsline {section}{\numberline {4.11}Configuration Management}{37}{section.4.11}%
+\contentsline {section}{\numberline {4.11}Configuration Management}{38}{section.4.11}%
 \contentsline {section}{\numberline {4.12}Logging and Metrics}{38}{section.4.12}%
 \contentsline {section}{\numberline {4.13}Integration Challenges}{38}{section.4.13}%
 \contentsline {section}{\numberline {4.14}Development Challenges}{38}{section.4.14}%
@@ -117,5 +117,5 @@
 \contentsline {chapter}{\numberline {D}Configuration Reference}{64}{appendix.D}%
 \contentsline {chapter}{\numberline {E}Metrics Output Schema}{65}{appendix.E}%
 \contentsline {chapter}{\numberline {F}Important Algorithms}{66}{appendix.F}%
-\contentsline {section}{Gantt Chart}{67}{section*.48}%
-\contentsline {section}{Workload Calculation}{68}{figure.caption.49}%
+\contentsline {section}{Gantt Chart}{67}{lstnumber.-6.20}%
+\contentsline {section}{Workload Calculation}{68}{figure.caption.48}%

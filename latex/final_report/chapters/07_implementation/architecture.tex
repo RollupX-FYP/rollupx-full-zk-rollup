@@ -1,0 +1,33 @@
+\section{System Architecture}
+\label{sec:system_architecture}
+
+The system architecture of the Rollup Node follows a modular pipeline design, dividing the transaction lifecycle across distinct layers and specialized components. As illustrated in Figure~\ref{fig:rollup_architecture}, the architecture consists of three primary layers: the Client Layer, the Layer 2 Rollup Node, and the Layer 1 Settlement.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{final_report/figures/chapter4/system_architecture.png}
+    \caption{Layer 2 Rollup Node Modular Pipeline Architecture}
+    \label{fig:rollup_architecture}
+\end{figure}
+
+\subsection{Client Layer}
+The Client Layer comprises JSON-RPC Clients that initiate the interaction by submitting user transactions to the Layer 2 network. These transactions are directly ingested by the Sequencer within the Rollup Node.
+
+\subsection{Layer 2 Rollup Node (Modular Pipeline)}
+The Layer 2 Rollup Node is the core operational component of the system, constructed as a modular pipeline with four distinct stages:
+
+\begin{enumerate}
+    \item \textbf{Sequencer (Mempool \& Scheduling):} The Sequencer acts as the entry point for both L2 transactions from the Client Layer and L1 Deposit Events from the Ethereum bridge. It maintains the mempool, applies scheduling policies, and packs incoming transactions into sealed batches. These sealed batches are then forwarded to the Executor.
+    \item \textbf{Executor (STF Execution \& Trace):} Upon receiving sealed batches, the Executor runs the State Transition Function (STF). It produces two critical outputs: the Batch Payload, which is sent to the Submitter, and the Execution Trace, which provides the necessary computational steps to the Prover.
+    \item \textbf{RISC0 zkVM Prover (SNARK Proof Generation):} The Prover consumes the execution trace to cryptographically verify the state transitions. Utilizing the RISC0 zkVM, it generates a Groth16 SNARK proof that attests to the validity of the batch execution. This proof is subsequently delivered to the Submitter.
+    \item \textbf{Submitter (Saga Daemon \& DA Packager):} Acting as the final stage of the L2 pipeline, the Submitter collects the Batch Payload from the Executor and the Groth16 proof from the Prover. It packages these elements and executes the \texttt{commitBatch} transaction to the Layer 1 smart contracts.
+\end{enumerate}
+
+\subsection{Layer 1 Settlement (Ethereum)}
+The Layer 1 Settlement provides security and state finality for the rollup:
+
+\begin{itemize}
+    \item \textbf{Rollup Bridge Contract (State Anchor):} This contract acts as the state anchor on Ethereum. It receives the \texttt{commitBatch} payload and triggers the necessary verifications. It also emits L1 Deposit Events back to the Sequencer.
+    \item \textbf{DA Providers (Calldata / EIP-4844 Blobs):} The bridge contract ensures data availability (DA) by validating the DA commitment against the chosen DA layer, which can be standard calldata or EIP-4844 blobs.
+    \item \textbf{Verifier Registry (Groth16 Verifier):} The system relies on a Verifier Registry to independently verify the Groth16 SNARK proof submitted by the L2 node, guaranteeing that all state transitions within the batch were executed correctly.
+\end{itemize}

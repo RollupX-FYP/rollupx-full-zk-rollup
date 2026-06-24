@@ -1,13 +1,2 @@
 \section{Future Work}
 \label{sec:future_work}
-While this project establishes a robust baseline for evaluating ZK-Rollup configurations, several avenues for future research remain:
-\begin{itemize}
-    \item \textbf{Fix Adaptive Batching:} Resolve the hysteresis threshold trap identified in Stage 2 to enable a functional dynamic batching heuristic.
-    \item \textbf{Implement Nonce-Aware Scheduling:} Redesign the sequencer's transaction pool to group transactions by sender account and preserve strict nonce ordering \textit{before} applying priority sorting, preventing the systemic failures observed in Stage 3.
-    \item \textbf{Improve Blob Packing:} Implement functional \texttt{blob\_fill\_target} logic and combine it with the nonce-aware scheduler to maximize EIP-4844 payload efficiency.
-    \item \textbf{Use Real Prover Clusters:} Transition from the benchmark-mode mock prover to a fully integrated, hardware-accelerated cryptographic prover cluster to measure absolute proof generation costs under heavy, parallelized load.
-    \item \textbf{Trace-Driven Workloads:} Replace the synthetic Poisson-based workload generator with trace-driven inputs based on historical mainnet dataset replays to provide greater external validity.
-    \item \textbf{Integrate Real External DA Layers:} Expand the offchain DA scope by fully integrating with external DA networks (such as Celestia or EigenDA) rather than relying on local stubs.
-    \item \textbf{Expand State Transition Logic:} Expand the executor from a transfer-centric engine to support richer transaction types and more complex smart contract interactions.
-    \item \textbf{Public Testnet Deployment:} Migrate the orchestration environment from local Hardhat instances to public Ethereum testnets to test the framework against real network congestion and block finality variance.
-\end{itemize}

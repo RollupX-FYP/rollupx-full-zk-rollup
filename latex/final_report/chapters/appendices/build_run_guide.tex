@@ -11,7 +11,7 @@ This appendix outlines the steps required to build and run the RollupX prototype
 \end{itemize}
 
 \textbf{Build Commands:}
-\begin{verbatim}
+\begin{lstlisting}[style=yamlStyle]
 # Install contract dependencies
 cd contracts && npm install
 npx hardhat compile
@@ -21,10 +21,10 @@ cd risc0_prover && cargo +stable build -p rollup_host && cd ..
 cd executor && cargo build --ignore-rust-version && cd ..
 cd sequencer && cargo build --release && cd ..
 cargo build --manifest-path submitter/Cargo.toml
-\end{verbatim}
+\end{lstlisting}
 
 \textbf{Run Commands (in separate terminals):}
-\begin{verbatim}
+\begin{lstlisting}[style=yamlStyle]
 # Terminal A: Start L1 Node
 cd contracts && npx hardhat node
 
@@ -41,4 +41,4 @@ cargo run --manifest-path submitter/Cargo.toml --bin submitter -- \
 
 # Terminal E: Start Sequencer
 cd sequencer && RUST_LOG=info cargo run --release
-\end{verbatim}
+\end{lstlisting}

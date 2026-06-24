@@ -1,5 +1,9 @@
+
 \documentclass[12pt,a4paper]{report}
 
+% -----------------------------
+% Packages
+% -----------------------------
 \usepackage[utf8]{inputenc}
 \usepackage{graphicx}
 \usepackage{caption}
@@ -19,54 +23,76 @@
 \usepackage{xurl}
 \usepackage{seqsplit}
 \usepackage{placeins}
-
-% Prevent small right-margin overflows
-\emergencystretch=3em
-
-% Better X column for wrapped tables
-\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
-
-% Breakable inline code / filenames
-\newcommand{\code}[1]{\texttt{\seqsplit{#1}}}
-
-% Standard compact table style
-\newcommand{\compacttable}{%
-  \small
-  \setlength{\tabcolsep}{3pt}
-  \renewcommand{\arraystretch}{1.15}
-}
 \usepackage{tikz}
-\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
 \usepackage{geometry}
 \usepackage{setspace}
-\usepackage{mathptmx} % Times New Roman
+\usepackage{mathptmx} % Times-like font for pdfLaTeX
 \usepackage{listings}
 \usepackage{xcolor}
 \usepackage[explicit]{titlesec}
 \usepackage{hyperref}
+
+% -----------------------------
+% TikZ libraries
+% -----------------------------
+\usetikzlibrary{arrows.meta, positioning, fit, backgrounds, shapes.geometric}
+
+% -----------------------------
+% Page layout
+% -----------------------------
+\geometry{a4paper, left=40mm, bottom=40mm, top=25mm, right=25mm}
+\emergencystretch=3em
+
+% -----------------------------
+% Hyperref setup
+% -----------------------------
 \hypersetup{
     colorlinks=true,
     linkcolor=black,
     citecolor=black,
     urlcolor=black
 }
-\geometry{a4paper, left=40mm, bottom=40mm, top=25mm, right=25mm}
 
+% -----------------------------
+% Table and code helpers
+% -----------------------------
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+
+\newcommand{\code}[1]{\texttt{\seqsplit{#1}}}
+
+\providecommand{\compacttable}{%
+  \small
+  \setlength{\tabcolsep}{3pt}
+  \renewcommand{\arraystretch}{1.15}
+}
+
+% -----------------------------
+% Bibliography title
+% -----------------------------
 \renewcommand{\bibname}{Reference List}
 
+% -----------------------------
+% Chapter and section formatting
+% -----------------------------
 \titleformat{\chapter}[display]
   {\normalfont\fontsize{14}{17}\bfseries}
   {\MakeUppercase{\chaptertitlename}\ \thechapter}{14pt}{\MakeUppercase{#1}}
+
 \titleformat{name=\chapter,numberless}[display]
   {\normalfont\fontsize{14}{17}\bfseries}
   {}{0pt}{\MakeUppercase{#1}}
+
 \titleformat{\section}
   {\normalfont\fontsize{12}{15}\bfseries}
   {\thesection}{1em}{#1}
+
 \titleformat{\subsection}
   {\normalfont\fontsize{12}{15}\bfseries}
   {\thesubsection}{1em}{#1}
 
+% -----------------------------
+% Listings style
+% -----------------------------
 \lstdefinestyle{yamlStyle}{
   language=bash,
   basicstyle=\ttfamily\small,
@@ -77,72 +103,81 @@
   breaklines=true
 }
 
+
+
 \begin{document}
 
 \pagenumbering{roman}
 
 % --- Cover Page ---
 \begin{titlepage}
+    \thispagestyle{empty}
     \begin{center}
         \singlespacing
         \vspace*{2cm}
-        
+
         \textbf{\fontsize{16}{24}\selectfont\MakeUppercase{Improving Blockchain Scalability: Throughput Enhancement in ZK-Rollups}}
-        
+
         \vspace{3cm}
-        
+
         \textbf{\fontsize{14}{21}\selectfont Fernando T.H.L. : 210167E} \\
         \textbf{\fontsize{14}{21}\selectfont Gamage M.S. : 210176F} \\
         \textbf{\fontsize{14}{21}\selectfont Lishan S.D. : 210339J} \\
         \textbf{\fontsize{14}{21}\selectfont Perera M.V.D.P.D.S. : 210466U}
-        
+
         \vspace{3cm}
-        
+
         \textbf{\fontsize{14}{21}\selectfont Bachelor of Science Engineering Honours in Computer Science and Engineering}
-        
+
         \vspace{2cm}
-        
+
         \textbf{\fontsize{14}{21}\selectfont Department of Computer Science and Engineering} \\
-        \textbf{\fontsize{14}{21}\selectfont University of Moratuwa, Sri Lanka}
-        
+        \textbf{\fontsize{14}{21}\selectfont University of Moratuwa} \\
+        \textbf{\fontsize{14}{21}\selectfont Sri Lanka}
+
         \vfill
-        
+
         \textbf{\fontsize{14}{21}\selectfont June 2026}
     \end{center}
 \end{titlepage}
 
 % --- Title Page ---
 \begin{titlepage}
+    \thispagestyle{empty}
     \begin{center}
         \singlespacing
         \vspace*{2cm}
-        
+
         \textbf{\fontsize{16}{24}\selectfont\MakeUppercase{Improving Blockchain Scalability: Throughput Enhancement in ZK-Rollups}}
-        
+
         \vspace{3cm}
-        
+
         \textbf{\fontsize{14}{21}\selectfont Fernando T.H.L. : 210167E} \\
         \textbf{\fontsize{14}{21}\selectfont Gamage M.S. : 210176F} \\
         \textbf{\fontsize{14}{21}\selectfont Lishan S.D. : 210339J} \\
         \textbf{\fontsize{14}{21}\selectfont Perera M.V.D.P.D.S. : 210466U}
-        
+
         \vspace{3cm}
-        
-        \textbf{\fontsize{14}{21}\selectfont This final year project report is submitted in partial fulfillment of the requirements for the Bachelor of Science Engineering Honours in Computer Science and Engineering}
-        
+
+        {\fontsize{12}{18}\selectfont
+        This final year project report is submitted in partial fulfillment of the requirements for the Bachelor of Science Engineering Honours in Computer Science and Engineering
+        }
+
         \vspace{3cm}
-        
+
         \textbf{\fontsize{14}{21}\selectfont Department of Computer Science and Engineering} \\
-        \textbf{\fontsize{14}{21}\selectfont University of Moratuwa, Sri Lanka}
-        
+        \textbf{\fontsize{14}{21}\selectfont University of Moratuwa} \\
+        \textbf{\fontsize{14}{21}\selectfont Sri Lanka}
+
         \vfill
-        
+
         \textbf{\fontsize{14}{21}\selectfont June 2026}
     \end{center}
 \end{titlepage}
 
 \setcounter{page}{1}
 \onehalfspacing
+\pagestyle{plain}
 
 \chapter*{Declaration of the Candidates and Supervisor}
 \phantomsection
@@ -245,7 +280,9 @@ Appendix F & Important Algorithms & \pageref{app:algorithms} \\
 \end{tabularx}
 \clearpage
 
+\clearpage
 \pagenumbering{arabic}
+\setcounter{page}{1}
 
 \input{chapters/chap1_introduction}
 \input{chapters/chap2_literature_review}

@@ -1,58 +1,121 @@
 \subsection{Data Availability Modes}
+\label{subsec:data_availability_modes}
 
-Figure~\ref{fig:da_modes_taxonomy} summarizes the data availability modes considered in this study. The prototype distinguishes between on-chain data availability, where data or commitments are submitted to Layer 1, and off-chain data availability, where the data is stored outside the base chain with different trust assumptions.
+Data availability is a central design variable in rollup systems because it determines where transaction data is published and who can reconstruct the rollup state if needed. In this project, data availability is treated as a configurable benchmarking dimension rather than as a production-grade security mechanism. The goal is to compare how different DA choices affect payload size, Layer-1 submission cost, and finalization behaviour under the same workload conditions.
 
-\begin{figure}[H]
+Figure~\ref{fig:da_modes_taxonomy} summarizes the data availability modes considered in this study. The prototype distinguishes between on-chain data availability, where transaction data or data commitments are submitted to Layer 1, and off-chain data availability, where the batch data is stored outside the base chain under additional trust assumptions.
+
+```latex
+\begin{figure}[!htbp]
 \centering
-\resizebox{0.95\textwidth}{!}{%
+\resizebox{0.96\textwidth}{!}{%
 \begin{tikzpicture}[
-    node distance=1.2cm and 1.5cm,
-    box/.style={
+    font=\scriptsize,
+    rootbox/.style={
         rectangle,
         rounded corners,
         draw,
         align=center,
-        minimum width=3.5cm,
-        minimum height=0.9cm,
-        font=\small
+        minimum width=4.2cm,
+        minimum height=0.75cm,
+        text width=3.9cm,
+        font=\scriptsize\bfseries
     },
-    smallbox/.style={
+    categorybox/.style={
         rectangle,
         rounded corners,
         draw,
         align=center,
-        minimum width=3.2cm,
-        minimum height=0.8cm,
-        font=\small
+        minimum width=3.8cm,
+        minimum height=0.75cm,
+        text width=3.5cm,
+        font=\scriptsize\bfseries
+    },
+    modebox/.style={
+        rectangle,
+        rounded corners,
+        draw,
+        align=center,
+        minimum width=2.9cm,
+        minimum height=0.80cm,
+        text width=2.65cm
     },
     arrow/.style={-{Latex[length=2mm]}, thick}
 ]
 
-\node[box] (root) {Data Availability\\Modes};
+% Root
+\node[rootbox] (root) at (0,0) {
+Data Availability\\
+Modes
+};
 
-\node[box, below left=of root] (onchain) {On-chain DA\\Ethereum-secured};
-\node[box, below right=of root] (offchain) {Off-chain DA\\Additional trust assumptions};
+% Main DA categories
+\node[categorybox] (onchain) at (-3.8,-1.35) {
+On-chain DA\\
+Ethereum anchored
+};
 
-\node[smallbox, below left=of onchain] (calldata) {Calldata\\Permanent L1 transaction data};
-\node[smallbox, below right=of onchain] (blob) {EIP-4844 Blobs\\Temporary blob data\\with L1 commitment};
+\node[categorybox] (offchain) at (3.8,-1.35) {
+Off-chain DA\\
+Additional trust assumptions
+};
 
-\node[smallbox, below left=of offchain] (stub) {Local DA Stub\\Used in prototype};
-\node[smallbox, below right=of offchain] (external) {External DA / DAC / DAL\\Conceptual extension};
+% On-chain options
+\node[modebox] (calldata) at (-5.7,-3.05) {
+\textbf{Calldata}\\
+Batch data as\\
+L1 transaction input
+};
 
-\draw[arrow] (root) -- (onchain);
-\draw[arrow] (root) -- (offchain);
-\draw[arrow] (onchain) -- (calldata);
-\draw[arrow] (onchain) -- (blob);
-\draw[arrow] (offchain) -- (stub);
-\draw[arrow] (offchain) -- (external);
+\node[modebox] (blob) at (-1.9,-3.05) {
+\textbf{EIP-4844 Blobs}\\
+Blob payload with\\
+L1 commitment
+};
+
+% Off-chain options
+\node[modebox] (stub) at (1.9,-3.05) {
+\textbf{Local DA Stub}\\
+Simulated\\
+prototype mode
+};
+
+\node[modebox] (external) at (5.7,-3.05) {
+\textbf{External DA Layer}\\
+Conceptual\\
+extension only
+};
+
+% Arrows
+\draw[arrow] (root.south west) -- (onchain.north);
+\draw[arrow] (root.south east) -- (offchain.north);
+
+\draw[arrow] (onchain.south west) -- (calldata.north);
+\draw[arrow] (onchain.south east) -- (blob.north);
+
+\draw[arrow] (offchain.south west) -- (stub.north);
+\draw[arrow] (offchain.south east) -- (external.north);
 
 \end{tikzpicture}
 }
-\caption{Taxonomy of data availability modes considered in the modular ZK-Rollup prototype.}
+\caption{Taxonomy of data availability modes considered in the modular ZK-rollup benchmarking framework.}
 \label{fig:da_modes_taxonomy}
 \end{figure}
-The methodology dictates testing two distinct L1 DA submission modes:
+```
+
+
+The methodology evaluates two primary Layer-1 data availability modes and includes one simulated off-chain mode for comparison.
+
 \begin{itemize}
-    \item \textbf{Calldata:} Compressing the transaction payload and sending it as standard L1 transaction data.
-    \item \textbf{EIP-4844 Blobs:} Formatting the payload into a blob and submitting a blob-carrying transaction, significantly reducing the EVM execution gas cost.
+    \item \textbf{Calldata mode:} 
+    In calldata mode, the compressed transaction payload is submitted as standard Layer-1 transaction input data. This provides strong Ethereum-level data availability because the data is directly published on Layer 1. However, it can be expensive because calldata contributes directly to Layer-1 gas usage.
+
+    \item \textbf{EIP-4844 blob mode:} 
+    In blob mode, the batch payload is formatted as blob data and submitted through an EIP-4844-style blob-carrying transaction. The corresponding commitment is available to Layer 1, while the blob data is stored separately for a limited availability window. This mode is used to evaluate how blob-based submission affects DA cost and payload efficiency compared with calldata.
+
+    \item \textbf{Local off-chain DA stub:} 
+    The prototype also includes a local off-chain DA stub to model a validium-like configuration under controlled conditions. This mode does not represent a real integration with external DA systems such as Celestia, EigenDA, or IPFS. Instead, it is used only as a research configuration to compare the effect of moving batch data outside the Layer-1 calldata or blob path.
 \end{itemize}
+
+These modes allow the experiments to compare the trade-off between cost, data footprint, and trust assumptions. Calldata provides the strongest and simplest Layer-1 availability model but has higher cost. Blob-based submission reduces the cost of publishing large batch payloads by using the blob data path. The local off-chain DA stub provides a low-cost reference point but weakens the security assumptions because data availability is no longer guaranteed directly by Ethereum. Therefore, the DA mode is treated as a major configuration variable in the benchmarking methodology.
+

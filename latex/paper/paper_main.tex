@@ -33,7 +33,7 @@ Ethereum's rollup-centric roadmap positions Layer-2 systems as the dominant path
 
 This paper presents a research-grade modular ZK-rollup benchmarking prototype designed for controlled Layer-2 scalability experiments. The prototype separates workload generation, transaction ingestion, sequencing, simplified state-transition execution, proof-delay abstraction, Layer-1 submission, data availability, and telemetry collection. This separation allows batching policy, sequencing policy, proof-delay assumptions, and data-posting mode to be varied independently while keeping the rest of the pipeline fixed.
 
-The contribution of this work is a reproducible experimental framework for studying how normally hidden rollup configuration knobs shift throughput, latency, finalization delay, data availability footprint, and amortized submission cost. The current evaluation design uses controlled synthetic workloads and parameterized proof-delay settings, with future extension toward real prover integration and trace-driven workloads.
+The contribution of this work is a reproducible experimental framework for studying how normally hidden rollup configuration knobs shift throughput, latency, finalization delay, data availability footprint, and amortized submission cost.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -41,11 +41,15 @@ ZK-Rollups, Ethereum, Layer-2 Scaling, Blockchain Scalability, Benchmarking, Seq
 \end{IEEEkeywords}
 
 \input{paper/sections/01_introduction}
+\vspace{0.4cm}
 \input{paper/sections/02_related_work}
+\vspace{0.4cm}
 \input{paper/sections/03_system_architecture}
+\vspace{0.4cm}
 \input{paper/sections/04_methodology}
+\vspace{0.4cm}
 \input{paper/sections/05_results_discussion}
-% \input{paper/sections/05_results_discussion2}
+\vspace{0.4cm}
 \input{paper/sections/06_conclusion}
 
 \bibliographystyle{IEEEtran}

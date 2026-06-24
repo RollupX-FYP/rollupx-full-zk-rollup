@@ -1,16 +1,195 @@
+
 \section{Workload Model}
 \label{sec:workload_model}
-To isolate the effects of system configurations (such as batch size or sequencer timeouts) from external noise, the benchmarking methodology relies entirely on controlled, synthetic workloads. It explicitly does not use trace-driven replays of mainnet traffic. This approach minimizes external confounders, enabling clear attribution of performance changes to specific configuration adjustments.
 
-A Python-based \texttt{poisson\_generator.py} script synthesizes transaction requests using a seeded Poisson arrival process to simulate realistic, steady-state user traffic. The generator allows parameterized control over the offered input rate (TPS) and transaction mixes. However, it lacks implementation for highly bursty, volatile transfer patterns typical of extreme DeFi events. Instead, burst tests are simulated using programmatic rate stepping (e.g., maintaining an 8 TPS base rate before injecting an 80 TPS burst).
+The benchmarking methodology uses controlled synthetic workloads to isolate the effect of system configurations from external noise. Instead of replaying historical mainnet traces, the experiments generate repeatable transaction traffic under known input conditions. This approach allows performance changes to be attributed more directly to configuration choices such as batch size, batch timeout, sequencing policy, prover mode, and data availability mode.
 
-\subsection{Why a Local Hardhat Node and Mock Prover Are Used}
+The workload is generated using a Python-based \texttt{poisson\_generator.py} script. The generator produces transaction arrivals using a seeded Poisson process, which approximates steady-state user traffic while preserving reproducibility across repeated benchmark runs. The main configurable workload parameters include the offered input rate in transactions per second, benchmark duration, warm-up duration, random seed, sender concurrency, transaction mix, and burst-traffic settings. Warm-up traffic is sent before the timed measurement period but is excluded from the final metrics, allowing the system to reach a more stable operating state before data collection begins.
 
-A fundamental methodological choice was utilizing a local Hardhat node combined with a Mock Prover for the majority of the benchmarking sweeps (Stages 1 through 4), rather than executing on public testnets with real hardware-intensive provers. 
+Figure~\ref{fig:workload_generation_model} summarizes the workload generation process used in the benchmark suite. The model begins with a controlled experiment configuration, generates seeded transaction arrivals, selects transaction classes according to the chosen mix preset, and submits the generated transactions to the Sequencer. The same generator also records workload-side metrics so that submitted transaction counts, latencies, success rates, and offered rates can be analyzed after each run.
+
+\begin{figure}[!htbp]
+\centering
+\resizebox{0.88\textwidth}{!}{%
+\begin{tikzpicture}[
+    font=\scriptsize,
+    node distance=0.65cm and 0.75cm,
+    box/.style={
+        rectangle,
+        rounded corners,
+        draw,
+        align=center,
+        minimum width=3.0cm,
+        minimum height=0.75cm,
+        text width=2.8cm
+    },
+    widebox/.style={
+        rectangle,
+        rounded corners,
+        draw,
+        align=center,
+        minimum width=6.8cm,
+        minimum height=0.75cm,
+        text width=6.4cm
+    },
+    smallbox/.style={
+        rectangle,
+        rounded corners,
+        draw,
+        align=center,
+        minimum width=2.25cm,
+        minimum height=0.75cm,
+        text width=2.05cm
+    },
+    arrow/.style={-{Latex[length=2mm]}, thick}
+]
+
+\node[widebox] (config) {
+\textbf{Experiment Configuration}\\
+rate, duration, seed, warm-up, concurrency, target count, burst settings
+};
+
+\node[widebox, below=of config] (generator) {
+\textbf{Poisson Workload Generator}\\
+seeded transaction arrivals and repeatable workload production
+};
+
+\node[smallbox, below left=0.85cm and 1.45cm of generator] (typeA) {
+\textbf{Type A}\\
+light transfer\\
+$\sim$100 B\\
+21k gas
+};
+
+\node[smallbox, below=0.85cm of generator] (typeB) {
+\textbf{Type B}\\
+medium ERC-20 style\\
+$\sim$300 B\\
+65k gas
+};
+
+\node[smallbox, below right=0.85cm and 1.45cm of generator] (typeC) {
+\textbf{Type C}\\
+heavy contract style\\
+$\sim$600 B\\
+200k gas
+};
+
+\node[widebox, below=1.05cm of typeB] (mix) {
+\textbf{Transaction Mix Selection}\\
+transfer, light, balanced, heavy, DA-heavy, or custom fractions
+};
+
+\node[box, below left=0.90cm and 0.45cm of mix] (sequencer) {
+\textbf{Sequencer Input}\\
+HTTP JSON-RPC transaction submission
+};
+
+\node[box, below right=0.90cm and 0.45cm of mix] (metrics) {
+\textbf{Workload Metrics}\\
+JSON metrics and per-transaction CSV logs
+};
+
+\draw[arrow] (config) -- (generator);
+
+\draw[arrow] (generator) -- (typeA);
+\draw[arrow] (generator) -- (typeB);
+\draw[arrow] (generator) -- (typeC);
+
+\draw[arrow] (typeA) -- (mix);
+\draw[arrow] (typeB) -- (mix);
+\draw[arrow] (typeC) -- (mix);
+
+\draw[arrow] (mix) -- (sequencer);
+\draw[arrow] (mix) -- (metrics);
+
+\end{tikzpicture}
+}
+\caption{Synthetic workload generation model used for controlled ZK-rollup benchmarking.}
+\label{fig:workload_generation_model}
+\end{figure}
+
+
+
+The workload generator supports three abstract transaction classes. These classes are not intended to fully reproduce arbitrary EVM execution. Instead, they provide controlled transaction profiles with different gas limits, gas prices, calldata sizes, and data availability footprints. This makes it possible to evaluate how transaction heterogeneity affects batching, sequencing, proving, and L1 submission behavior.
+
+\begin{table}[!htbp]
+\centering
+\caption{Synthetic Transaction Classes Used in the Workload Model}
+\label{tab:synthetic_transaction_classes}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.20}
+\begin{tabularx}{\textwidth}{@{}p{0.13\textwidth}
+>{\RaggedRight\arraybackslash}p{0.34\textwidth}
+>{\RaggedRight\arraybackslash}X@{}}
+\toprule
+\textbf{Type} & \textbf{Configured workload profile} & \textbf{Benchmarking purpose} \\
+\midrule
+
+Type A 
+& Light transfer workload. Calldata size is approximately 100 B and the gas limit is 21,000. 
+& Represents simple transfer transactions with low execution cost and a small data availability footprint. \\
+
+\addlinespace
+
+Type B 
+& Medium ERC-20 style workload. Calldata size is approximately 300 B and the gas limit is 65,000. 
+& Represents moderate transaction complexity with a medium calldata and data availability footprint. \\
+
+\addlinespace
+
+Type C 
+& Heavy contract style workload. Calldata size is approximately 600 B and the gas limit is 200,000. 
+& Represents heavier execution and a larger data availability footprint for stress testing. \\
+
+\bottomrule
+\end{tabularx}
+\normalsize
+\end{table}
+
+Several transaction mix presets are used to generate different workload regimes. The \textit{transfer} preset isolates simple transfer behavior, while the \textit{balanced} preset provides a mixed baseline. The \textit{heavy} and \textit{da\_heavy} presets increase the proportion of larger transactions to stress the prover and data availability paths. Custom mixes can also be defined using explicit fractions for Type A, Type B, and Type C transactions.
+
+\begin{table}[!htbp]
+\centering
+\caption{Workload Mix Presets}
+\label{tab:workload_mix_presets}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.18}
+\begin{tabularx}{\textwidth}{@{}p{0.22\textwidth}p{0.14\textwidth}p{0.14\textwidth}p{0.14\textwidth}Y@{}}
+\toprule
+\textbf{Preset} & \textbf{Type A} & \textbf{Type B} & \textbf{Type C} & \textbf{Use case} \\
+\midrule
+\texttt{transfer} & 100\% & 0\% & 0\% & Simple transfer-only baseline. \\
+\addlinespace
+\texttt{light} & 95\% & 4\% & 1\% & Low-complexity steady workload. \\
+\addlinespace
+\texttt{balanced} & 70\% & 20\% & 10\% & General mixed-workload baseline. \\
+\addlinespace
+\texttt{heavy} & 20\% & 30\% & 50\% & Stress test for execution and proving. \\
+\addlinespace
+\texttt{da\_heavy} & 10\% & 20\% & 70\% & Stress test for data availability footprint. \\
+\bottomrule
+\end{tabularx}
+\normalsize
+\end{table}
+
+In addition to steady-state traffic, the generator supports burst-mode experiments. Burst tests are implemented by alternating between a base transaction rate and a higher peak rate using configurable burst period and duty-cycle parameters. For example, the workload can maintain an 8 TPS base rate and periodically inject an 80 TPS burst. This does not fully capture the complexity of extreme DeFi events, but it provides a controlled way to test queue buildup, adaptive batching behavior, and recovery after temporary load spikes.
+
+\subsection{Use of Local Hardhat Node and Mock Prover}
+\label{subsec:hardhat_mock_prover}
+
+A key methodological choice in this project is the use of a local Hardhat node and a mock prover for most benchmark sweeps. This choice improves experimental control and prevents external infrastructure variability from hiding the behavior being measured.
 
 \begin{itemize}
-    \item \textbf{Local Hardhat Node:} Running the L1 settlement layer on a local Hardhat node (configured for automatic or ultra-fast mining, e.g., 12 seconds per block) eliminates network congestion, fluctuating base fees, and unpredictable L1 finality variance. This ensures that the L1 submission phase behaves deterministically, allowing the metrics collection to focus exclusively on L2 sequencing and batching dynamics.
-    \item \textbf{Mock Prover:} True cryptographic proof generation (e.g., using RISC Zero) is an extremely compute-bound process that acts as a massive bottleneck, often masking subtle scheduling and queueing dynamics. By using a Mock Prover with a parameterized delay, the framework simulates proof generation overhead without requiring a specialized GPU cluster. Real RISC Zero proving is deliberately separated into isolated Stage 5 experiments to profile cycle behavior and step-function limits independently.
+    \item \textbf{Local Hardhat node:} 
+    The Layer-1 settlement environment is executed on a local Hardhat node. This removes public-network noise such as fluctuating gas prices, validator delays, mempool congestion, and unpredictable finality variance. As a result, the experiments can focus on the behavior of the Layer-2 pipeline, particularly batching, sequencing, submission, and data availability formatting.
+
+    \item \textbf{Mock prover:} 
+    Real cryptographic proving, especially using zkVM-based systems such as RISC0, is computationally expensive and can dominate benchmark results. If real proving is used in every experiment, it becomes difficult to observe smaller queueing and scheduling effects in the sequencer and submitter. Therefore, the main benchmark stages use a mock prover with parameterized delay to model proof-generation overhead in a controlled way. Real RISC0 proving is evaluated separately in dedicated experiments to study cycle behavior and prover-specific limits.
 \end{itemize}
 
-To ensure the load generator can saturate the sequencer without becoming a bottleneck itself, it relies on unsigned or pre-signed user transactions when \texttt{ALLOW\_UNSIGNED\_USER\_TXS} is enabled in the benchmarking stack.
+To ensure that the load generator can saturate the Sequencer without becoming the bottleneck, the benchmark stack can use unsigned or pre-signed user transactions when \texttt{ALLOW\_UNSIGNED\_USER\_TXS} is enabled. This reduces client-side signing overhead during high-rate benchmark runs and helps keep the focus on the rollup pipeline rather than on workload-generation cost.
+
+The workload model is therefore intentionally controlled rather than fully realistic. Its purpose is to provide repeatable experimental inputs that make configuration-level comparisons meaningful. This supports the main objective of the project: to evaluate how batching, sequencing, proving, and data availability choices influence ZK-rollup throughput, latency, finalization time, and cost.

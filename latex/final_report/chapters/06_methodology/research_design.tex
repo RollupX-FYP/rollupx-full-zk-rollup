@@ -1,3 +1,14 @@
+
 \section{Research Design}
 \label{sec:research_design}
-The research employs a quantitative experimental design built upon the developed modular ZK-rollup prototype. By using a controlled benchmarking framework rather than a live network, we can strictly isolate independent variables (such as batch size or DA mode) while maintaining identical dependent variables (the synthesized workload traffic).
+
+This study adopts a quantitative experimental research design based on the developed modular ZK-rollup benchmarking prototype. The purpose of the research design is to evaluate how selected architectural and configuration choices affect rollup performance under controlled and repeatable conditions.
+
+A controlled benchmarking framework is used instead of a live public network because public blockchain environments introduce external variability such as fluctuating gas prices, changing network congestion, validator delays, and unpredictable transaction demand. By running the experiments in a local and reproducible environment, the study can isolate the effect of specific independent variables while keeping the workload and execution conditions consistent.
+
+The main independent variables in the experiments include batch size, batch timeout, sequencing policy, prover mode, and data availability mode. These variables are changed systematically across benchmark runs. The dependent variables are the measured performance outcomes, including throughput, latency, finalization time, proving overhead, data availability footprint, and estimated per-transaction cost.
+
+The synthetic workload is kept consistent across comparable experiments using seeded workload generation. This makes it possible to compare different configurations under similar traffic conditions. As a result, observed differences in performance can be more directly attributed to the configuration being tested rather than to uncontrolled changes in workload demand or network conditions.
+
+Overall, the research design supports the central goal of the project: to use a modular research-grade ZK-rollup framework as an experimental tool for identifying bottlenecks and analyzing trade-offs in batching, sequencing, proving, and data availability.
+

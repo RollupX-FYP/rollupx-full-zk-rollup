@@ -7,7 +7,7 @@
 \addvspace {10\p@ }
 \contentsline {table}{\numberline {3.1}{\ignorespaces Component Responsibility Summary}}{24}{table.caption.25}%
 \contentsline {table}{\numberline {3.2}{\ignorespaces Prototype vs. Production Rollup Architecture}}{25}{table.caption.26}%
-\contentsline {table}{\numberline {3.3}{\ignorespaces ZK-Rollup Cost Model}}{28}{table.caption.28}%
+\contentsline {table}{\numberline {3.3}{\ignorespaces ZK-Rollup Cost Model \cite {chaliasos2024analyzing, saif2024dataavailability}}}{28}{table.caption.28}%
 \contentsline {table}{\numberline {3.4}{\ignorespaces Key Benchmarking Metrics}}{29}{table.caption.29}%
 \addvspace {10\p@ }
 \contentsline {table}{\numberline {4.1}{\ignorespaces Implementation Status Table}}{31}{table.caption.31}%
