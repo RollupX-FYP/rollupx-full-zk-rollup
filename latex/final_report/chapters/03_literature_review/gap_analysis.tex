@@ -1,28 +1,28 @@
 \section{Synthesis and Positioning of This Work}
 \label{sec:gap_analysis}
 
-Table \ref{tab:literature_synthesis} summarizes the identified research areas, existing limitations, and how this project addresses them.
+Table \ref{tab:literature_synthesis} summarizes the identified research areas, existing limitations in the literature, and how this project directly addresses them through its modular architecture and experimental design.
 
 \begin{table}[H]
 \centering
-\caption{Synthesis of Literature and Project Positioning}
+\caption{Synthesis of Related Work and Project Positioning}
 \label{tab:literature_synthesis}
 \small
-\begin{tabularx}{\textwidth}{>{\hsize=0.8\hsize}X >{\hsize=1.2\hsize}X >{\hsize=1.0\hsize}X >{\hsize=1.0\hsize}X}
+\begin{tabularx}{\textwidth}{>{\hsize=0.7\hsize}X >{\hsize=1.1\hsize}X >{\hsize=1.1\hsize}X >{\hsize=1.1\hsize}X}
 \toprule
 \textbf{Research Area} & \textbf{Existing Work / Focus} & \textbf{Limitation in Literature} & \textbf{How This Project Responds} \\
 \midrule
-Write Scalability & Broad surveys on L1/L2 scaling \cite{zhou2020solutions, tran2023implementation} & Often theoretical; lacks empirical implementation data. & Implements a functioning L2 prototype framework. \\
+Production rollup benchmarks & Focus on cost, proving, and deployment behavior (e.g., Chaliasos et al. \cite{chaliasos2024analyzing}). & Internals cannot be easily modified under identical workloads. & Provides configurable internal controls via a modular architecture (Sequencer, Executor, Prover, Submitter). \\
 \addlinespace
-Prover Bottlenecks & Analysis of ZKP generation costs \cite{habib2025bottlenecks} & Requires massive hardware to test real prover limits. & Uses benchmark-mode mock proving to isolate systems-level queueing, alongside basic real proof integration. \\
+Public rollup datasets & Focus on historical activity and fees. & Observational rather than experimental. & Contributes a replayable, synthetic benchmark harness for controlled configuration sweeps. \\
 \addlinespace
-DA Costs & Analysis of EIP-4844 blobs vs calldata \cite{saif2024dataavailability} & Usually observed passively on mainnet. & Allows active configuration toggling between calldata and blobs for direct L1 gas comparison. \\
+Data Availability studies & Focus on DA problem and solution taxonomy (e.g., Saif et al. \cite{saif2024dataavailability}). & Often evaluated separately from live execution benchmarking. & Treats DA as an active experimental variable, showing empirically that Blob/EIP-4844 DA reduces publication cost. \\
 \addlinespace
-Rollup Benchmarking & Benchmarking framework analysis \cite{chaliasos2024analyzing} & Production ZK-EVMs are too complex to easily modify core sequencing logic. & Provides a controlled, synthetic benchmarking framework for direct configuration comparisons. \\
+Proof systems & Focus on cryptographic proof construction. & Lack of system-level rollup trade-off analysis. & Employs proof-delay abstraction and isolated RISC0 profiling (demonstrating step-function behavior). \\
+\addlinespace
+Production documentation & Focus on operational architecture. & Optimized for deployment, reliability, and security, not for research isolation. & Employs a strict research-grade modular structure designed explicitly for telemetry extraction and bottleneck isolation. \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
-% While prior work provides insight into deployed rollups, this project focuses on controlled, configuration-level experimentation. Most benchmarking studies \cite{chaliasos2024analyzing} passively observe public production networks like Starknet or zkSync. Because these production systems prioritize reliability and full EVM compatibility, their core sequencing logic and DA selection cannot be easily toggled for controlled A/B testing. 
-
-In contrast, our prototype prioritizes controlled experimentation, modularity, and observability. This approach provides an environment to conduct repeatable, isolated studies to observe exactly how individual design choices such as batch size limits, priority scheduling heuristics, or DA mode selection affect the throughput,latency,cost behavior without the noise of production mainnet traffic. 
+In contrast to existing observational studies of production mainnets, our prototype prioritizes controlled experimentation, modularity, and observability. This approach provides an environment to conduct repeatable, isolated studies to observe exactly how individual design choices---such as batch size limits, priority scheduling heuristics (like TimeBoost), or DA mode selection---affect the throughput, latency, and cost behavior without the noise of production mainnet traffic. The findings in Chapter 5, including the measurable impact of larger batches on amortized cost versus latency, and the specific cycle limits of RISC0, are a direct result of this controlled methodology.

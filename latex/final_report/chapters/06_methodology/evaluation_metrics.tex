@@ -4,7 +4,7 @@
 
 Telemetry data is collected from the workload generator, Sequencer, Executor, Prover, and Submitter during each benchmark run. These components emit raw JSON, JSONL, and CSV files into the \path{benchmark-suite/metrics/} directory. The Data Tools analytics pipeline then processes these outputs using Python aggregation scripts to compute run-level metrics for throughput, latency, finalization, proving overhead, data availability footprint, and cost.
 
-The evaluation metrics are selected to capture both general distributed-system performance and rollup-specific trade-offs. Throughput and latency measure the user-facing performance of the Layer-2 pipeline. Finalization time measures how long a sealed batch takes to reach Layer-1 settlement. Gas and cost metrics capture the economic impact of submitting batches to Layer 1. Data availability metrics measure the payload footprint that directly affects calldata or blob-related cost. Table~\ref{tab:metrics} summarizes the main metrics used in the evaluation.
+The evaluation metrics are selected to capture both general distributed-system performance and rollup-specific trade-offs. Throughput and latency measure the user-facing performance of the Layer-2 pipeline. Finalization time measures how long a sealed batch takes to reach Layer-1 settlement. Gas and cost metrics capture the economic impact of submitting batches to Layer 1. Data availability metrics measure the payload footprint that directly affects calldata or blob-related cost. Tables~\ref{tab:performance_metrics} and~\ref{tab:cost_da_metrics} summarize the main metrics used in the evaluation.
 
 \begin{table}[!htbp]
 \centering

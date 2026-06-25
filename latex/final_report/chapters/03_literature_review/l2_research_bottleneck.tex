@@ -1,0 +1,26 @@
+\section{L2 Research Bottleneck: Why Production Networks Resist Benchmarking}
+\label{sec:l2_research_bottleneck}
+
+Production Layer-2 networks are strictly optimized for live deployment, robust reliability, and end-user security rather than for controlled academic experimentation. This operational priority creates fundamental barriers for researchers attempting to isolate and evaluate the core components of the ZK-rollup pipeline. The following subsections detail the three primary benchmarking bottlenecks inherent to observing production ZK-rollups.
+
+\subsection{Centralized or Externally Controlled Sequencers}
+Major production rollups still rely heavily on trusted or centralized sequencer operators to dictate transaction inclusion and ordering \cite{chaliasos2024analyzing}. As a result, the internal logic of these sequencers is not freely modifiable or instrumentable by external researchers under controlled identical workloads. Researchers cannot freely sweep internal sequencing policies such as First-Come-First-Served (FCFS), fee-priority, TimeBoost, or blob-packing. Without the ability to modify the sequencer's operational rules while maintaining a constant synthetic workload, it is difficult to determine whether observed performance differences stem from the underlying algorithm or simply from variations in live mainnet traffic patterns \cite{motepalli2023sequencers}. From an experimental perspective, these systems function as externally controlled black boxes.
+
+\subsection{Prohibitive Prover Hardware Overhead}
+Production zkEVM proving is exceptionally compute-intensive and typically demands high-end, specialized hardware clusters. For instance, documented production benchmarking configurations for Polygon zkEVM recommend machines such as the AWS r6i.metal instance, which features 128 vCPUs, 1024GB of RAM, and 1TB of NVMe SSD storage \cite{chaliasos2024analyzing}. In multiple comparisons, the hardware required to generate proofs for full EVM equivalence is cited as utilizing 96 to 128 cores and at least 768GB to 1TB of RAM. This extreme computational overhead creates a "hardware wall," preventing academic labs and small research teams from independently executing and benchmarking the full proving lifecycle on accessible infrastructure.
+
+\subsection{Lacking Telemetry and Instrumentation}
+Because production systems are designed as monolithic or tightly integrated cloud deployments, they often lack the fine-grained, component-level telemetry required for precise bottleneck isolation. Researchers can generally observe final network outputs---such as total Data Availability (DA) costs, public transaction behavior, or total proof compression time---but struggle to measure internal stage delays.
+
+For example, Chaliasos et al. noted that in their attempts to evaluate zkSync Era, they were forced to run the system as a black-box mini-cluster where multiple processes exchanged messages and wrote obfuscated logs, preventing them from running prover components in a fully sandboxed environment and ultimately forcing them to exclude full prover time from their analysis \cite{chaliasos2024analyzing}. Similarly, Gogol et al., in a ZKsync-based DeFi proof-of-concept (which reported 71 swap TPS), encountered practical observability issues such as sequencer fragility under load and hidden Merkle tree update latency during L1 batch sealing \cite{gogol2025defi}. These studies underscore that without deep instrumentation to capture queueing time, VM execution time, and prover round-trip time separately, the true performance trade-offs of the rollup remain obscured.
+
+\subsection{Necessity for a Controlled Framework}
+Because production ZK-rollups resist controlled benchmarking, this project specifically addresses these limitations by building a modular local framework where:
+\begin{itemize}
+    \item The sequencer policy can be actively changed.
+    \item Batch size and timeout configurations can be swept.
+    \item Data Availability (DA) mode can be toggled to measure exact L1 cost impacts.
+    \item Prover delay can be parameterized, allowing isolation of RISC0 proving in separate experiments.
+    \item Telemetry is strictly collected as JSON and CSV data from each major component.
+    \item Experiments can be perfectly repeated under the same synthetic workload.
+\end{itemize}

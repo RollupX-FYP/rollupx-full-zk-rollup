@@ -3,8 +3,7 @@
 
 The primary contributions of this project include:
 \begin{enumerate}
-    \item The design and implementation of a modular ZK-rollup benchmarking prototype that strictly separates sequencing, execution, proving, and submission stages into distinct Rust microservices.
-    \item A controlled experimental framework, including a Python-based Poisson workload generator, capable of executing reproducible configuration sweeps to measure throughput, latency, finalization time, and cost metrics.
-    \item Empirical analysis identifying the critical throughput--latency--cost trade-offs across different batching parameters and Data Availability (DA) modes based on extensive local testnet benchmarking.
-    \item The demonstration of both a benchmark-mode parameterized proof delay and a real \texttt{risc0} proof integration as a valid methodology for analyzing system-level queueing dynamics and fixed setup costs independently of full production zkEVM complexity.
+    \item \textbf{C1:} A modular ZK-rollup benchmarking framework with separable sequencer, executor, prover, submitter, smart contract, and DA components.
+    \item \textbf{C2:} A reproducible experimental pipeline with synthetic workload generation, Docker-based orchestration, configuration sweeps, and JSON/CSV telemetry collection.
+    \item \textbf{C3:} Empirical findings on throughput-latency-cost trade-offs across batching, sequencing, DA modes, and prover configurations, including observed anomalies such as adaptive batching limitations, nonce ordering issues, blob cost reduction, and RISC0 proving step-function behavior.
 \end{enumerate}

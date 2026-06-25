@@ -1,0 +1,6 @@
+\section{Background Summary}
+\label{sec:background_summary}
+
+Ethereum Layer-1 provides robust security and decentralization, but its throughput is fundamentally constrained by its sequential execution model and consensus mechanism, typically processing only 15-25 transactions per second (TPS). This limitation is an expression of the blockchain trilemma, which states that scalability, security, and decentralization cannot be simultaneously maximized. To address this, Layer-2 (L2) solutions, particularly rollups, have emerged as the primary scaling strategy.
+
+Zero-Knowledge (ZK) Rollups shift transaction execution off-chain. They aggregate hundreds or thousands of transactions into large batches and compute a cryptographic validity proof (such as a zk-SNARK or zk-STARK). Only this compact proof and a minimal data footprint (for state reconstruction) are submitted to Layer-1. This mechanism amortizes the high base-layer settlement costs across many transactions, drastically improving throughput and reducing per-transaction fees, while mathematically inheriting the security guarantees of Ethereum.

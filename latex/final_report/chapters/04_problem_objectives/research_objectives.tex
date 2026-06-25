@@ -1,24 +1,10 @@
 \section{Research Objectives}
 \label{sec:research_objectives}
+
 To systematically answer the research questions, the project defines the following specific objectives emphasizing modularity and reproducibility:
 
 \begin{itemize}
-    \item \textbf{Develop a Modular Prototype}: Design and implement a modular ZK-Rollup prototype framework deployable on a local Ethereum testnet, featuring distinct Sequencer, Executor, Submitter, and Smart Contract components.
-    \item \textbf{Establish Benchmarking Infrastructure}: Create a synthetic Poisson workload generator and an automated orchestration pipeline to execute reproducible configuration sweeps.
-    \item \textbf{Investigate Batching Dynamics}: Execute experiments to benchmark baseline performance metrics and measure the impact of varying batch sizes on latency and L1 gas costs.
-    \item \textbf{Evaluate Sequencer Policies}: Implement and compare scheduling algorithms to analyze their impact on fairness, latency, and execution correctness.
-    \item \textbf{Analyze Data Availability}: Support DA mode comparison by actively toggling between \texttt{calldata}, EIP-4844 blobs, and offchain DA modes to measure L1 footprint and cost differences.
-    \item \textbf{Isolate Prover Overhead}: Utilize benchmark-mode proof-delay mock provers and basic \texttt{risc0} proof integration to isolate prover-stage effects from L1 submission overhead and observe step-function scaling behavior.
-    \item \textbf{Analyze Trade-offs}: Synthesize the collected metrics (throughput, latency, cost, DA) into quantitative trade-off analyses (e.g., latency vs cost).
-\end{itemize}
-
-\subsection{Mapping Research Objectives to Evaluation Metrics}
-
-The achievement of these objectives is measured through specific performance metrics collected during the benchmarking phases. The mapping between research questions, objectives, implemented components, and evaluation metrics is carefully structured to ensure empirical traceability.
-
-\begin{itemize}
-    \item \textbf{Throughput and Latency:} Measured to answer RQ1 and RQ2, these metrics are derived from the Workload Generator and Sequencer telemetry, focusing on transaction queue wait times and batch processing rates.
-    \item \textbf{Per-Transaction Cost:} Extracted from the L1 smart contracts to address RQ1 and RQ3, this metric calculates the amortized gas cost per transaction based on batch size and DA mode.
-    \item \textbf{Proof Generation Overhead:} Tracked within the Executor module to address RQ1 and RQ4, this metric measures wall-clock time and RISC0 cycles required for cryptographic proof synthesis.
-    \item \textbf{Execution Correctness and Fairness:} Evaluated through the Sequencer's scheduling logs and the Executor's state transition success rates, addressing RQ2 by observing how global sorting impacts nonce ordering.
+    \item \textbf{RO1:} Design and implement a modular research-grade ZK-rollup benchmarking framework with separable sequencer, executor, prover, submitter, smart contract, and data availability components.
+    \item \textbf{RO2:} Develop a reproducible experimental pipeline that supports controlled configuration sweeps over batching policies, sequencing policies, prover modes, and data availability modes under synthetic workloads.
+    \item \textbf{RO3:} Empirically evaluate ZK-rollup performance trade-offs by measuring throughput, latency, finalization time, proving overhead, data availability footprint, and per-transaction cost across selected configurations.
 \end{itemize}

@@ -1,22 +1,23 @@
 \section{Experimental Methodology}
 
 \subsection{Experimental Parameters and Workloads}
-To systematically map the performance frontier, RollupX is evaluated using a Python-based workload generator under three traffic profiles: steady-state (Poisson arrivals), bursty spikes (traffic cycling between low and high volume), and skewed distributions~\cite{silva2024zksyncdataset}. We perform sweeps across the following configuration variables:
+RollupX is evaluated under three different traffic profiles using a Python-based workload generator: steady-state (Poisson arrivals), bursty (traffic cycling between low and high volume), and skewed distributions~\cite{silva2024zksyncdataset}. For each of these traffic profiles, RollupX is evaluated across a range of five different parameters: batch size ($B_{max}$), timeout ($T_{timeout}$), sequencing policies, data availability (DA) modes, and prover backends.
+
 \begin{itemize}
-    \item \textbf{Batch Size (\(B_{\text{max}}\)):} The maximum number of transactions allowed in a single L2 batch before it is sealed.
-    \item \textbf{Timeout (\(T_{\text{timeout}}\)):} The maximum time the sequencer waits before sealing and flushing a batch.
-    \item \textbf{Sequencing Policies:} The rules used by the sequencer to order transactions in the mempool. We test standard First-Come-First-Served (FCFS), FeePriority, FairBFT and TimeBoost ~\cite{timeboost_docs}
-    \item \textbf{Data Availability (DA) Modes:} The storage path used for L2 transaction data on L1. We evaluate Calldata, EIP-4844 Blobs~\cite{eip4844}, and Offchain DA.
-    \item \textbf{Prover Backends:} The environment validating L2 state transitions. We compare a Mock Prover and the Real Prover.
+\item \textbf{Batch Size ($B_{max}$):} The maximum number of transactions to be included in a batch that is sealed by the sequencer.
+\item \textbf{Timeout ($T_{timeout}$):} The maximum amount of time that the sequencer will wait after the arrival of the $B_{max}$ number of transactions before sealing the batch and pushing it to the L1 chain.
+\item \textbf{Sequencing Policies:} The policies used by the sequencer to order transactions in the mempool prior to sealing. These policies include FCFS, FeePriority, FairBFT and TimeBoost ~\cite{timeboost_docs}.
+\item \textbf{Data Availability (DA) Modes:} The mode in which data from L2 rollup transactions is stored on the L1 chain. Each mode includes calldata, EIP-4844 blobs~\cite{eip4844}, and offchain DA.
+\item \textbf{Prover Backends:} The backend system that validates the transactions on the rollup chain. These include a mock prover and the real prover.
 \end{itemize}
 
 \subsection{Evaluation Metrics}
-We collect telemetry logs across all lifecycle stages to compute five primary metrics:
-\begin{itemize}
-    \item \textbf{Committed TPS:} Realized transaction throughput settled on L1.
-    \item \textbf{L2-to-L1 Latency:} Total time from transaction submission to L1 block inclusion.
-    \item \textbf{Queue Wait Time (\(W_q\)):} Time spent in the sequencer mempool before sealing.
-    \item \textbf{L1 Gas per Transaction:} Total L1 gas consumed divided by transaction count.
-    \item \textbf{Proving Wall-Clock Time:} Prover proof-generation duration.
-\end{itemize}
+For each of these configurations, there are five different evaluation metrics collected from the telemetry logs of RollupX during operation. These metrics include the committed TPS, L2-to-L1 latency, queue wait time ($W_q$), L1 gas per transaction, and proving wall-clock time.
 
+\begin{itemize}
+\item \textbf{Committed TPS:} The number of transactions committed to the Layer 1 blockchain per unit time.
+\item \textbf{L2-to-L1 Latency:} The time between when a transaction is submitted on the rollup chain and when it is included in an L1 block.
+\item \textbf{Queue Wait Time ($W_q$):} The amount of time that a transaction spends in the mempool before being sealed in a batch.
+\item \textbf{L1 Gas per Transaction:} The amount of L1 gas consumed by RollupX per transaction.
+\item \textbf{Proving Wall-Clock Time:} The amount of time that it took for the prover to generate a proof of the state transition on the rollup chain.
+\end{itemize}

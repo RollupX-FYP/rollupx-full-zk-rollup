@@ -1,10 +1,8 @@
 \section{Empirical Evaluation and Analysis}
 
-
-
 \subsection{Data Availability Mode Economics}
 
-To optimize data posting costs, we compare three Data Availability (DA) modes: Calldata, EIP-4844 Blobs, and Off-chain DA. We model the rollup L1 submission cost per transaction ($C_{\text{tx}}$) as:
+To minimize data posting costs, three DA modes are considered: calldata, blobs (EIP-4844), and off-chain DA. The cost of posting data on the rollup’s L1 is:
 
 \begin{equation}
 C_{\text{tx}} = \left(R_{\text{gas}} \cdot G_{\text{base}} + \text{DA\_Gas}_{\text{tx}}\right) \cdot P_{\text{ETH}}
@@ -27,10 +25,10 @@ where $R_{\text{gas}}$ represents the fixed execution overhead, $G_{\text{base}}
 \end{figure}
 
 
-Under Calldata DA, transaction payloads are posted directly to L1 execution space, where variable calldata gas fees (charged per byte) scale linearly with batch size. Consequently, variable posting fees dominate the total batch cost, resulting in a flat per-transaction cost curve that offers negligible economies of scale as batch size increases (see Table~\ref{tab:results} and Fig.~\ref{fig:da_economics}).
+Under Calldata DA, the transactions are posted directly on the L1 blockchain, but the cost of the calldata gas fees is variable and increases with the size of the batch. The cost of posting these transactions is, therefore, variable, leading to a flat cost curve for transactions. (see Table~\ref{tab:results} and Fig.~\ref{fig:da_economics}).
 
-In contrast, Blob DA (EIP-4844) and Off-chain DA break this linear scaling relationship. Their L1 footprints are dominated by fixed execution overheads (validity proof verification and state root updates) that remain virtually constant regardless of transaction count. Consequently, scaling the average batch size amortizes these fixed costs over a larger transaction pool, yielding exponential cost-amortization curves (as shown in Fig.~\ref{fig:da_cost_economics}). Under high throughput, this modular separation of execution and data availability dramatically reduces amortized transaction costs compared to monolithic calldata architectures.
 
+Blob DA (EIP-4844) and Off-chain DA take away the effect of linearity in the increase in transaction costs. The cost of these DA types is mainly the cost of the L1 operations that are of fixed nature, such as validity proof and state root computation. The larger the size of transactions included in each batch, the smaller the contribution of these costs to the cost of transactions. Thus, the cost curves for these DA types are exponential in shape (see Fig.~\ref{fig:da_cost_economics}). Consequently, transaction costs decrease exponentially as the throughput of transactions increases.
 
 
 \subsection{Batch Policy Trade-offs (Fixed vs. Adaptive)}
@@ -43,31 +41,20 @@ We analyze the cost-latency trade-offs of Fixed-size versus adaptive batching po
 \label{fig:policy_comparison}
 \end{figure}
 
-The adaptive policy monitors the L2 mempool queue depth $d$ to dynamically calculate the target batch size $N(d)$ using the piecewise formulation:
+The adaptive batching policy uses the current depth of the L2 mempool queue $d$ to determine its target batch size $N(d)$ according to the following piecewise formulation:
+
 \begin{equation}
 N(d) = \begin{cases} N_{\min}, & d < L \\ N_{\text{mid}}, & L \le d < H \\ N_{\max}, & d \ge H \end{cases}
 \end{equation}
-where $L$ and $H$ are depth thresholds, and $N_{\min}$, $N_{\text{mid}}$, and $N_{\max}$ are respective target sizes. A size-triggered seal occurs when $d \ge N(d)$ (producing a batch of size $N_{\text{actual}} = \min(d, N(d))$), while a time-triggered flush occurs when the oldest transaction's wait time $W_{\text{oldest}} \ge T_{\max}$. Sizing logic requires the parameter constraint $N_{\min} < L$.
 
-Consequently, under \textbf{Low Load}, adaptive policy resolves the elevated queue latency of the Fixed policy (which must wait for $T_{\max}$ to expire) by scaling the target down to $N_{\min}$, reducing average wait times at the cost of higher per-transaction L1 gas from smaller batches. Under \textbf{Medium Load}, the adaptive policy converges to near-optimal gas amortization. Under \textbf{High Load}, where L1 block times throttle fixed-batch L1 confirmation throughput, the adaptive policy scales the target to $N_{\max}$ to maximize amortization while maintaining stable queue dynamics.
+where $L$ and $H$ are depth thresholds, and $N_{\min}$, $N_{\text{mid}}$, and $N_{\max}$ are respective target sizes. A size-triggered seal fires when $d \ge N(d)$ (producing a batch of size $N_{\text{actual}} = \min(d, N(d))$), while a time-triggered flush fires when $W_{\text{oldest}} \ge T_{\max}$. The sizing logic requires that $N_{\min} < L$.
 
-\subsection{Sequencer Scheduling Comparison}
-
-\begin{figure}[htbp]
-	\centering
-	\includegraphics[width=\linewidth]{plot_scheduling_policy_comparison}
-	\caption{Sequencer Scheduling Policies Comparison (Normal Load).}
-	\label{fig:scheduling_comparison}
-\end{figure}
-
-Under steady load, sequencer scheduling policies (FCFS, FairBFT, FeePriority, TimeBoost) yield near-identical wait times and gas costs, as the transaction arrival rate is comfortably below the sequencing capacity. 
-
-However, under burst congestion, policies diverge. \textbf{TimeBoost} and \textbf{FeePriority} reduce average mempool wait times relative to FCFS and FairBFT. By prioritizing high-fee transactions, these schedulers allow urgent payloads to bypass the queue backlog, validating the prioritization mechanisms under high-load spikes.
+At Low Load, the adaptive policy balances the relatively high queue latency of the Fixed policy (which may take $T_{\max}$ to process a transaction) by reducing the target number of transactions to $N_{\min}$, reducing the average wait times for transactions at the cost of increased L1 gas per transaction.  At Medium Load, the adaptive policy approaches the same minimum L1 gas as the optimal policy.  At High Load, where the block times for the L1 chain limit the throughput of the Fixed policy, the adaptive policy increases the target number of transactions to $N_{\max}$ to maximize the L1 gas throughput while maintaining a stable depth in the queue.
 
 \subsection{zkVM Proving and Overhead Scaling}
 We profile off-chain execution and validity proof generation using the RISC0 zkVM (see Fig.~\ref{fig:prover_scaling}). Because proving is dominated by segment counts and recursion overhead rather than instruction count, wall-clock proving duration scales as a step-function governed by segment boundaries. Despite this non-linear behavior, proving exhibits a strong economy of scale modeled by $T(N) = A + B \cdot N$, where $A$ is the fixed setup overhead and $B$ is the marginal proving cost per transaction. Fixed overhead $A$ dominates at small batch sizes, whereas larger batches amortize these setup costs, driving down the per-transaction proving cost.
 
-However, validity proof generation acts as a hard finality bottleneck. Under continuous workloads, if the proving duration exceeds the batch accumulation interval, a proving queue backlog accumulates, throttling committed L2-to-L1 finality throughput even though L2 execution itself is rapid.
+However, the generation of validity proofs presents a bottleneck for the system’s finality. With the chain continuously working, if the proving process takes longer than the interval in which batches of transactions are gathered, a backlog will begin to form in the proving queue, which will throttle L2-to-L1 finality throughput even though L2 execution itself is rapid.
 
 
 \begin{figure}[htbp]

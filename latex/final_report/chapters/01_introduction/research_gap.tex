@@ -1,7 +1,9 @@
 \section{Research Gap and Context}
 \label{sec:research_gap}
 
-Despite their promise, production ZK-rollups (such as zkSync Era, Starknet, and Polygon zkEVM) are highly complex systems. Their performance is dictated by an intricate interplay of several bottlenecks: sequencer scheduling policies, batch formation triggers, data availability (DA) modes, L1 submission costs, and highly compute-bound proof generation overhead. The complexity of production systems often makes it difficult to conduct controlled, isolated experiments to answer fundamental questions about these interactions.
+Despite their promise, production ZK-rollups (such as zkSync Era, Starknet, and Polygon zkEVM) are highly complex systems. Their performance is dictated by an intricate interplay of several bottlenecks: sequencer scheduling policies, batch formation triggers, data availability (DA) modes, L1 submission costs, and highly compute-bound proof generation overhead. The complexity of production systems often makes it difficult to conduct controlled, isolated experiments to answer fundamental questions about these interactions. 
+
+Existing benchmarking efforts typically rely on either purely theoretical models or observational analysis of active production networks. Because production L2 networks are optimized for live deployment, reliability, and user security, they actively resist controlled benchmarking. Researchers cannot freely instrument the internal pipeline, parameterize the heavy proof generation overhead, or toggle core sequencing and DA algorithms while replaying the exact same transaction workloads. 
 
 This report details the development and evaluation of a modular ZK-Rollup benchmarking prototype, developed as a final year research project. The prototype is explicitly a \textit{research prototype} and is not intended to be a production-ready mainnet rollup or a complete zkEVM implementation. Instead, it serves as a controlled benchmarking framework designed specifically to isolate and evaluate the impact of different configuration choices on system performance using synthetic transfer-centric workloads. 
 

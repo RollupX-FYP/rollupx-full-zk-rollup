@@ -22,9 +22,70 @@ The prototype is structured into seven modular components:
     \item \textbf{Telemetry Harness:} Collects execution logs and timestamps across all stages to measure throughput, queue wait times, proving cycles, L1 gas usage, and latency.
 \end{itemize}
 
+\subsection{Component-Level Architecture}
+
+The following subsections detail the internal design of each core component. Each component is implemented in Rust and communicates with adjacent components via well-defined interfaces (gRPC streams or in-process channels), ensuring that individual modules can be replaced or reconfigured without modifying the surrounding pipeline.
+
+\subsubsection{Sequencer}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{sequencer.png}
+    \caption{Internal architecture of the Sequencer component.}
+    \label{fig:sequencer}
+\end{figure}
+
+The Sequencer, shown in Fig.~\ref{fig:sequencer}, is the entry point for all L2 user transactions. It exposes a JSON-RPC endpoint that accepts signed transactions, which are passed immediately to a \textit{Validity Checker} that performs signature verification, nonce validation, and pessimistic balance checks against a \textit{Local State Cache}. Valid transactions enter the normal \textit{Transaction Pool}, while deposits and forced exits detected by the \textit{L1 Event Listener} are routed to a separate \textit{Forced Transaction Queue} that is guaranteed to be included before any normal transaction in the next batch, preserving L1-enforced censorship resistance.
+
+Batch formation is governed by a configurable \textit{Batch Engine} that fires when either a maximum transaction count or a wall-clock timeout is reached. Before sealing, the \textit{Scheduler Policy Engine} imposes the active ordering policy --- FCFS, Fee-Priority, Time-Boost, or Fair-BFT --- over the normal pool, always prepending forced transactions. The resulting ordered sequence is sealed and its metadata (batch ID, transaction count, timestamp) written to a \textit{Batch Registry}, after which the sealed batch is forwarded to the Executor via gRPC. Soft confirmations are returned to the originating client without waiting for L1 settlement.
+
+\subsubsection{Executor}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{executor.png}
+    \caption{Internal architecture of the Executor component.}
+    \label{fig:executor}
+\end{figure}
+
+The Executor, shown in Fig.~\ref{fig:executor}, receives sealed batches from the Sequencer over a gRPC stream. Its central module, \texttt{service.rs}, acts as an orchestrator that dispatches work across four sub-modules. The \textit{Transaction Engine} (\texttt{tx\_engine.rs}) parses and normalises each transaction and applies the State Transition Function (STF), producing per-transaction state diffs. These diffs are written to a RocksDB-backed \textit{State Manager} (\texttt{state.rs}), which maintains the authoritative Sparse Merkle Tree and returns the updated state root. The \textit{Trace Persistence} module (\texttt{trace.rs}) records a deterministic \texttt{BlockTrace} structure along with its hash for subsequent proof verification. The \textit{Prover Backend Integration} module (\texttt{proof.rs}) invokes the RISC0 host prover, passing the block trace, and receives back a SNARK proof and journal. Finally, the \textit{Block Constructor} (\texttt{block\_constructor.rs}) assembles the enriched batch payload — combining the state root, proof, and trace metadata — and streams it to the Submitter.
+
+\subsubsection{Prover}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{prover.png}
+    \caption{Internal architecture of the RISC0 Prover component.}
+    \label{fig:prover}
+\end{figure}
+
+The Prover, shown in Fig.~\ref{fig:prover}, implements a two-tier STARK-then-Groth16 pipeline. The Executor spawns the \textit{Host Prover Binary} (\texttt{host/main.rs}), passing a serialised \texttt{BlockTrace.json} as input. The host sends the trace into the RISC0 zkVM via its input channel, where the \textit{ZK Circuit Guest} (\texttt{guest/main.rs}) executes. The guest calls into the shared \texttt{rollup\_core} library to sequentially apply each state diff against a lightweight SMT verifier, recomputes the post-state root, and asserts that it matches the expected value committed by the Executor. If the assertion passes, the guest commits a public journal (the verified root and batch metadata). Control returns to the host, which wraps the RISC0 STARK receipt in a Groth16 outer proof, producing a constant 256-byte proof artifact. The host returns this proof, the journal, and associated metadata to the Executor for inclusion in the batch payload. The Executor can additionally verify artifact hashes to detect corruption before forwarding downstream.
+
+\subsubsection{Submitter}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{submitter.png}
+    \caption{Internal architecture of the Submitter (DA Handler) component.}
+    \label{fig:submitter}
+\end{figure}
+
+The Submitter, shown in Fig.~\ref{fig:submitter}, operates as a daemon that ingests enriched batch payloads streamed from the Executor via a \texttt{GrpcBatchSource}. An \textit{Application Orchestrator} implementing a saga-style workflow loop governs the full lifecycle of each batch. Upon receiving a batch, the orchestrator transitions its state to \textit{Discovered}, persists the intent to a \textit{StorageAdapter} backed by SQLite or Postgres (providing crash-recovery semantics), and selects the active DA strategy — either calldata encoding or EIP-4844 blob encoding. The chosen \textit{DA Strategy} module formats and encodes the payload, and hands it to an \texttt{L1Connector} built on \texttt{ethers-rs}, which broadcasts the \texttt{commitBatch} transaction to the Ethereum L1 RPC node. The orchestrator then polls for on-chain confirmation; once the transaction is finalised, the batch state is updated to \textit{Confirmed} (or \textit{Failed}) and the record is persisted, completing the saga.
+
+\subsubsection{L1 Smart Contracts}
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=1\linewidth]{hardhat.png}
+    \caption{L1 smart contract architecture deployed on the Hardhat local testnet.}
+    \label{fig:l1contracts}
+\end{figure}
+
+The on-chain layer, shown in Fig.~\ref{fig:l1contracts}, is deployed on a Hardhat local testnet and consists of a two-contract architecture. \texttt{ZKRollupBridge.sol} serves as the central coordinator: it receives \texttt{commitBatch} calls from the Submitter, delegates data availability validation to the active \textit{DA Provider} implementation (one of \texttt{CalldataDA}, \texttt{BlobDA}, or \texttt{OffChainDA}, each implementing the \texttt{IDAProvider} interface), and anchors the new L2 state root on-chain after successful verification. Proof verification is delegated to the active \textit{ZK Proof Verifier}, which implements the \texttt{IVerifier} interface; the deployed implementations are \texttt{Groth16Verifier}, \texttt{Plonky2Verifier}, and a \texttt{MockVerifier} used during non-proving experiment groups. This interface-driven design allows the DA mode and proof backend to be swapped by redeploying only the relevant implementation contract, keeping all other protocol logic unchanged.
+
 \subsection{Design Decisions}
-To support controlled benchmarking, RollupX implements following design decisions contrasting with state-of-the-art (SOTA) production architectures:
+To support controlled benchmarking, RollupX implements the following design decisions contrasting with state-of-the-art (SOTA) production architectures:
 \begin{itemize}
-    \item \textbf{Execution Engine (Simplified vs. zkEVM):} SOTA systems deploy  zkEVMs executing EVM bytecode directly \cite{scroll_docs}. RollupX utilizes a simplified, transfer-only executor where the State Transition Function (STF) is compiled directly from Rust. This trade-off bypasses complex EVM execution overhead to isolate sequencer and data parameters, though it lacks smart contract compatibility.
-    \item \textbf{Proving System (zkVM vs. Custom Circuits):} SOTA architectures build custom circuit pipelines (e.g., Halo2, Plonky2). RollupX uses the RISC0 zkVM (STARK) with Groth16 wrapper compression \cite{lavaur2023modular, werner2024analyzing}. This maximizes developer ergonomics by writing standard Rust instead of custom constraints.
+    \item \textbf{Execution Engine (Simplified vs.\ zkEVM):} SOTA systems deploy zkEVMs executing EVM bytecode directly \cite{scroll_docs}. RollupX utilises a simplified, transfer-only executor where the State Transition Function (STF) is compiled directly from Rust. This trade-off bypasses complex EVM execution overhead to isolate sequencer and data parameters, though it lacks smart contract compatibility.
+    \item \textbf{Proving System (zkVM vs.\ Custom Circuits):} SOTA architectures build custom circuit pipelines (e.g., Halo2, Plonky2). RollupX uses the RISC0 zkVM (STARK) with Groth16 wrapper compression \cite{lavaur2023modular, werner2024analyzing}. This maximises developer ergonomics by writing standard Rust instead of custom constraints.
 \end{itemize}
