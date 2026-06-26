@@ -12,14 +12,14 @@ Zero-knowledge proof generation exhibits a high fixed setup overhead. A linear r
 \begin{equation}
 T(N) = A + B \cdot N
 \end{equation}
-where $A$ represents the fixed compiler loading, setup, and SNARK-wrapping overhead (modeled at \textbf{70 to 80 seconds}), and $B$ represents the marginal proving cost (modeled at \textbf{~5.7 seconds per transaction}).
+where $A$ represents the fixed compiler loading, setup, and SNARK-wrapping overhead (observed consistently at \textbf{70 to 80 seconds}), and $B$ represents the marginal proving cost (modeled at \textbf{~5.7 seconds per transaction}).
 Because of this fixed cost, small batches represent a highly inefficient use of proving resources. Scaling up the batch size distributes this fixed overhead across a larger transaction pool, reducing the proving wall-clock time per transaction:
 \begin{itemize}
     \item \textbf{Batch Size 50 (s5\_real\_bs\_0050):} Amortized proving cost was \textbf{7.5 seconds per transaction}.
     \item \textbf{Batch Size 500 (s5\_real\_bs\_0500):} Amortized proving cost dropped to \textbf{6.0 seconds per transaction}.
 \end{itemize}
 \subsection{zkVM Cycles and the Segment Step-Function}
-Evaluating the zkVM guest logs reveals that each L2 transaction consumes between \textbf{41,000 and 45,000 cycles} depending on the state-access footprint. RISC0 executes and proves guest code in segments of exactly $2^{20} = 1,048,576$ instructions. Because proving is performed segment-by-segment, the wall-clock proving time scales in a step-function governed by segment boundaries, with each additional segment adding approximately \textbf{140 to 150 seconds}:
+Evaluating the zkVM guest logs reveals that each L2 transaction consumes between \textbf{41,000 and 45,000 cycles} depending on the state-access footprint. RISC0 executes and proves guest code in discrete segments of exactly $2^{20}$ ($1,048,576$) cycles. Because proving is performed segment-by-segment, the wall-clock proving time scales in a step-function governed by these segment boundaries, with each additional segment adding approximately \textbf{140 to 150 seconds}:
 \begin{itemize}
     \item \textbf{Batch Size 3 (trailing batch):} 262,144 cycles $\rightarrow$ \textbf{1 segment} $\rightarrow$ \textbf{96.2 seconds}.
     \item \textbf{Batch Size 49 (trailing batch):} 2,097,152 cycles $\rightarrow$ \textbf{2 segments} $\rightarrow$ \textbf{333.4 seconds}.

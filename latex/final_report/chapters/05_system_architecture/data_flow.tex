@@ -1,4 +1,4 @@
-```latex
+
 \section{Data Flow and Control Flow}
 \label{sec:data_control_flow}
 
@@ -9,4 +9,4 @@ The primary data flow is mostly unidirectional. Transactions first enter the Seq
 Control flow is handled independently within each component. For example, the Sequencer runs its own batch-generation loop based on size and timeout triggers, while the Executor manages execution and prover invocation for received batches. Similarly, the Submitter operates a Saga-style submission workflow that manages Layer-1 gas estimation, nonce handling, retry attempts, and recovery from temporary RPC failures. Because this control logic is isolated from transaction ingestion, temporary Layer-1 instability does not immediately halt the Sequencer or prevent Layer-2 batches from being formed.
 
 This separation is important for controlled experimentation. It allows the project to observe whether a bottleneck originates from batching, execution, proving, submission, or Layer-1 settlement. As a result, the framework can support reproducible benchmark comparisons while preserving clear boundaries between the major stages of the rollup pipeline.
-```
+

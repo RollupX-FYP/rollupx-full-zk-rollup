@@ -28,12 +28,13 @@
 
 \maketitle
 
+\thispagestyle{plain}
+\pagestyle{plain}
+
 \begin{abstract}
-Ethereum's rollup-centric roadmap positions Layer-2 systems as the dominant path for scaling decentralized applications without weakening Layer-1 settlement security. Among these systems, ZK-rollups are attractive because validity proofs can verify off-chain state transitions without re-executing every transaction on-chain. However, practical ZK-rollup performance depends on interacting design choices across batching, sequencing, state execution, proof generation, data availability, and Layer-1 submission. Existing production rollup stacks are optimized for deployment, compatibility, and operational reliability, but their architectural complexity makes it difficult for researchers to isolate individual bottlenecks under repeatable workloads.
+The roadmap of Ethereum is based on the role of the Layer-2 systems as the main way to increase the scalability of the blockchain without sacrificing the security of the Layer-1 chain. ZK-rollups are one of the most attractive options thanks to the validity proofs that confirm the validity of the blockchain state transitions without having to re-execute the blockchain’s transactions. However, the performance characteristics of these rollups depend on various design choices. Most of the existing rollup implementations are optimized for deployment, rather than for research into their architecture.The roadmap of Ethereum is based on the role of the Layer-2 systems as the main way to increase the scalability of the blockchain without sacrificing the security of the Layer-1 chain. ZK-rollups are one of the most attractive options thanks to the validity proofs that confirm the validity of the blockchain state transitions without having to re-execute the blockchain’s transactions. However, the performance characteristics of these rollups depend on various design choices. Most of the existing rollup implementations are optimized for deployment, rather than for research into their architecture.
 
-This paper presents a research-grade modular ZK-rollup benchmarking prototype designed for controlled Layer-2 scalability experiments. The prototype separates workload generation, transaction ingestion, sequencing, simplified state-transition execution, proof-delay abstraction, Layer-1 submission, data availability, and telemetry collection. This separation allows batching policy, sequencing policy, proof-delay assumptions, and data-posting mode to be varied independently while keeping the rest of the pipeline fixed.
-
-The contribution of this work is a reproducible experimental framework for studying how normally hidden rollup configuration knobs shift throughput, latency, finalization delay, data availability footprint, and amortized submission cost.
+In this paper, we present a modular benchmarking prototype for zk-rollups, allowing various components of rollup architectures to be tested and compared independently. The goal of this framework is to study the impact of various configuration choices on rollup performance, which is normally a hidden aspect of rollup implementations.
 \end{abstract}
 
 \begin{IEEEkeywords}

@@ -1,3 +1,13 @@
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[
+        width=0.82\textwidth,
+        keepaspectratio
+    ]{figures/chapter3/da_com.png}
+    \caption{Data availability mode comparison.}
+    \label{fig:da_mode_comparison}
+\end{figure}
+
 \subsection{Data Availability Modes}
 \label{subsec:data_availability_modes}
 
@@ -5,7 +15,7 @@ Data availability is a central design variable in rollup systems because it dete
 
 Figure~\ref{fig:da_modes_taxonomy} summarizes the data availability modes considered in this study. The prototype distinguishes between on-chain data availability, where transaction data or data commitments are submitted to Layer 1, and off-chain data availability, where the batch data is stored outside the base chain under additional trust assumptions.
 
-```latex
+
 \begin{figure}[!htbp]
 \centering
 \resizebox{0.96\textwidth}{!}{%
@@ -44,16 +54,19 @@ Figure~\ref{fig:da_modes_taxonomy} summarizes the data availability modes consid
 ]
 
 % Root
+
 \node[rootbox] (root) at (0,0) {
 Data Availability\\
 Modes
 };
 
 % Main DA categories
+
 \node[categorybox] (onchain) at (-3.8,-1.35) {
 On-chain DA\\
 Ethereum anchored
 };
+
 
 \node[categorybox] (offchain) at (3.8,-1.35) {
 Off-chain DA\\
@@ -61,11 +74,13 @@ Additional trust assumptions
 };
 
 % On-chain options
+
 \node[modebox] (calldata) at (-5.7,-3.05) {
 \textbf{Calldata}\\
 Batch data as\\
 L1 transaction input
 };
+
 
 \node[modebox] (blob) at (-1.9,-3.05) {
 \textbf{EIP-4844 Blobs}\\
@@ -74,11 +89,13 @@ L1 commitment
 };
 
 % Off-chain options
+
 \node[modebox] (stub) at (1.9,-3.05) {
 \textbf{Local DA Stub}\\
 Simulated\\
 prototype mode
 };
+
 
 \node[modebox] (external) at (5.7,-3.05) {
 \textbf{External DA Layer}\\
@@ -101,7 +118,7 @@ extension only
 \caption{Taxonomy of data availability modes considered in the modular ZK-rollup benchmarking framework.}
 \label{fig:da_modes_taxonomy}
 \end{figure}
-```
+
 
 
 The methodology evaluates two primary Layer-1 data availability modes and includes one simulated off-chain mode for comparison.

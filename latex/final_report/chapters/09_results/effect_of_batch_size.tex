@@ -1,7 +1,10 @@
-\section{Effect of Batch Size on Latency and Cost (Stage 1)}
+\section{Effect of Batch Size on Latency and Cost (Stage 1 and 2)}
 \label{sec:effect_of_batch_size}
-Stage 1 sweeps evaluated the performance of a Fixed Batching Policy under varying constraints of maximum batch size. Analysis of the raw data reveals the fundamental latency-cost trade-off inherent in rollup design: larger batch sizes reduce per-transaction L1 gas costs by amortizing fixed submission overhead, but exponentially increase mempool queuing delays.
-For instance, configuring the sequencer with a batch size of 25 resulted in a low average queue wait time of 1,392 ms, but incurred a relatively high gas cost of approximately 20,549 gas/tx. Conversely, increasing the batch size limit to 500 drastically reduced the amortized gas cost to roughly 19,459 gas/tx, but at the severe penalty of inflating the queue wait time to 74,209 ms. 
+Stage 1 and 2 sweeps evaluated the performance of Fixed and Adaptive Batching Policies under varying constraints of maximum batch size and load. Analysis of the raw data reveals the fundamental latency-cost trade-off inherent in rollup design: larger batch sizes reduce per-transaction L1 gas costs by amortizing fixed submission overhead, but exponentially increase mempool queuing delays.
+
+For instance, configuring the sequencer with a fixed batch size of 25 resulted in a low average queue wait time of 1,392 ms, but incurred a relatively high gas cost of approximately 20,549 gas/tx. Conversely, increasing the batch size limit to 500 drastically reduced the amortized gas cost to roughly 19,459 gas/tx, but at the severe penalty of inflating the queue wait time to 74,209 ms. 
+
+When evaluating the Adaptive policy under Low Load (5 TPS), the adaptive batching correctly prioritized latency by dropping to a smaller target size. This reduced the average wait time to \textbf{252 ms} (compared to 990 ms under fixed batching). However, because smaller batches fail to effectively amortize L1 verification overhead, the gas cost spiked to \textbf{55,882 gas/tx} (compared to 23,764 gas/tx for fixed). This mathematically demonstrates the limits of latency optimization on Ethereum L1 without transitioning to Blob or Off-chain DA.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.90\textwidth]{figures/chapter5/batch_vs_latency_cost.png}

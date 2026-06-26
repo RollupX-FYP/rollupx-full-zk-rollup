@@ -1,3 +1,13 @@
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[
+        width=0.82\textwidth,
+        keepaspectratio
+    ]{figures/chapter1/rq_map.png}
+    \caption{Mapping of research questions to objectives and contributions.}
+    \label{fig:rq_to_contribution_mapping}
+\end{figure}
+
 \section{Mapping Research Questions, Objectives, and Contributions}
 \label{sec:rq_ro_mapping}
 
@@ -14,7 +24,9 @@ Table \ref{tab:rq_ro_mapping} illustrates the alignment between the research que
 \midrule
 \textbf{RQ1:} How can a modular research-grade benchmarking framework be designed? & \textbf{RO1:} Design and implement a modular research-grade ZK-rollup benchmarking framework. & Architectural separation, integration of microservices, local testnet deployment success. & \textbf{C1:} A modular ZK-rollup benchmarking framework with separable components. \\
 \addlinespace
-\textbf{RQ2:} How do configurations affect throughput, latency, and cost? & \textbf{RO2:} Develop a reproducible experimental pipeline. \newline \textbf{RO3:} Empirically evaluate performance trade-offs. & Throughput, latency, finalization time, L1 gas cost, DA footprint, proving cycles under configuration sweeps. & \textbf{C2:} A reproducible experimental pipeline. \newline \textbf{C3:} Empirical findings on throughput-latency-cost trade-offs. \\
+\textbf{RQ2:} How do configurations affect throughput, latency, and cost? & \textbf{RO2:} Develop a reproducible experimental pipeline. 
+ewline \textbf{RO3:} Empirically evaluate performance trade-offs. & Throughput, latency, finalization time, L1 gas cost, DA footprint, proving cycles under configuration sweeps. & \textbf{C2:} A reproducible experimental pipeline. 
+ewline \textbf{C3:} Empirical findings on throughput-latency-cost trade-offs. \\
 \addlinespace
 \textbf{RQ3:} What practical implementation bottlenecks emerge? & \textbf{RO3:} Empirically evaluate performance trade-offs (specifically isolating hardware and queueing bottlenecks). & Proof generation overhead (wall-clock, cycles), sequencer fairness/ordering anomalies, telemetry gaps. & \textbf{C3:} Empirical findings including anomalies such as RISC0 step-function behavior and nonce ordering issues. \\
 \bottomrule

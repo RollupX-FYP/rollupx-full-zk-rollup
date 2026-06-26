@@ -4,7 +4,7 @@
 
 The empirical benchmarking framework uses static configuration sweeps to study cost behaviour under controlled conditions. Although early project proposals discussed dynamic batching cost models, where the system would estimate an optimal batch size based on changing Layer-1 base fees, this dynamic optimization logic is not implemented in the active runtime codebase. Instead, the implemented system records gas, data availability, and submission telemetry for each benchmark configuration and applies an analytical cost model during result analysis.
 
-```latex
+
 Following the cost decomposition used by Chaliasos et al.~\cite{chaliasos2024analyzing} and data availability analysis by Saif et al.~\cite{saif2024dataavailability}, the model separates rollup costs into fixed batch costs and marginal transaction costs. Fixed costs are incurred once per batch and are amortized across all transactions in that batch. Marginal costs increase with the number or size of transactions, such as data availability bytes, witness generation, execution effort, and proving overhead.
 
 \begin{table}[!htbp]

@@ -1,20 +1,45 @@
 \section{Submitter}
+\label{sec:submitter}
 
-\begin{figure}[H]
+The Submitter is the bridge component between the Layer-2 execution pipeline and the Layer-1 settlement layer. Its main responsibility is to receive finalized batches from the Executor, prepare the appropriate data availability payload, submit the batch commitment to the Layer-1 smart contracts, and record settlement-related telemetry. In the RollupX prototype, the Submitter is implemented as a Rust-based service so that batch delivery, retry handling, gas measurement, and data availability formatting can be studied independently from sequencing and execution.
+
+\begin{figure}[!htbp]
     \centering
-    \includegraphics[width=0.90\textwidth]{figures/chapter4/submitter_arch.png}
-    \caption{Submitter Component Architecture.}
+    \includegraphics[
+        width=0.90\textwidth,
+        keepaspectratio
+    ]{figures/chapter4/submitter_arch.png}
+    \caption{Submitter component architecture.}
     \label{fig:submitter_arch}
 \end{figure}
 
-\label{sec:submitter}
-The Submitter acts as the bridge relayer, reliably pushing executed batch data from Layer-2 back to the Layer-1 Ethereum network.
+As shown in Figure~\ref{fig:submitter_arch}, the Submitter receives executed batch payloads from the Executor through a gRPC client interface generated from the project protobuf definitions. The component then passes each batch through a submission workflow that prepares the payload, selects the configured data availability strategy, submits the corresponding Layer-1 transaction, and records the outcome. This design separates Layer-1 delivery from the earlier stages of the rollup pipeline, allowing the benchmark suite to isolate the cost and latency impact of data availability and settlement choices.
+
+The Submitter consists of four main responsibilities:
 
 \begin{itemize}
-    \item \textbf{Language:} Rust.
-    \item \textbf{Workflow (Saga Engine):} Subscribes to the Executor stream via a gRPC Client (compiled using \texttt{protobuf-compiler}). To ensure reliable interaction with the L1 network despite potential node disconnections or nonce desynchronization, the Submitter utilizes a Saga Workflow Engine. This state machine, backed by a persistent database, manages reliable retries, idempotency guarantees, and complex error recovery for L1 RPC calls.
-    \item \textbf{Data Availability Formatter:} The DA Formatter is responsible for structuring the execution payload according to the configured DA mode before submission. Crucially, it supports encoding state diffs into standard \texttt{Calldata} or generating the necessary KZG commitments for \texttt{EIP-4844 Blob} data representations. Off-chain DA is implemented only as a local simulated stub.
-    \item \textbf{Output:} Broadcasts transactions to the L1 Hardhat node via \code{eth\_sendRawTransaction} and records critical latency and gas metrics to \texttt{submitter\_metrics.json}.
+    \item \textbf{Batch intake:} The Submitter subscribes to finalized batch outputs from the Executor using a gRPC client. Each received batch includes the execution result, state commitment, proof metadata, and the transaction or state-diff payload required for submission.
+
+    \item \textbf{Submission workflow:} The Submitter uses a state-machine-style workflow to manage Layer-1 submission. This workflow supports retry handling, idempotent batch tracking, nonce-aware transaction broadcasting, and recovery from transient RPC failures or local node disconnections.
+
+    \item \textbf{Data availability formatting:} Before submission, the batch payload is encoded according to the configured data availability mode. In calldata mode, the encoded batch data are included directly in the Layer-1 transaction calldata. In blob or EIP-4844-style mode, the Submitter prepares the batch data for blob-based publication or cost estimation depending on the local test environment. In off-chain DA mode, the prototype stores the payload outside Layer 1 and submits only commitment metadata to the settlement contract. This off-chain mode is implemented as a local research stub rather than a production validium data availability system.
+
+    \item \textbf{Telemetry collection:} For each submitted batch, the Submitter records settlement latency, gas usage, payload size, compression ratio, data availability mode, and cost-related fields. These measurements are written to \texttt{submitter\_metrics.json} and later processed by the benchmark aggregation pipeline.
 \end{itemize}
 
-As depicted in Figure~\ref{fig:submitter_arch}, the Submitter component interacts with the L1 smart contracts to finalize transaction batches.
+The output of the Submitter is a Layer-1 transaction sent to the local Hardhat Ethereum node using JSON-RPC transaction submission. Once the transaction is confirmed, the Submitter stores the receipt information and marks the corresponding batch as submitted. This makes the Submitter a key component for evaluating the relationship between batch size, data availability mode, Layer-1 gas usage, and finalization latency.
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[
+        width=0.78\textwidth,
+        keepaspectratio
+    ]{figures/chapter5/submitter_settlement_flow.png}
+    \caption{Submitter and Layer-1 settlement flow.}
+    \label{fig:submitter_settlement_flow}
+\end{figure}
+
+Figure~\ref{fig:submitter_settlement_flow} shows the operational flow followed by the Submitter when delivering a finalized batch to Layer 1. The process begins when a finalized batch is received from the Executor. The Submitter prepares the payload, applies the selected data availability strategy, estimates gas and blob-related costs where applicable, and broadcasts the Layer-1 transaction. If the transaction fails, times out, or encounters a transient RPC issue, the workflow can retry the submission while preserving batch identity. After confirmation, the Submitter records settlement and cost metrics for later benchmark analysis.
+
+This design is important for the research objectives of the project because it makes the Layer-1 submission stage observable and configurable. By changing the data availability mode or batch payload size while keeping the rest of the pipeline stable, the benchmark suite can measure how submission strategy affects finalization time, Layer-1 gas usage, and amortized cost per transaction.
+

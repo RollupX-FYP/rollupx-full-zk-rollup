@@ -1,19 +1,42 @@
-This chapter presents the findings from the automated benchmark runs (Stage 1 through Stage 5). It is important to emphasize that these results are derived from a \textit{controlled benchmarking prototype} using synthetic workloads and parameterized delays. Therefore, the absolute numbers represent a configuration-level, relative comparison of trade-offs rather than a claim of production mainnet performance.
+This chapter presents the findings obtained from the automated benchmark runs conducted across Stage 1 through Stage 5. The results are derived from a \textit{controlled benchmarking prototype} that uses synthetic workloads, local infrastructure, and parameterized proving delays. Accordingly, the reported values should be interpreted as configuration-level measurements that enable relative comparison of design trade-offs, rather than as claims about production mainnet performance.
+
+Before discussing the individual result groups, Figure~\ref{fig:result_analysis_pipeline} summarizes how the benchmark outputs are processed and organized in this chapter. The workflow begins with the automated benchmark runs, continues through metric aggregation and post-processing, and then branches into five stage-specific analyses. These stage-level findings are finally combined into a cross-stage comparison to identify the main performance and cost trade-offs of the RollupX prototype.
+
+\begin{figure}[!htbp]
+    \centering
+    \includegraphics[
+        width=0.82\textwidth,
+        keepaspectratio
+    ]{figures/chapter5/result_analysis_pipeline.png}
+    \caption{Result-analysis pipeline used to organize and interpret the automated benchmark outputs.}
+    \label{fig:result_analysis_pipeline}
+\end{figure}
+
 \subsection{Overview of Evaluation Stages}
-The empirical results are structured across five distinct stages:
+
+As shown in Figure~\ref{fig:result_analysis_pipeline}, the empirical evaluation is structured into five stages, each focusing on a different aspect of the RollupX design space:
+
 \begin{itemize}
-    \item \textbf{Stage 1: Batch Size, Cost, and Latency.} Evaluates the fundamental latency-cost trade-off using fixed batch sizes and timeouts.
-    \item \textbf{Stage 2: Adaptive Batching.} Evaluates dynamic batch scaling based on mempool load and threshold settings, validating the latency-reduction capabilities of adaptive batching.
-    \item \textbf{Stage 3: Sequencer Scheduling Policies.} Evaluates the effect of transaction ordering policies (such as FCFS, FairBFT, FeePriority, and TimeBoost) on fairness and throughput under a nonce-aware scheduler design.
-    \item \textbf{Stage 4: Data Availability (DA) Modes.} Analyzes the cost savings of Calldata, Blob (EIP-4844), and Off-chain DA modes.
-    \item \textbf{Stage 5: RISC0 Proving.} Profiles the cycle behavior, segment boundaries, and fixed overheads of cryptographic proof generation.
+    \item \textbf{Stage 1: Batch Size, Cost, and Latency.} This stage evaluates the fundamental trade-off between latency and cost using fixed batch sizes and timeout settings.
+
+    \item \textbf{Stage 2: Adaptive Batching.} This stage evaluates dynamic batch scaling based on mempool load and threshold settings, with particular focus on whether adaptive batching can reduce queueing latency under varying traffic levels.
+
+    \item \textbf{Stage 3: Sequencer Scheduling Policies.} This stage compares transaction ordering policies, such as FCFS, FairBFT, FeePriority, and TimeBoost, to study their effect on fairness, latency, and throughput under a nonce-aware scheduler design.
+
+    \item \textbf{Stage 4: Data Availability (DA) Modes.} This stage analyzes the Layer-1 cost and payload implications of Calldata, Blob (EIP-4844-style), and Off-chain DA modes.
+
+    \item \textbf{Stage 5: RISC0 Proving.} This stage profiles the computational overhead of real proof generation, including fixed setup overheads, segment boundaries, and cycle-dependent proving delay.
 \end{itemize}
-The complete dataset representing the experimental configurations evaluated across the five stages is summarized in Table~\ref{tab:results}.
+
+Together, these five stages provide a structured view of the major trade-offs in the prototype. The complete dataset representing the experimental configurations evaluated across these stages is summarized in Table~\ref{tab:results}.
+
+
 \begin{table*}[htbp]
 	\centering
 	\caption{Comparative Performance Metrics Across Experimental Configurations}
 	\label{tab:results}
-	\noindent\resizebox{\textwidth}{!}{%
+	
+oindent\resizebox{\textwidth}{!}{%
 		\begin{tabular}{lllcrrrrrr}
 			\toprule
 			\textbf{Experimental Group} & \textbf{Configuration} & \textbf{Policy} & \textbf{DA Mode} & \textbf{Avg. Batch Size ($N$)} & \textbf{Throughput (TPS)} & \textbf{Wait Time (ms)} & \textbf{L1 Gas/Tx} & \textbf{Prove Time (s)} & \textbf{Cost/Tx (USD)} \\
@@ -66,7 +89,7 @@ The complete dataset representing the experimental configurations evaluated acro
 \subsection{Validation of Scheduling and Batching Designs}
 The empirical results successfully validated the key components of the modular ZK-Rollup prototype:
 \begin{itemize}
-    \item \textbf{Nonce-Aware Scheduler Validation:} Under the benchmark runs, the priority scheduling policies (\texttt{FeePriority} and \texttt{TimeBoost})—which group transactions by account and sort them strictly by nonce—executed all transactions successfully with 100\% transaction execution success (0 empty batches), yielding FCFS-equivalent regular gas costs (~20.2k gas/tx).
-    \item \textbf{Adaptive Batching Performance:} Under low offered load (5 TPS), the adaptive batching policy successfully reduced mempool queue latency to 252 ms while maintaining gas amortization efficiency.
+    \item \textbf{Nonce-Aware Scheduler Validation:} Under the benchmark runs, the priority scheduling policies (\texttt{FeePriority} and \texttt{TimeBoost})—which group transactions by account and sort them strictly by nonce—executed all transactions successfully with 100\% transaction execution success (0 empty batches), yielding FCFS-equivalent regular gas costs (~20.2k gas/tx). Furthermore, under burst workloads, TimeBoost achieved a Jain's Fairness Index of \textbf{0.77}, outperforming standard FeePriority and FCFS policies by confining fee-based prioritization to discrete 5-second windows.
+    \item \textbf{Adaptive Batching Performance:} Under low offered load (5 TPS), the adaptive batching policy successfully reduced mempool queue latency to 252 ms, although with a corresponding increase in gas cost per transaction as expected by the cost model.
     \item \textbf{Production zkVM Prover Profiling:} Real RISC0 prover sweeps validated the computational proving bottlenecks, demonstrating linear cycle scaling with segment-based step-function proving delays and a constant 256-byte proof footprint.
 \end{itemize}

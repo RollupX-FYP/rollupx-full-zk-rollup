@@ -17,7 +17,7 @@ Developing and benchmarking the modular ZK-rollup prototype yielded critical ins
 
 \section{Adaptive Batching Implementation}
 \textbf{Lesson:} Dynamic parameter adjustments are highly susceptible to feedback loops and hysteresis. \\
-\textbf{Recommendation:} Adaptive batching logic must be rigorously tested under steady-state conditions to avoid threshold traps. The system must ensure that intermediate threshold triggers are attainable and do not instantly vault to maximum limits under minor load fluctuations.
+\textbf{Recommendation:} Adaptive batching logic must be rigorously tested under steady-state conditions to avoid threshold traps. The system must ensure that intermediate threshold triggers are attainable and do not instantly vault to maximum limits under minor load fluctuations. As discovered during Stage 2 benchmarking, mathematically poorly tuned thresholds (e.g., $S_b \ge L_t$) can cause the sequencer to bypass small batches entirely, degrading the adaptive policy into fixed batching.
 
 \section{Separation of Finality}
 \textbf{Lesson:} There is an inherent tension between user experience (latency) and cryptographic security (finality). \\

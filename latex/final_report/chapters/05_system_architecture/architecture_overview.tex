@@ -1,4 +1,4 @@
-```latex
+
 \section{High-Level Architecture Overview}
 \label{sec:architecture_overview}
 
@@ -72,4 +72,4 @@ In contrast, the prototype developed in this project is intentionally scoped as 
 The prototype runs in a controlled, non-Byzantine local Hardhat environment. Data availability is evaluated through calldata, EIP-4844 blob-based submission, and a local off-chain DA stub. The off-chain DA mode is used only as a simulated research configuration and does not represent a complete integration with external data availability networks such as IPFS, Celestia, or EigenDA.
 
 This focused scope is central to the project's contribution. By avoiding the engineering overhead of a production-grade rollup, the framework allows researchers to isolate and measure the effect of individual configuration choices. For example, batch size limits, timeout values, scheduling policies, prover modes, and data availability modes can be varied under the same synthetic workload. This makes the prototype useful as a reproducible research tool for analyzing throughput, latency, finalization time, proving overhead, and cost trade-offs in ZK-rollup systems.
-```
+
