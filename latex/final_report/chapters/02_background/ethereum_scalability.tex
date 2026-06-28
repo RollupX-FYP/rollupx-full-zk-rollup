@@ -1,5 +1,5 @@
 \subsection{Ethereum Scalability Limitations}
-Ethereum L1 strictly prioritizes decentralization and security, resulting in inherently low throughput (approximately 15 TPS) and high latency. During periods of high demand, users bid up transaction fees, leading to severe economic friction \cite{buterin2014ethereum}. Because every full node must sequentially process every transaction and store the resulting state, increasing the L1 block size or reducing block times to boost throughput would rapidly centralize the network by making node operation prohibitively expensive for average users.
+Ethereum L1 strictly prioritizes decentralization and security, resulting in inherently low throughput (approximately 15 TPS) and high latency. During periods of high demand, users bid up transaction fees, leading to severe economic friction \citep{buterin2014ethereum}. Because every full node must sequentially process every transaction and store the resulting state, increasing the L1 block size or reducing block times to boost throughput would rapidly centralize the network by making node operation prohibitively expensive for average users.
 \begin{table}[H]
 \centering
 \caption{Ethereum vs High-throughput L1s}
@@ -9,12 +9,12 @@ Ethereum L1 strictly prioritizes decentralization and security, resulting in inh
 \toprule
 \textbf{System} & \textbf{Design target} & \textbf{Current evidence} & \textbf{Why relevant} \\
 \midrule
-Ethereum & Secure and decentralized settlement & 24 TPS based on the Etherscan snapshot~\cite{etherscan_tps} & Baseline L1 bottleneck. \\
-Solana & High-throughput execution & 1,045 TPS based on the Chainspect snapshot~\cite{chainspect_tps} & Shows that Ethereum is not the fastest raw execution layer. \\
-Ethereum + Rollups & L1 settlement with L2 execution & Primary Ethereum scaling technique~\cite{ethdocs_scaling} & Justifies the focus on rollup-based scaling. \\
+Ethereum & Secure and decentralized settlement & 24 TPS based on the Etherscan snapshot~\citep{etherscan_tps} & Baseline L1 bottleneck. \\
+Solana & High-throughput execution & 1,045 TPS based on the Chainspect snapshot~\citep{chainspect_tps} & Shows that Ethereum is not the fastest raw execution layer. \\
+Ethereum + Rollups & L1 settlement with L2 execution & Primary Ethereum scaling technique~\citep{ethdocs_scaling} & Justifies the focus on rollup-based scaling. \\
 \bottomrule
 \end{tabularx}
 \end{table}
 \normalsize
 
-Ethereum L1 throughput is limited in practice because all nodes must independently verify the chain. Although a simple ETH transfer consumes only 21,000 gas \cite{ethdocs_gas}, real Ethereum workloads (e.g., DeFi swaps, contract calls) are much heavier. Therefore, the observed TPS (~24 TPS) is the right practical baseline, while theoretical simple-transfer TPS is only an upper-bound estimate \cite{etherscan_tps, ethdocs_gas}.
+Ethereum L1 throughput is limited in practice because all nodes must independently verify the chain. Although a simple ETH transfer consumes only 21,000 gas \citep{ethdocs_gas}, real Ethereum workloads (e.g., DeFi swaps, contract calls) are much heavier. Therefore, the observed TPS (~24 TPS) is the right practical baseline, while theoretical simple-transfer TPS is only an upper-bound estimate \citep{etherscan_tps, ethdocs_gas}.

@@ -1,10 +1,9 @@
 
-\documentclass[12pt,a4paper]{report}
+\documentclass[12pt]{uomthesis}
 
 % -----------------------------
 % Packages
 % -----------------------------
-\usepackage[utf8]{inputenc}
 \usepackage{graphicx}
 \usepackage{caption}
 \usepackage{subcaption}
@@ -24,34 +23,14 @@
 \usepackage{seqsplit}
 \usepackage{placeins}
 \usepackage{tikz}
-\usepackage{geometry}
-\usepackage{setspace}
-\usepackage{mathptmx} % Times-like font for pdfLaTeX
+ % Times-like font for pdfLaTeX
 \usepackage{listings}
 \usepackage{xcolor}
-\usepackage[explicit]{titlesec}
-\usepackage{hyperref}
 
 % -----------------------------
 % TikZ libraries
 % -----------------------------
 \usetikzlibrary{arrows.meta, positioning, fit, backgrounds, shapes.geometric}
-
-% -----------------------------
-% Page layout
-% -----------------------------
-\geometry{a4paper, left=40mm, bottom=40mm, top=25mm, right=25mm}
-\emergencystretch=3em
-
-% -----------------------------
-% Hyperref setup
-% -----------------------------
-\hypersetup{
-    colorlinks=true,
-    linkcolor=black,
-    citecolor=black,
-    urlcolor=black
-}
 
 % -----------------------------
 % Table and code helpers
@@ -68,30 +47,6 @@
 }
 
 % -----------------------------
-% Bibliography title
-% -----------------------------
-\renewcommand{\bibname}{Reference List}
-
-% -----------------------------
-% Chapter and section formatting
-% -----------------------------
-\titleformat{\chapter}[display]
-  {\normalfont\fontsize{14}{17}\bfseries}
-  {\MakeUppercase{\chaptertitlename}\ \thechapter}{14pt}{\MakeUppercase{#1}}
-
-\titleformat{name=\chapter,numberless}[display]
-  {\normalfont\fontsize{14}{17}\bfseries}
-  {}{0pt}{\MakeUppercase{#1}}
-
-\titleformat{\section}
-  {\normalfont\fontsize{12}{15}\bfseries}
-  {\thesection}{1em}{#1}
-
-\titleformat{\subsection}
-  {\normalfont\fontsize{12}{15}\bfseries}
-  {\thesubsection}{1em}{#1}
-
-% -----------------------------
 % Listings style
 % -----------------------------
 \lstdefinestyle{yamlStyle}{
@@ -104,186 +59,71 @@
   breaklines=true
 }
 
-
-
 \begin{document}
 
-\pagenumbering{roman}
+% -----------------------------
+% UoM Template Front Matter
+% -----------------------------
+\title{Improving Blockchain Scalability: Throughput Enhancement in ZK-Rollups}
+\student{210167E}{Fernando T.H.L.}
+\student{210176F}{Gamage M.S.}
+\student{210339J}{Lishan S.D.}
+\student{210466U}{Perera M.V.D.P.D.S.}
+\degree{Bachelor of Science Engineering Honours}
+\department{Department of Computer Science and Engineering}
+\type{Final Year Project Report}
+\degreemonth{June}
+\degreeyear{2026}
+\faculty{Faculty of Engineering}
+\keywords{ZK-Rollups, Blockchain Scalability, Data Availability, Zero-Knowledge Proofs, Performance Benchmarking}
+\supervisorName{Dr. Sunimal Rathnayake}
 
-% --- Cover Page ---
-\begin{titlepage}
-    \thispagestyle{empty}
-    \begin{center}
-        \singlespacing
-        \vspace*{2cm}
+\maketitle
 
-        \textbf{\fontsize{16}{24}\selectfont\MakeUppercase{Improving Blockchain Scalability: Throughput Enhancement in ZK-Rollups}}
-
-        \vspace{3cm}
-
-        \textbf{\fontsize{14}{21}\selectfont Fernando T.H.L. : 210167E} \\
-        \textbf{\fontsize{14}{21}\selectfont Gamage M.S. : 210176F} \\
-        \textbf{\fontsize{14}{21}\selectfont Lishan S.D. : 210339J} \\
-        \textbf{\fontsize{14}{21}\selectfont Perera M.V.D.P.D.S. : 210466U}
-
-        \vspace{3cm}
-
-        \textbf{\fontsize{14}{21}\selectfont Bachelor of Science Engineering Honours in Computer Science and Engineering}
-
-        \vspace{2cm}
-
-        \textbf{\fontsize{14}{21}\selectfont Department of Computer Science and Engineering} \\
-        \textbf{\fontsize{14}{21}\selectfont University of Moratuwa} \\
-        \textbf{\fontsize{14}{21}\selectfont Sri Lanka}
-
-        \vfill
-
-        \textbf{\fontsize{14}{21}\selectfont June 2026}
-    \end{center}
-\end{titlepage}
-
-% --- Title Page ---
-\begin{titlepage}
-    \thispagestyle{empty}
-    \begin{center}
-        \singlespacing
-        \vspace*{2cm}
-
-        \textbf{\fontsize{16}{24}\selectfont\MakeUppercase{Improving Blockchain Scalability: Throughput Enhancement in ZK-Rollups}}
-
-        \vspace{3cm}
-
-        \textbf{\fontsize{14}{21}\selectfont Fernando T.H.L. : 210167E} \\
-        \textbf{\fontsize{14}{21}\selectfont Gamage M.S. : 210176F} \\
-        \textbf{\fontsize{14}{21}\selectfont Lishan S.D. : 210339J} \\
-        \textbf{\fontsize{14}{21}\selectfont Perera M.V.D.P.D.S. : 210466U}
-
-        \vspace{3cm}
-
-        {\fontsize{12}{18}\selectfont
-        This final year project report is submitted in partial fulfillment of the requirements for the Bachelor of Science Engineering Honours in Computer Science and Engineering
-        }
-
-        \vspace{3cm}
-
-        \textbf{\fontsize{14}{21}\selectfont Department of Computer Science and Engineering} \\
-        \textbf{\fontsize{14}{21}\selectfont University of Moratuwa} \\
-        \textbf{\fontsize{14}{21}\selectfont Sri Lanka}
-
-        \vfill
-
-        \textbf{\fontsize{14}{21}\selectfont June 2026}
-    \end{center}
-\end{titlepage}
-
-\setcounter{page}{1}
-\onehalfspacing
-\pagestyle{plain}
-
-\chapter*{Declaration of the Candidates and Supervisor}
-\phantomsection
-\addcontentsline{toc}{chapter}{Declaration of the Candidates and Supervisor}
-
-We declare that this is our own work and this final year project report does not incorporate without acknowledgement any material previously submitted for a Degree or Diploma in any other University or institute of higher learning and to the best of our knowledge and belief it does not contain any material previously published or written by another person except where the acknowledgement is made in the text.
-
-Also, we hereby grant to University of Moratuwa the non-exclusive right to reproduce and distribute our final year project report, in whole or in part in print, electronic or other medium. We retain the right to use this content in whole or part in future works (such as articles or books).
-
-\vspace{1.5cm}
-\noindent
-\begin{tabularx}{\textwidth}{@{}X r@{}}
-Fernando T.H.L.: ....................................... & Date: ....................... \\
-Gamage M.S.: ....................................... & Date: ....................... \\
-Lishan S.D.: ....................................... & Date: ....................... \\
-Perera M.V.D.P.D.S.: ....................................... & Date: ....................... \\
-\end{tabularx}
-
-\vspace{1cm}
-
-\noindent
-The above candidates have carried out research for the Bachelor of Science Engineering Honours in Computer Science and Engineering final year project report under my supervision.
-
-\vspace{1.5cm}
-\noindent
-\begin{tabularx}{\textwidth}{@{}X r@{}}
-Name of the supervisor: Dr. Sunimal Rathnayake & \\
-Signature of the supervisor: ....................................... & Date: ....................... \\
-\end{tabularx}
-\clearpage
-
-\begin{center}
-  \textbf{\fontsize{12}{14.4}\selectfont Abstract}
-\end{center}
-\phantomsection
-\addcontentsline{toc}{chapter}{Abstract}
-\begin{singlespace}
-\fontsize{11}{13.2}\selectfont
-Ethereum Layer-1 provides strong security and decentralization but remains constrained by limited throughput. ZK-Rollups offer a Layer-2 scaling solution by executing transactions off-chain and submitting cryptographic validity proofs to Layer-1. However, practical performance of a research prototype depends on complex interactions between batching, sequencing policies, proof generation overhead, and data availability strategies. This report presents a modular ZK-Rollup benchmarking prototype designed to isolate and evaluate these performance factors under controlled synthetic workloads. We explore the design and implementation of the sequencer, executor, submitter, and smart contracts. Through rigorous benchmarking, we analyze the throughput--latency--cost trade-offs across different batching and data availability configurations. The results show that larger batches improve gas amortization but increase finality latency, while the TimeBoost scheduling policy improves fairness under burst-load conditions. EIP-4844 blob-based data availability reduces data publication cost by approximately 70\% compared with calldata, though RISC0 proving exhibits step-function latency at segment boundaries.
-\end{singlespace}
-\vspace{1em}
-
-\noindent \textbf{Keywords:} ZK-Rollups, Blockchain Scalability, Data Availability, Zero-Knowledge Proofs, Performance Benchmarking.
-\clearpage
-
-\chapter*{Acknowledgements}
-\phantomsection
-\addcontentsline{toc}{chapter}{Acknowledgements}
-
+\unNumChapter{Acknowledgements}
 We would like to express our sincere gratitude to our supervisor, Dr. Sunimal Rathnayake, for his guidance, feedback, and continuous support throughout this final year project. We also extend our appreciation to the Department of Computer Science and Engineering, University of Moratuwa, for providing the academic environment and resources required to complete this research.
 
 We are grateful to the academic staff, colleagues, and fellow students who provided helpful suggestions and encouragement during the design, implementation, benchmarking, and report preparation stages of this project.
-\clearpage
 
-\phantomsection
-\addcontentsline{toc}{chapter}{Table of Contents}
-\tableofcontents
-\clearpage
+\begin{abstractpage}
+Ethereum Layer-1 provides strong security and decentralization but remains constrained by limited throughput. ZK-Rollups offer a Layer-2 scaling solution by executing transactions off-chain and submitting cryptographic validity proofs to Layer-1. However, practical performance of a research prototype depends on complex interactions between batching, sequencing policies, proof generation overhead, and data availability strategies. This report presents a modular ZK-Rollup benchmarking prototype designed to isolate and evaluate these performance factors under controlled synthetic workloads. We explore the design and implementation of the sequencer, executor, submitter, and smart contracts. Through rigorous benchmarking, we analyze the throughput--latency--cost trade-offs across different batching and data availability configurations. The results show that larger batches improve gas amortization but increase finality latency, while the TimeBoost scheduling policy improves fairness under burst-load conditions. EIP-4844 blob-based data availability reduces data publication cost by approximately 70\% compared with calldata, though RISC0 proving exhibits step-function latency at segment boundaries.
+\end{abstractpage}
 
-\phantomsection
-\addcontentsline{toc}{chapter}{List of Figures}
-\listoffigures
-\clearpage
+\begin{ToC}
+\makeatletter
+    \@starttoc{toc}
+\makeatother
+\end{ToC}
 
-\phantomsection
-\addcontentsline{toc}{chapter}{List of Tables}
-\listoftables
-\clearpage
+\iffigures
+    \begin{LoF}
+        \makeatletter
+            \@starttoc{lof}
+        \makeatother
+    \end{LoF}
+\fi
 
-\chapter*{List of Abbreviations}
-\phantomsection
-\addcontentsline{toc}{chapter}{List of Abbreviations}
-\begin{tabular}{ll}
-\textbf{DA} & Data Availability \\
-\textbf{EIP} & Ethereum Improvement Proposal \\
-\textbf{FCFS} & First-Come-First-Served \\
-\textbf{L1} & Layer 1 \\
-\textbf{L2} & Layer 2 \\
-\textbf{RISC0} & RISC Zero \\
-\textbf{STF} & State Transition Function \\
-\textbf{TPS} & Transactions Per Second \\
-\textbf{ZK} & Zero-Knowledge \\
-\textbf{ZKP} & Zero-Knowledge Proof \\
-\textbf{zkVM} & Zero-Knowledge Virtual Machine \\
-\end{tabular}
-\clearpage
+\iftables
+    \begin{LoT}
+    \makeatletter
+        \@starttoc{lot}
+    \makeatother
+    \end{LoT}
+\fi
 
-\chapter*{List of Appendices}
-\phantomsection
-\addcontentsline{toc}{chapter}{List of Appendices}
+\ifabbrs
+    \printacronyms
+\fi
 
-\begin{tabularx}{\textwidth}{@{}lXr@{}}
-\textbf{Appendix} & \textbf{Description} & \textbf{Page} \\
-Appendix A & Repository Structure & \pageref{app:repo_structure} \\
-Appendix B & Build and Run Guide & \pageref{app:build_run_guide} \\
-Appendix C & Benchmark Execution Guide & \pageref{app:benchmark_guide} \\
-Appendix D & Configuration Reference & \pageref{app:config_reference} \\
-Appendix E & Metrics Output Schema & \pageref{app:metrics_schema} \\
-Appendix F & Important Algorithms & \pageref{app:algorithms} \\
-\end{tabularx}
-\clearpage
+\ifappens
+    \begin{LoAp}
+    \makeatletter
+        \@starttoc{apc}
+    \makeatother
+    \end{LoAp}
+\fi
 
-\clearpage
-\pagenumbering{arabic}
-\setcounter{page}{1}
+\startContent
 
 \input{chapters/chap1_introduction}
 \input{chapters/chap2_literature_review}
@@ -292,13 +132,12 @@ Appendix F & Important Algorithms & \pageref{app:algorithms} \\
 \input{chapters/chap5_evaluation}
 \input{chapters/chap6_conclusion}
 
-\clearpage
-\phantomsection
-\addcontentsline{toc}{chapter}{Reference List}
-\bibliographystyle{ieeetr}
-\bibliography{references}
+\begin{references}
+    \bibliography{references}
+\end{references}
 
-\appendix
+\begin{appendices}
 \input{chapters/appendices}
+\end{appendices}
 
 \end{document}

@@ -12,11 +12,11 @@ Table \ref{tab:literature_synthesis} summarizes the identified research areas, e
 \toprule
 \textbf{Research Area} & \textbf{Existing Work / Focus} & \textbf{Limitation in Literature} & \textbf{How This Project Responds} \\
 \midrule
-Production rollup benchmarks & Focus on cost, proving, and deployment behavior (e.g., Chaliasos et al. \cite{chaliasos2024analyzing}). & Internals cannot be easily modified under identical workloads. & Provides configurable internal controls via a modular architecture (Sequencer, Executor, Prover, Submitter). \\
+Production rollup benchmarks & Focus on cost, proving, and deployment behavior (e.g., Chaliasos et al. \citet{chaliasos2024analyzing}). & Internals cannot be easily modified under identical workloads. & Provides configurable internal controls via a modular architecture (Sequencer, Executor, Prover, Submitter). \\
 \addlinespace
 Public rollup datasets & Focus on historical activity and fees. & Observational rather than experimental. & Contributes a replayable, synthetic benchmark harness for controlled configuration sweeps. \\
 \addlinespace
-Data Availability studies & Focus on DA problem and solution taxonomy (e.g., Saif et al. \cite{saif2024dataavailability}). & Often evaluated separately from live execution benchmarking. & Treats DA as an active experimental variable, showing empirically that Blob/EIP-4844 DA reduces publication cost. \\
+Data Availability studies & Focus on DA problem and solution taxonomy (e.g., Saif et al. \citet{saif2024dataavailability}). & Often evaluated separately from live execution benchmarking. & Treats DA as an active experimental variable, showing empirically that Blob/EIP-4844 DA reduces publication cost. \\
 \addlinespace
 Proof systems & Focus on cryptographic proof construction. & Lack of system-level rollup trade-off analysis. & Employs proof-delay abstraction and isolated RISC0 profiling (demonstrating step-function behavior). \\
 \addlinespace

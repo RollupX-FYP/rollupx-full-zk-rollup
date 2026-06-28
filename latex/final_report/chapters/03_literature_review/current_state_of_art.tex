@@ -6,7 +6,7 @@ With the industry shift towards rollups, research has increasingly focused on th
 \input{chapters/03_literature_review/sequencer_related_work}
 \input{chapters/03_literature_review/prover_related_work}
 \input{chapters/03_literature_review/data_availability_related_work}
-Production ZK systems (e.g., Polygon zkEVM, Scroll, zkSync) use very different hardware setups and prover designs. For instance, Polygon zkEVM demands high-capacity setups (e.g., 96-core CPU, 768 GB RAM) \cite{chaliasos2024analyzing}. This diversity makes identical-hardware comparisons difficult, justifying the use of a research-grade prototype with parameterized proof delays.
+Production ZK systems (e.g., Polygon zkEVM, Scroll, zkSync) use very different hardware setups and prover designs. For instance, Polygon zkEVM demands high-capacity setups (e.g., 96-core CPU, 768 GB RAM) \citep{chaliasos2024analyzing}. This diversity makes identical-hardware comparisons difficult, justifying the use of a research-grade prototype with parameterized proof delays.
 
 \subsection{Summary of Existing Literature}
 \label{sec:literature_summary}
@@ -21,10 +21,10 @@ Table \ref{tab:literature_comparison} summarizes the key literature reviewed, hi
 \begin{tabular}{|p{3cm}|p{2.5cm}|p{3.5cm}|p{3.5cm}|p{3cm}|p{3cm}|}
 \hline
 \textbf{Paper / Authors} & \textbf{Focus} & \textbf{Methodology} & \textbf{Key Findings} & \textbf{Limitations} & \textbf{Relevance to this Project} \\ \hline
-Chaliasos et al. \cite{chaliasos2024analyzing} & ZK-Rollup Benchmarking & Emprical analysis of public ZK-rollup datasets. & Highlighted L1 DA costs and L2 proving times as major bottlenecks. & Relies on diverse production systems, making apples-to-apples comparisons difficult. & Provides the foundation for the cost models and evaluation metrics used in our controlled framework. \\ \hline
-Saif et al. \cite{saif2024dataavailability} & Data Availability in L2s & Survey of DA mechanisms across various rollups. & Identified the shift from calldata to EIP-4844 blobs as a crucial cost-saving measure. & Does not provide empirical execution metrics under varying load. & Motivates our empirical evaluation of Calldata vs. Blob vs. Offchain DA modes. \\ \hline
-EIP-4844 \cite{eip4844} & Ethereum Layer-1 Updates & Specification for Proto-Danksharding. & Introduces blob-carrying transactions to drastically lower DA costs. & Theoretical specification; practical L2 integration requires custom sequencer logic. & Informs the implementation of the Blob DA mode and BlobPacking policy. \\ \hline
-Sanka et al. \cite{sanka2021systematic} & General Scalability & Systematic literature review of blockchain scaling. & Classifies scaling solutions into L1 and L2, emphasizing the trilemma. & Broad survey; lacks deep technical analysis of ZK proving bottlenecks. & Establishes the broad background and motivation for L2 research. \\ \hline
+Chaliasos et al. \citet{chaliasos2024analyzing} & ZK-Rollup Benchmarking & Emprical analysis of public ZK-rollup datasets. & Highlighted L1 DA costs and L2 proving times as major bottlenecks. & Relies on diverse production systems, making apples-to-apples comparisons difficult. & Provides the foundation for the cost models and evaluation metrics used in our controlled framework. \\ \hline
+Saif et al. \citet{saif2024dataavailability} & Data Availability in L2s & Survey of DA mechanisms across various rollups. & Identified the shift from calldata to EIP-4844 blobs as a crucial cost-saving measure. & Does not provide empirical execution metrics under varying load. & Motivates our empirical evaluation of Calldata vs. Blob vs. Offchain DA modes. \\ \hline
+EIP-4844 \citep{eip4844} & Ethereum Layer-1 Updates & Specification for Proto-Danksharding. & Introduces blob-carrying transactions to drastically lower DA costs. & Theoretical specification; practical L2 integration requires custom sequencer logic. & Informs the implementation of the Blob DA mode and BlobPacking policy. \\ \hline
+Sanka et al. \citep{sanka2021systematic} & General Scalability & Systematic literature review of blockchain scaling. & Classifies scaling solutions into L1 and L2, emphasizing the trilemma. & Broad survey; lacks deep technical analysis of ZK proving bottlenecks. & Establishes the broad background and motivation for L2 research. \\ \hline
 \end{tabular}
 }
 \end{table}
