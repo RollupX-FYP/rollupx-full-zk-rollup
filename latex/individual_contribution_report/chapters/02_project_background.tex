@@ -1,0 +1,28 @@
+\chapter{PROJECT BACKGROUND}
+
+Zero-Knowledge (ZK) rollups improve blockchain scalability by moving transaction execution away from the Layer-1 (L1) chain while preserving L1-backed settlement guarantees. Instead of executing every transaction directly on L1, a rollup executes transactions in a Layer-2 environment, groups them into batches, and submits a compact representation of the resulting state transition to the L1 network. In a ZK-rollup, this submission is supported by proof metadata or a cryptographic proof artifact that allows the L1 settlement layer to verify that the off-chain execution was performed correctly.
+
+Although production ZK-rollups already exist, they are usually optimized for deployment and operational reliability rather than controlled experimentation. Their internal components are often tightly coupled, making it difficult to isolate the performance impact of a single design choice such as batch size, sequencing policy, prover latency, or data availability mode. This project therefore focused on building \textit{RollupX}, a modular ZK-rollup benchmarking prototype designed for research experimentation rather than production deployment.
+
+The purpose of RollupX is to provide a configurable framework for evaluating performance bottlenecks and configuration trade-offs in a rollup pipeline. The system allows different components to be varied independently while keeping the rest of the environment controlled. For example, the benchmark configuration can change sequencing policies such as First-Come-First-Served, FeePriority, and TimeBoost, or compare data availability strategies such as calldata, EIP-4844-style blob mode, and off-chain/validium-style data availability. This modular structure makes it possible to study how each configuration affects throughput, latency, finalization time, data availability footprint, and L1 submission cost.
+
+The core operational pipeline of the framework consists of the following stages:
+
+\begin{enumerate}
+    \item \textbf{Workload Generator:} Generates synthetic transfer-style transactions according to configurable workload parameters such as transaction rate, duration, random seed, and arrival distribution. These transactions provide the controlled input stream for benchmark experiments.
+
+    \item \textbf{Sequencer:} Receives incoming transactions, validates request fields, places transactions into a mempool or queue, orders them according to the selected scheduling policy, and seals batches using configured batch-size and timeout rules.
+
+    \item \textbf{Executor:} Processes sealed batches from the Sequencer, applies the corresponding state transition logic, updates the rollup state representation, and produces execution metadata required by the proving or submission stage.
+
+    \item \textbf{Prover:} Produces proof-related output for a sealed and executed batch. Depending on the benchmark configuration, this may use a mock prover path for controlled latency experiments or a RISC0-based proof/receipt path for measuring realistic proving overhead.
+
+    \item \textbf{Submitter:} Receives finalized batch payloads, selects the configured data availability strategy, prepares the L1 submission payload, submits the relevant commitment or metadata to the L1 bridge contract, waits for transaction confirmation, and records submission metrics such as latency, gas usage, and data availability footprint.
+
+    \item \textbf{L1 Contracts:} Provide the local settlement interface for the benchmark environment. These contracts receive batch commitments, proof metadata, and data availability references from the Submitter, allowing the prototype to model the L1 settlement boundary of the rollup pipeline.
+
+    \item \textbf{Metrics and Data Tools:} Collect and process distributed benchmark outputs from different services. The data tools aggregate raw JSON, JSONL, or CSV metric files and compute evaluation metrics such as throughput, latency percentiles, finalization time, data availability footprint, and cost-related summaries.
+\end{enumerate}
+
+My individual contributions were concentrated on the components that make this pipeline executable, measurable, and connected to the L1 settlement boundary. These include the Submitter service, selected L1 smart contract components, the initial benchmark suite, the synthetic workload generator, and the Python-based data analysis tools. I also contributed integration and bug-fix work across the pipeline, including Submitter confirmation handling, benchmark startup reliability, configuration consistency, and metric-processing support. These contributions helped convert the prototype from separate implementation modules into an end-to-end benchmarking framework capable of producing reproducible experimental results.
+

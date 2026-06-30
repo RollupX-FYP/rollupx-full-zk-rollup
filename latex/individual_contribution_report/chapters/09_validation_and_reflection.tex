@@ -1,0 +1,137 @@
+\chapter{VALIDATION AND EVIDENCE SUMMARY}
+
+\section{Validation and Testing Evidence}
+
+The reliability of my contributions was evaluated through code-level evidence, test infrastructure, benchmark execution artifacts, and the successful flow of metrics through the analysis pipeline. Since this individual report focuses on verifiable contribution evidence, validation is discussed in terms of observable implementation outcomes rather than unsupported claims.
+
+The main validation evidence is summarized below:
+
+\begin{itemize}
+    \item \textbf{Submitter CI/CD support:} Commit \texttt{e4dad07} added continuous integration and coverage-related workflow support for the Submitter, including files such as \path{submitter/.github/workflows/ci.yml} and \path{submitter/.github/workflows/coverage.yml}. These workflows helped ensure that Submitter changes could be tested automatically.
+
+    \item \textbf{Mock-based Submitter testing:} The introduction of the \texttt{BridgeClient} abstraction made the Submitter more testable by allowing the Ethereum bridge layer to be mocked. This enabled testing of DA strategies, confirmation handling, and error paths without requiring every test case to depend on a live local Ethereum node.
+
+    \item \textbf{Coverage improvement:} The contribution evidence records an improvement in Submitter test coverage from approximately 41\% to 88\%. This claim is included only because it was identified during the Git/code review of the Submitter refactor and coverage workflow changes.
+
+    \item \textbf{Benchmark execution validation:} The benchmark suite scripts, including \path{benchmark-suite/scripts/run_experiment.sh}, \path{benchmark-suite/scripts/run_matrix.sh}, and \path{benchmark-suite/scripts/wait_for_sequencer.sh}, provided validation that the system could be executed as an integrated pipeline rather than as isolated services.
+
+    \item \textbf{Metric-processing validation:} The data-tools pipeline consumed raw outputs from services such as the Sequencer, Executor, Prover, and Submitter. The ability to aggregate these outputs and generate final analysis tables or plots provides evidence that the benchmark pipeline produced consistently structured metrics.
+
+    \item \textbf{Bug-fix validation:} Several reliability fixes were verified through commit diffs, including Submitter receipt-status checking for reverted L1 transactions, Sequencer address normalization using \texttt{strip\_prefix("0x")}, batching configuration consistency, and benchmark readiness waiting.
+\end{itemize}
+
+Together, these validation points show that my contributions were not limited to isolated implementation work. They also improved the testability, execution stability, and measurement reliability of the RollupX benchmarking framework.
+
+\section{Commit-Level Evidence Table}
+
+Table~\ref{tab:commit_evidence} summarizes the primary commits used as evidence for my technical contribution. The table intentionally lists the commit, contribution area, relevant files, and concrete implementation outcome rather than only high-level descriptions.
+
+\begin{table}[!htbp]
+\centering
+\caption{Primary contribution commits}
+\label{tab:commit_evidence}
+\small
+\resizebox{\textwidth}{!}{
+\begin{tabular}{|p{0.12\textwidth}|p{0.11\textwidth}|p{0.16\textwidth}|p{0.24\textwidth}|p{0.30\textwidth}|}
+\hline
+\textbf{Commit} & \textbf{Date} & \textbf{Area} & \textbf{Representative Files} & \textbf{Evidence Summary} \\ \hline
+
+\texttt{e4dad07} &
+Dec 2025 &
+Submitter &
+\path{ethereum_adapter.rs}, \path{da_calldata.rs}, \path{da_blob.rs}, \path{orchestrator.rs} &
+Introduced/refactored the Submitter architecture around a testable bridge abstraction, implemented DA strategy integration, and added receipt-status checking to prevent reverted L1 transactions from being recorded as successful. \\ \hline
+
+\texttt{9b282f0} &
+Apr 2026 &
+Benchmark Suite and Workload Generation &
+\path{run_experiment.sh}, \path{run_matrix.sh}, \path{wait_for_sequencer.sh}, \path{poisson_generator.py}, \path{experiments.toml} &
+Implemented benchmark orchestration, experiment configuration support, synthetic workload generation, and Sequencer readiness handling for repeatable benchmark execution. \\ \hline
+
+\texttt{bc90d40} &
+Apr 2026 &
+Data Tools &
+\path{aggregate.py}, \path{stats.py}, \path{plots/latency_cdf.py}, \path{plots/cost_heatmap.py}, \path{plots/pareto_frontier.py} &
+Added the analytics pipeline for parsing raw service metrics, computing summary statistics, and generating figures used for evaluation. \\ \hline
+
+\texttt{bed3de7} &
+Jun 2026 &
+L1 Contracts and Integration Fixes &
+\path{ZKRollupBridge.sol}, \path{BlobDA.sol}, \path{MockVerifier.sol}, \path{server.rs} &
+Added or integrated L1 bridge/DA/verifier contract components and introduced Sequencer robustness fixes such as address prefix handling and batching configuration consistency. \\ \hline
+
+\end{tabular}
+}
+\end{table}
+
+\section{Bug Fix Evidence Table}
+
+Table~\ref{tab:bug_fixes} summarizes the verified bug fixes and consistency fixes identified during the Git review. These are included only where the source-code evidence supports the claim.
+
+\begin{table}[!htbp]
+\centering
+\caption{Verified bug and consistency fixes}
+\label{tab:bug_fixes}
+\small
+\begin{tabularx}{\textwidth}{|p{0.18\textwidth}|p{0.12\textwidth}|p{0.22\textwidth}|X|}
+\hline
+\textbf{Issue} & \textbf{Commit} & \textbf{Files} & \textbf{Fix and Impact} \\ \hline
+
+Silent L1 transaction revert handling &
+\texttt{e4dad07} &
+\path{da_calldata.rs}, \path{da_blob.rs} &
+Added explicit receipt-status checking using \texttt{status.as\_u64() == 1}. This prevented mined but reverted L1 transactions from being treated as successful Submitter outputs, improving settlement-result correctness and benchmark metric reliability. \\ \hline
+
+Untestable DA submission logic &
+\texttt{e4dad07} &
+\path{ethereum_adapter.rs}, Submitter DA modules &
+Introduced the \texttt{BridgeClient} abstraction so DA strategies and the Submitter workflow could be tested with mock bridge clients rather than depending on a live Ethereum node for every test case. \\ \hline
+
+Premature benchmark workload submission &
+\texttt{9b282f0} &
+\path{wait_for_sequencer.sh}, benchmark run scripts &
+Added a Sequencer readiness wait/polling step before starting workload generation. This addressed the race condition where Docker containers could be running while the Sequencer API was not yet ready to accept requests. \\ \hline
+
+Ethereum address parsing mismatch &
+\texttt{bed3de7} &
+\path{sequencer/src/api/server.rs} &
+Normalized address strings using \texttt{strip\_prefix("0x")} before hexadecimal decoding. This allowed both prefixed and non-prefixed Ethereum-style addresses to be accepted by the Sequencer parsing path. \\ \hline
+
+Batching policy configuration inconsistency &
+\texttt{bed3de7} &
+Sequencer configuration files and related parsing logic &
+Ensured that the Sequencer configuration included a valid batching policy such as \texttt{batch\_policy = "fixed"}. This reduced startup failures caused by missing or inconsistent benchmark configuration fields. \\ \hline
+
+\end{tabularx}
+\end{table}
+
+\section{Evidence-Based Technical Validation}
+
+The technical validation of my work can be understood through the flow of data across the implemented benchmark system. The workload generator creates controlled synthetic transaction input. The Sequencer accepts and batches these transactions. The Executor and Prover stages prepare execution and proof-related outputs. The Submitter receives finalized batch metadata and submits the commitment to the L1 contract layer. Finally, the data-tools pipeline aggregates raw metrics and converts them into summary statistics and plots.
+
+My contributions were validated at several points in this flow:
+
+\begin{enumerate}
+    \item \textbf{Input validation:} The workload generator provided repeatable input traffic using configurable transaction rates and seeded random generation.
+
+    \item \textbf{Service-readiness validation:} The benchmark suite waited for the Sequencer before sending transactions, reducing false failures caused by startup timing.
+
+    \item \textbf{Submission validation:} The Submitter no longer treated transaction mining alone as settlement success; it checked the actual receipt status.
+
+    \item \textbf{Contract-boundary validation:} The L1 bridge and related contracts provided a concrete target for Submitter calls in the local benchmark environment.
+
+    \item \textbf{Metric validation:} The data-tools pipeline required consistently formatted raw outputs, which helped reveal integration or schema mismatches across services.
+\end{enumerate}
+
+This validation path is important because the final evaluation depended on measuring the complete pipeline, not just individual services. A failure in any one of these stages could affect throughput, latency, finalization time, or cost results. Therefore, the implementation and fixes described in this report contributed directly to the reliability of the experimental methodology.
+
+\section{Limitations of Attribution}
+
+The RollupX project was developed collaboratively, and some commits contain large mixed updates across multiple modules. Therefore, this report avoids claiming full ownership of shared components unless the Git evidence clearly supports the claim.
+
+In particular, the core state-transition logic inside the \path{executor/} directory and some of the complex scheduling logic inside the \path{sequencer/} directory appear in large collaborative commits. For these modules, I only claim verifiable integration and bug-fix contributions, such as address parsing robustness and batching configuration consistency. I do not claim sole ownership of the Executor implementation or the complete Sequencer scheduling subsystem.
+
+Similarly, some contract and integration commits include multiple files added together as part of a larger system update. Where exact authorship cannot be separated at function level, the contribution is described as implementation or integration work supported by commit authorship and changed-file evidence, but not overstated as exclusive ownership of the entire subsystem.
+
+This limitation is important for academic honesty. The purpose of this report is not to maximize claimed work, but to accurately identify the modules, fixes, and integration responsibilities that can be supported by code evidence.
+

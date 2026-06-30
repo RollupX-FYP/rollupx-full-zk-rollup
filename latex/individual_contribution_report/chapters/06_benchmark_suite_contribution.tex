@@ -1,0 +1,104 @@
+\chapter{BENCHMARK SUITE CONTRIBUTION}
+
+\section{Benchmark Suite Purpose}
+
+The benchmark suite was developed to convert the RollupX prototype into a repeatable experimental framework. Since the project evaluates how different rollup configurations affect performance, manual execution of experiments would have been error-prone and difficult to reproduce. The benchmark suite automates the process of configuring the system, starting the required services, generating workload traffic, collecting metrics, and storing outputs for later analysis.
+
+My contribution in this area focused on the initial benchmark orchestration layer. This included the experiment configuration file, the scripts used to run individual experiments, the scripts used to execute a full experiment matrix, service readiness handling, and output collection. These components allowed the same benchmark procedure to be repeated across different data availability modes, workload rates, batch configurations, and sequencing policies.
+
+The benchmark suite was important because the final research results depended on consistent experimental execution. If service startup, configuration injection, workload timing, or metrics collection were inconsistent, the measured throughput, latency, finalization time, and cost values would not be reliable.
+
+\section{Experiment Matrix}
+
+The experiment matrix was defined in \path{benchmark-suite/config/experiments.toml}, with commit evidence from \texttt{9b282f0}. This file provides the configurable input space for benchmark execution. Instead of hardcoding experiment settings inside shell scripts, the TOML file defines the parameters that the orchestration layer can iterate over.
+
+The configuration captures experiment variables such as:
+
+\begin{itemize}
+    \item data availability mode, such as calldata, blob-style, or off-chain mode;
+    \item workload rate or target transaction throughput;
+    \item batch-size and timeout-related settings;
+    \item sequencing policy where applicable;
+    \item repeat count or benchmark run grouping;
+    \item output naming and result collection settings where supported.
+\end{itemize}
+
+The technical value of this design is separation between experiment definition and experiment execution. The benchmark scripts do not need to be manually edited for each test case. Instead, the same orchestration logic can read or receive a configuration and execute the corresponding run. This reduced manual errors and made the benchmark process easier to reproduce.
+
+\section{Run Scripts and Orchestration}
+
+I implemented the benchmark execution scripts that coordinate the local test environment and automate experiment runs. The main scripts include:
+
+\begin{itemize}
+    \item \path{benchmark-suite/scripts/run_experiment.sh}: executes one benchmark configuration from environment setup to metric extraction.
+    \item \path{benchmark-suite/scripts/run_matrix.sh}: iterates through multiple experiment configurations and repeat runs defined by the benchmark matrix.
+    \item \path{benchmark-suite/scripts/wait_for_sequencer.sh}: waits until the Sequencer service is ready before workload generation begins.
+\end{itemize}
+
+These scripts provide the operational glue between Docker services, configuration files, workload generation, and metrics output. They are therefore part of the integration layer of the project, not just helper scripts.
+
+\section{Code-Level Implementation: \texttt{run\_experiment.sh}}
+
+The \path{benchmark-suite/scripts/run_experiment.sh} script is responsible for executing a single benchmark run in a controlled environment. Its role is to make sure that the services are started in the correct order, the workload begins only after the system is ready, and the metric outputs are copied into a stable results directory.
+
+At a code-flow level, the script performs the following steps:
+
+\begin{enumerate}
+    \item \textbf{Parse benchmark parameters:} The script receives or derives the experiment configuration, such as data availability mode, workload rate, batch policy, and output directory.
+
+    \item \textbf{Reset previous state:} The script clears stale runtime state before a new run. This may include stopping Docker containers, removing volumes, clearing old SQLite or metric files, and preparing a clean output directory.
+
+    \item \textbf{Inject configuration:} The selected benchmark parameters are passed into the relevant service configuration files or environment variables so that the Sequencer, Submitter, and related services run under the intended experiment setting.
+
+    \item \textbf{Start local services:} The script starts the local Layer-1 environment and the required RollupX services using Docker Compose. These services typically include the local L1 node, Sequencer, Executor, Prover or mock prover path, and Submitter.
+
+    \item \textbf{Wait for readiness:} Before sending workload traffic, the script calls \path{benchmark-suite/scripts/wait_for_sequencer.sh} to confirm that the Sequencer API is accepting requests.
+
+    \item \textbf{Generate workload:} The script triggers the workload generator, which creates synthetic transaction traffic according to the configured rate, duration, and seed.
+
+    \item \textbf{Collect metrics:} After the run completes, the script copies JSON, JSONL, or CSV metric outputs from service containers or shared volumes into a local results directory.
+
+    \item \textbf{Prepare data for analysis:} The collected outputs are stored in a structured folder so that the data-tools pipeline can aggregate and compare results across runs.
+\end{enumerate}
+
+This script was essential for benchmark reliability because it encoded the execution procedure as repeatable automation. Without it, each experiment would require manual startup, manual workload triggering, and manual metric collection, increasing the risk of inconsistent results.
+
+\section{Code-Level Implementation: \texttt{run\_matrix.sh}}
+
+The \path{benchmark-suite/scripts/run_matrix.sh} script extends the single-run workflow into a full experiment sweep. Its purpose is to execute multiple benchmark configurations in sequence and organize their outputs consistently.
+
+At a high level, the matrix runner performs the following responsibilities:
+
+\begin{itemize}
+    \item reads or receives the experiment configuration matrix;
+    \item iterates over combinations of data availability mode, workload rate, batch setting, or scheduling policy;
+    \item invokes \path{run_experiment.sh} for each configuration;
+    \item supports repeated runs where configured;
+    \item separates result directories by experiment name, configuration, and run index;
+    \item prevents stale outputs from one configuration from contaminating another.
+\end{itemize}
+
+This script directly supported the empirical evaluation because it allowed the same benchmark procedure to be repeated over many configurations. As a result, the project could compare throughput, latency, finalization time, and DA-related cost under controlled conditions rather than relying on one-off manual measurements.
+
+\section{Benchmark Bug Fix: Sequencer Readiness Wait}
+
+One important reliability issue in the early benchmark workflow was service startup timing. The Docker containers could be started successfully, but the Sequencer HTTP API might not yet be ready to accept incoming transactions. If the workload generator began sending requests during this short startup window, the benchmark run could fail or produce incomplete measurements.
+
+To address this race condition, I introduced the readiness script \path{benchmark-suite/scripts/wait_for_sequencer.sh} in commit \texttt{9b282f0}. The script polls the Sequencer health endpoint or API endpoint until the service is confirmed to be ready. Only after this readiness check passes does the benchmark workflow continue to workload generation.
+
+The root cause of the issue was the difference between container startup and application readiness. Docker can report that a container is running even though the application inside the container has not completed initialization. The readiness wait script fixed this by checking the actual service endpoint rather than assuming that a running container means a ready Sequencer.
+
+This fix improved benchmark reproducibility. It reduced failed runs caused by premature workload submission and made the measured latency and throughput values more reliable because experiments started from a known-ready system state.
+
+\section{Benchmark Output and Metric Collection}
+
+The benchmark suite also defines how outputs are collected after execution. Each run produces service-level metrics from components such as the Sequencer, Executor, Prover, and Submitter. These metrics are written as raw files, typically in JSON, JSONL, or CSV form, and copied into a result directory after each benchmark run.
+
+The output structure matters because the data-tools pipeline expects consistent file locations and metric field names. By standardizing where results are stored, the benchmark suite allowed later scripts such as \path{data-tools/aggregate.py} and \path{data-tools/stats.py} to process results without manual reorganization.
+
+\section{Technical Impact}
+
+My benchmark suite contribution provided the automation needed to evaluate RollupX as a research framework. The experiment matrix defined what should be tested, \path{run_experiment.sh} executed individual runs, \path{run_matrix.sh} repeated the process across configurations, and \path{wait_for_sequencer.sh} improved startup reliability.
+
+Together, these scripts connected the implementation modules into a reproducible experimental workflow. This allowed the project to measure the effect of different data availability modes, workload intensities, and batching configurations using a consistent execution procedure. The benchmark suite therefore formed the foundation for the empirical results presented in the final project report.
+

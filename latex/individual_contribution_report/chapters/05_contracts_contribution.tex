@@ -1,0 +1,117 @@
+\chapter{SMART CONTRACT CONTRIBUTION}
+
+The Layer-1 smart contracts provide the settlement boundary used by the RollupX benchmark environment. In the overall pipeline, the Submitter prepares finalized batch data, proof metadata, data availability metadata, and the resulting state root, and then submits these values to the L1 contract layer. The contracts therefore model the final stage of the rollup lifecycle, where a batch commitment is accepted, verified, and recorded.
+
+My contribution in this area focused on implementing the bridge and verification-facing contracts required for end-to-end benchmarking. These contracts were not designed as production rollup contracts, but as research-grade settlement components that allow the benchmark framework to compare different data availability and verification configurations under a controlled local L1 environment.
+
+\section{L1 Bridge Contract}
+
+The main contract contribution was the bridge contract implemented in \path{contracts/contracts/bridge/ZKRollupBridge.sol}, with commit evidence from \texttt{bed3de7}. This contract acts as the primary L1 entry point for finalized rollup batches submitted by the Submitter. It defines the interface through which the Submitter provides the selected data availability mode, verifier mode, encoded batch data, data availability metadata, new state root, and proof bytes.
+
+At a high level, the bridge contract performs four responsibilities. First, it receives a batch submission from an authorized submitting component. Second, it routes the data availability portion of the submission to the configured DA provider. Third, it routes the proof bytes or proof metadata to the configured verifier contract. Finally, if the required checks succeed, it updates the latest accepted rollup state root and emits an event that records the committed batch.
+
+\section{Code-Level Implementation: \texttt{ZKRollupBridge.sol}}
+
+The key function in the bridge contract is the batch commitment function. Its purpose is to provide one common L1 submission interface that can support multiple data availability and verification configurations.
+
+\begin{lstlisting}[basicstyle=\ttfamily\small]
+function commitBatch(
+    uint8 daId,
+    uint8 verifierId,
+    bytes calldata batchData,
+    bytes calldata daMeta,
+    bytes32 newRoot,
+    bytes calldata proof
+) external nonReentrant onlySequencer
+\end{lstlisting}
+
+The inputs to this function correspond directly to the payload prepared by the Submitter:
+
+\begin{itemize}
+    \item \texttt{daId}: identifies the selected data availability provider or mode.
+    \item \texttt{verifierId}: identifies the verifier implementation used for the batch.
+    \item \texttt{batchData}: contains the encoded batch payload or batch representation.
+    \item \texttt{daMeta}: contains metadata required by the selected DA mode.
+    \item \texttt{newRoot}: represents the post-batch rollup state root.
+    \item \texttt{proof}: contains proof bytes or proof metadata depending on the configured verifier path.
+\end{itemize}
+
+The technical value of this design is that the Submitter can call one stable contract interface while the benchmark framework changes the DA or verifier configuration. This makes the L1 settlement path modular. Instead of hardcoding one DA mechanism or one verifier, the bridge uses identifiers such as \texttt{daId} and \texttt{verifierId} to select the appropriate contract-side logic.
+
+If the data availability check and verifier check succeed, the bridge records the new state root. This update represents the benchmark model of L1 finalization for the submitted batch. The contract also emits a batch commitment event, which can be used by the Submitter or benchmark tooling to confirm that the submission reached the L1 boundary.
+
+\section{Data Availability Contracts}
+
+To support multiple Submitter data availability strategies, I contributed the DA-facing contract components used by the bridge. These contracts provide a common way for the bridge to validate or accept DA metadata depending on the configured benchmark mode.
+
+The main DA-related files include:
+
+\begin{itemize}
+    \item \path{contracts/contracts/da/BlobDA.sol}
+    \item \path{contracts/contracts/da/CalldataDA.sol}
+    \item \path{contracts/contracts/interfaces/IDAProvider.sol}
+\end{itemize}
+
+The \texttt{IDAProvider} interface defines the common contract boundary used by the bridge. This allows the bridge to call a DA provider without needing to know the internal details of calldata mode, blob-style mode, or another DA configuration. This is similar to the Submitter-side DA strategy abstraction, but implemented at the smart contract layer.
+
+\subsection{Calldata Data Availability Contract}
+
+The calldata DA contract supports the benchmark configuration where batch data is submitted directly as L1 calldata. In this path, the batch payload is available through the transaction input data itself. This mode is important because it provides a baseline DA model against which lower-cost or alternative DA strategies can be compared.
+
+\subsection{Blob-Style Data Availability Contract}
+
+The blob DA contract supports the benchmark configuration that models EIP-4844-style blob data availability. In this mode, the bridge receives DA metadata or commitment-style information rather than treating the full batch payload in the same way as calldata. This allows the benchmark suite to compare blob-style DA behaviour against calldata submissions.
+
+This report describes this as a blob-style benchmark path because the local benchmark environment may not fully reproduce all production Ethereum blob mechanics. The important contribution is that the contract layer supports a separate DA verification or metadata path, allowing Submitter-side blob-mode behaviour to be evaluated through the same bridge interface.
+
+\section{Verifier Contracts}
+
+The bridge contract also supports configurable verifier logic. The verifier layer allows the benchmark framework to separate settlement and data availability experiments from proof-generation experiments.
+
+The verifier-related files include:
+
+\begin{itemize}
+    \item \path{contracts/contracts/verifiers/MockVerifier.sol}
+    \item \path{contracts/contracts/verifiers/RealVerifier.sol}, if present in the repository history
+    \item verifier interface files used by the bridge contract
+\end{itemize}
+
+The \texttt{MockVerifier} contract is particularly important for benchmarking. It allows the L1 settlement path to be exercised without requiring every experiment to pay the full cost of real cryptographic verification. This is useful when the experiment is focused on sequencing, batching, DA footprint, L1 submission latency, or cost modelling rather than proof-system performance.
+
+A real verifier interface or implementation, where present, provides the contract boundary for connecting proof artifacts to the bridge. The benchmark framework can therefore compare mock-proof configurations with more realistic proving configurations without changing the Submitter-to-bridge submission interface.
+
+\section{Contract Access Control and Safety Checks}
+
+The bridge contract includes safety-related constraints around who can submit batches and how submissions are accepted. The \texttt{onlySequencer} modifier shown in the batch commitment function restricts batch submission to the configured submitting role. This prevents arbitrary callers from committing invalid state roots during benchmark execution.
+
+The \texttt{nonReentrant} modifier protects the batch commitment function from re-entrant execution. Although the benchmark environment is local and controlled, using this pattern improves the correctness of the settlement contract design and keeps the implementation closer to realistic smart contract engineering practices.
+
+Where custom errors, events, or role-management logic are present, they support clearer failure handling and observability. For example, a failed DA check or verifier check should prevent the bridge from updating the latest state root. This is important because the Submitter depends on the L1 receipt status to decide whether a batch submission was actually successful.
+
+\section{Deployment and Integration}
+
+The smart contract contribution also included integration with the local development and benchmark environment. The Hardhat configuration in \path{contracts/hardhat.config.ts} and related deployment scripts provide the tooling needed to deploy the bridge, DA contracts, and verifier contracts to a local L1 network such as Hardhat or Anvil.
+
+This deployment step is important because the Submitter requires deployed contract addresses before it can submit batches. During benchmark execution, the contract deployment output becomes part of the configuration passed into the Submitter. The Submitter then calls the bridge contract through its Ethereum adapter, and the bridge contract invokes the configured DA and verifier components.
+
+The resulting integration path is:
+
+\begin{center}
+\texttt{Submitter}
+$\rightarrow$
+\texttt{ZKRollupBridge}
+$\rightarrow$
+\texttt{DA Provider}
+$\rightarrow$
+\texttt{Verifier}
+$\rightarrow$
+\texttt{State Root Update}
+\end{center}
+
+This contract layer therefore completed the L1 side of the benchmarking pipeline. It provided the settlement endpoint required for testing calldata, blob-style, and mock-verifier configurations, and it enabled the Submitter to measure L1 submission behaviour as part of the full RollupX experiment workflow.
+
+\section{Technical Impact}
+
+My smart contract contribution was significant because it connected the off-chain benchmark pipeline to a concrete L1 settlement model. Without these contracts, the Submitter would only be able to simulate L1 submission internally. With the bridge, DA providers, verifier contracts, and deployment tooling, the benchmark suite could execute a full submission path and record metrics based on actual local L1 transaction behaviour.
+
+These contracts also improved modularity. By separating bridge logic, DA provider logic, and verifier logic, the system could evaluate multiple rollup configurations without rewriting the entire settlement layer. This directly supported the research objective of comparing configuration trade-offs across DA modes, proving modes, and L1 submission paths.

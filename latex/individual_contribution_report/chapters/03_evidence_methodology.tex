@@ -1,0 +1,74 @@
+\chapter{EVIDENCE COLLECTION METHODOLOGY}
+
+This chapter explains the method used to verify and attribute the technical contributions described in this individual report. Since the project was implemented collaboratively across several repositories, the contribution analysis was based on source-code evidence rather than only on high-level task descriptions or commit messages. This was necessary because some commits used broad messages such as \texttt{update}, which do not clearly describe the exact implementation, refactoring, or bug-fix work included in the commit.
+
+The evidence collection process therefore followed a forensic Git review approach. The analysis inspected commit history, file-level diffs, file ownership, and the final source-code structure across the project repositories. Each contribution claim was included only when it could be supported by commit authorship, changed files, code diffs, or the final implementation structure.
+
+The Git author aliases considered during the investigation were:
+
+\begin{itemize}
+    \item \texttt{UchihaIthachi}
+    \item \texttt{Harshana-2000} — previous GitHub profile username
+\end{itemize}
+
+The investigation considered the project organization, personal GitHub account, and the connected project repositories listed below:
+
+\begin{itemize}
+    \item Personal GitHub profile: \url{https://github.com/UchihaIthachi}
+    \item Project organization: \url{https://github.com/RollupX-FYP}
+    \item Main integrated repository: \url{https://github.com/RollupX-FYP/rollupx-full-zk-rollup}
+    \item Benchmark suite repository: \url{https://github.com/RollupX-FYP/benchmark-suite}
+    \item Submitter repository: \url{https://github.com/RollupX-FYP/submitter}
+    \item Smart contracts repository: \url{https://github.com/RollupX-FYP/contracts}
+    \item Data tools repository: \url{https://github.com/RollupX-FYP/data-tools}
+\end{itemize}
+
+The review focused on the repositories and modules most closely related to my contribution areas: the Submitter service, Layer-1 smart contracts, benchmark orchestration scripts, workload generation logic, and metric-processing tools. Where the same feature was later integrated into the main combined repository, both the standalone repository history and the integrated repository history were considered.
+
+Table~\ref{tab:evidence_sources} summarizes the main evidence sources used for attribution.
+
+\begin{table}[!htbp]
+\centering
+\caption{Evidence sources used for individual contribution attribution}
+\label{tab:evidence_sources}
+\begin{tabularx}{\textwidth}{|p{0.30\textwidth}|X|}
+\hline
+\textbf{Evidence Source} & \textbf{Purpose} \\ \hline
+
+Git commit history using \texttt{git log} &
+Used to identify author names, commit dates, affected repositories, and the high-level development timeline across all branches. \\ \hline
+
+Commit statistics using \texttt{git log --stat} and \texttt{git show --stat} &
+Used to identify which files were added, modified, or deleted in each contribution-related commit. \\ \hline
+
+Commit diffs using \texttt{git show} and \texttt{git diff} &
+Used to inspect exact source-code changes, including new functions, refactors, bug fixes, configuration changes, and integration updates. \\ \hline
+
+File history using \texttt{git log --follow} &
+Used to trace the evolution of important files such as Submitter DA strategy implementations, benchmark scripts, smart contracts, and data tools. \\ \hline
+
+Line-level attribution using \texttt{git blame} &
+Used where necessary to confirm authorship of specific functions, bug fixes, or code blocks within shared files. \\ \hline
+
+Current source-code inspection &
+Used to understand the final behaviour of implemented modules, especially where commits were large or commit messages were not descriptive. \\ \hline
+
+Generated contribution Markdown files &
+Used as intermediate evidence summaries produced from the initial Git review before preparing this LaTeX individual contribution report. \\ \hline
+
+\end{tabularx}
+\end{table}
+
+The following types of changes were specifically searched for during the review:
+
+\begin{itemize}
+    \item feature implementation, such as new Submitter DA strategies, workload generator scripts, and data aggregation tools;
+    \item refactoring work, such as the introduction of abstraction layers and testable interfaces;
+    \item integration changes, such as connecting the Submitter to Layer-1 contracts and benchmark scripts;
+    \item configuration changes, such as benchmark experiment definitions and service startup parameters;
+    \item bug fixes, such as transaction receipt validation, address parsing, service readiness checks, and benchmark configuration fixes;
+    \item testing and validation support, including mocks, coverage workflows, and benchmark execution scripts.
+\end{itemize}
+
+This methodology ensures that the contribution claims in this report remain evidence-based. For example, the Submitter reliability fix for detecting reverted Layer-1 transactions is reported only because the corresponding commit diff shows explicit receipt-status checking in the Submitter data availability implementation. Similarly, Sequencer-side parsing and configuration fixes are included only where the Git history provides concrete code-level evidence. Where attribution was unclear due to large mixed commits or shared module ownership, the report marks the contribution as integration-related or limits the claim accordingly.
+

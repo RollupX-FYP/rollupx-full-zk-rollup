@@ -1,0 +1,106 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{uom_thesis_cse}[2025/01/01 UoM CSE Thesis Configuration]
+
+% -----------------------------
+% Packages
+% -----------------------------
+\RequirePackage[utf8]{inputenc}
+\RequirePackage{graphicx}
+\RequirePackage{caption}
+\RequirePackage{subcaption}
+\RequirePackage{booktabs}
+\RequirePackage{amsmath}
+\RequirePackage{tabularx}
+\RequirePackage{float}
+\RequirePackage{cite}
+\RequirePackage{array}
+\RequirePackage{ragged2e}
+\RequirePackage{makecell}
+\RequirePackage{longtable}
+\RequirePackage{pdflscape}
+\RequirePackage{adjustbox}
+\RequirePackage{microtype}
+\RequirePackage{xurl}
+\RequirePackage{seqsplit}
+\RequirePackage{placeins}
+\RequirePackage{tikz}
+\RequirePackage{geometry}
+\RequirePackage{setspace}
+\RequirePackage{mathptmx} % Times-like font for pdfLaTeX
+\RequirePackage{listings}
+\RequirePackage{xcolor}
+\RequirePackage[explicit]{titlesec}
+\RequirePackage{hyperref}
+
+% -----------------------------
+% TikZ libraries
+% -----------------------------
+\usetikzlibrary{arrows.meta, positioning, fit, backgrounds, shapes.geometric}
+
+% -----------------------------
+% Page layout
+% -----------------------------
+\geometry{a4paper, left=40mm, bottom=40mm, top=25mm, right=25mm}
+\emergencystretch=3em
+
+% -----------------------------
+% Hyperref setup
+% -----------------------------
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=black,
+    urlcolor=black
+}
+
+% -----------------------------
+% Table and code helpers
+% -----------------------------
+\newcolumntype{Y}{>{\RaggedRight\arraybackslash}X}
+
+\newcommand{\code}[1]{\texttt{\seqsplit{#1}}}
+
+\providecommand{\compacttable}{%
+  \small
+  \setlength{\tabcolsep}{3pt}
+  \renewcommand{\arraystretch}{1.15}
+}
+
+% -----------------------------
+% Bibliography title
+% -----------------------------
+\renewcommand{\bibname}{Reference List}
+
+% -----------------------------
+% Chapter and section formatting
+% -----------------------------
+\titleformat{\chapter}[display]
+  {\normalfont\fontsize{14}{17}\bfseries}
+  {\MakeUppercase{\chaptertitlename}\ \thechapter}{14pt}{\MakeUppercase{#1}}
+
+\titleformat{name=\chapter,numberless}[display]
+  {\normalfont\fontsize{14}{17}\bfseries}
+  {}{0pt}{\MakeUppercase{#1}}
+
+\titleformat{\section}
+  {\normalfont\fontsize{12}{15}\bfseries}
+  {\thesection}{1em}{#1}
+
+\titleformat{\subsection}
+  {\normalfont\fontsize{12}{15}\bfseries}
+  {\thesubsection}{1em}{#1}
+
+% -----------------------------
+% Listings style
+% -----------------------------
+\lstdefinestyle{yamlStyle}{
+  language=bash,
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{purple},
+  showstringspaces=false,
+  breaklines=true
+}
+
+\endinput

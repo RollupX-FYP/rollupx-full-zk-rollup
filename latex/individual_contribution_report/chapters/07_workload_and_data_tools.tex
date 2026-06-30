@@ -1,0 +1,143 @@
+\chapter{WORKLOAD GENERATOR AND DATA TOOLS CONTRIBUTION}
+
+\section{Workload Generator Contribution}
+
+The benchmark suite required a controlled way to generate repeatable transaction traffic for different experiment configurations. A constant fixed-delay transaction generator would not be sufficient for evaluating queueing, batching, and scheduling behaviour because it would produce an unrealistically smooth input stream. To address this, I contributed the synthetic workload generator implemented in \path{benchmark-suite/workload/poisson_generator.py}, with commit evidence from \texttt{9b282f0}.
+
+The purpose of this component is to generate transfer-style transactions according to configurable workload parameters such as target transaction rate, total number of transactions, random seed, and experiment duration. These generated transactions are then used as the input stream for the Sequencer during benchmark execution. This made it possible to evaluate how the rollup pipeline behaves under different load levels while keeping the workload generation process reproducible.
+
+The workload generator should be interpreted as a synthetic benchmark tool rather than a model of real production blockchain traffic. Its value comes from controlled randomness: by using seeded probabilistic arrival times, the benchmark can create repeatable bursts and idle periods while still avoiding the artificial regularity of fixed-interval transaction submission.
+
+\section{Code-Level Implementation: Poisson Workload Generation}
+
+The main workload generation logic is located in \path{benchmark-suite/workload/poisson_generator.py}. The script uses an exponential inter-arrival distribution to model the time gaps between transactions. This is the standard way to generate arrivals for a Poisson process. If the target rate is \texttt{rate\_tps}, then the mean inter-arrival time is approximately \texttt{1 / rate\_tps} seconds.
+
+The core idea is shown below:
+
+\begin{lstlisting}[language=Python, basicstyle=\ttfamily\small]
+import numpy as np
+
+def generate_poisson_arrivals(rate_tps, num_txs):
+    inter_arrivals = np.random.exponential(
+        1.0 / rate_tps,
+        num_txs
+    )
+    return inter_arrivals
+\end{lstlisting}
+
+The input to this function is the target transaction rate and the number of transactions to generate. The output is a sequence of inter-arrival delays. During benchmark execution, these delays determine when each synthetic transaction is submitted to the Sequencer.
+
+For example, at a target rate of 100 transactions per second, a constant-rate generator would submit one transaction every 10 milliseconds. In contrast, the Poisson-based generator produces variable inter-arrival times whose average rate is still close to 100 transactions per second. This creates short bursts and gaps, which helps test the Sequencer's queue management, batching triggers, and timeout behaviour under a more challenging input pattern.
+
+\section{Transfer Transaction Construction}
+
+The generated workload consists mainly of transfer-style transactions. These transaction structures are defined in supporting workload files such as \path{benchmark-suite/workload/tx_types.py}, where present in the repository. A generated transaction typically includes fields such as sender, receiver, amount, nonce or sequence-related metadata, and optional fee or priority information depending on the benchmark configuration.
+
+At a code-flow level, the workload generator performs the following steps:
+
+\begin{enumerate}
+    \item reads experiment parameters such as transaction count, target rate, seed, and output or endpoint configuration;
+    \item initializes the random generator so that repeated benchmark runs can be reproduced;
+    \item generates inter-arrival delays using the exponential distribution;
+    \item constructs synthetic transfer transactions using the configured transaction schema;
+    \item submits the transactions to the Sequencer API or writes them in the expected input format for the benchmark runner;
+    \item records or exposes enough metadata for later analysis of transaction timing and throughput.
+\end{enumerate}
+
+This design connects the workload generator directly to the benchmark suite. The experiment matrix defines the workload parameters, the run scripts trigger the generator, and the Sequencer receives the generated transactions as benchmark input.
+
+\section{Data Tools Contribution}
+
+The benchmark pipeline produces raw metrics from multiple services rather than a single centralized output file. For example, the Sequencer may record transaction arrival, ordering, and batching information; the Executor may record execution timing; the Prover may record proof-related timing; and the Submitter may record Layer-1 submission and data availability metrics. These raw outputs need to be cleaned, joined, and converted into final evaluation metrics.
+
+To support this process, I contributed the Python-based \path{data-tools} pipeline, with commit evidence from \texttt{bc90d40}. This pipeline transforms distributed benchmark outputs into aggregated CSV files, summary statistics, and plots used for result analysis.
+
+The data tools are important because they connect raw system logs to the empirical results reported in the project. Without this layer, the benchmark suite would produce many separate JSON, JSONL, or CSV files that would be difficult to compare consistently across configurations.
+
+\section{Code-Level Implementation: Aggregation}
+
+The aggregation logic is implemented in \path{data-tools/aggregate.py}. Its purpose is to read raw metric files from different RollupX services and combine them into a unified representation of each transaction or batch lifecycle.
+
+The script generally performs the following responsibilities:
+
+\begin{enumerate}
+    \item loads raw benchmark output files from the result directory;
+    \item parses JSON, JSONL, or CSV metric records depending on the service output format;
+    \item extracts common identifiers such as transaction IDs, batch IDs, run IDs, or configuration names;
+    \item joins related records across services using those identifiers;
+    \item normalizes field names and timestamps where required;
+    \item writes an aggregated output file that can be consumed by statistical and plotting scripts.
+\end{enumerate}
+
+The key technical challenge in this component is that each service produces metrics from a different stage of the pipeline. The aggregation layer therefore acts as a bridge between service-level observability and experiment-level analysis. It allows the benchmark framework to reconstruct how a workload moved from transaction submission, through batching and execution, to proof generation and L1 settlement.
+
+\section{Code-Level Implementation: Statistics}
+
+The statistical analysis logic is implemented in \path{data-tools/stats.py}, where the aggregated benchmark outputs are converted into summary metrics. These metrics are used to compare different rollup configurations.
+
+The computed metrics include, where available in the raw data:
+
+\begin{itemize}
+    \item \textbf{Throughput:} the number of successfully processed transactions or batches per unit time.
+    \item \textbf{Latency percentiles:} percentile-based latency values such as p50, p95, and p99, which summarize both typical and tail-latency behaviour.
+    \item \textbf{Finalization time:} the time from transaction arrival or batch sealing to L1 confirmation, depending on the available timestamps.
+    \item \textbf{Data availability footprint:} the amount of DA payload data associated with each batch or transaction.
+    \item \textbf{Cost-related metrics:} gas usage, cost per batch, or cost per transaction where L1 receipt data is available.
+    \item \textbf{Fairness-related metrics:} scheduling fairness indicators such as Jain's fairness index where the required per-transaction or per-account data is available.
+\end{itemize}
+
+This layer was necessary because raw logs alone do not directly answer the research questions. The statistical scripts convert raw event timings and cost records into comparable performance indicators.
+
+\section{Plot Generation}
+
+I also contributed plotting scripts under \path{data-tools/plots/} to convert aggregated metrics into figures suitable for analysis and reporting. These scripts include:
+
+\begin{itemize}
+    \item \path{data-tools/plots/latency_cdf.py}: generates cumulative distribution plots for latency values, helping visualize both normal-case and tail-latency behaviour.
+    \item \path{data-tools/plots/cost_heatmap.py}: visualizes cost-related trade-offs across configuration dimensions such as batch size, workload rate, or DA mode.
+    \item \path{data-tools/plots/pareto_frontier.py}: identifies configurations that provide favourable trade-offs between competing objectives such as latency and cost.
+\end{itemize}
+
+The plotting layer made the experimental results easier to interpret. Instead of inspecting raw numeric tables only, the final analysis could compare configuration trade-offs visually. This was especially useful for identifying whether one configuration dominated another or whether a lower-cost mode introduced unacceptable latency or finalization-time overhead.
+
+\section{Input and Output Flow}
+
+The workload generator and data tools form the two ends of the benchmark process. The workload generator creates controlled input traffic, while the data tools process the observed outputs. Their relationship can be summarized as follows:
+
+\begin{table}[!htbp]
+\centering
+\caption{Workload generator and data-tools input/output flow}
+\label{tab:workload_data_tools_flow}
+\begin{tabularx}{\textwidth}{|p{0.24\textwidth}|p{0.28\textwidth}|X|}
+\hline
+\textbf{Component} & \textbf{Input} & \textbf{Output} \\ \hline
+
+\texttt{poisson\_generator.py} &
+Target rate, transaction count, seed, workload configuration &
+Synthetic transfer-style transactions and submission timing \\ \hline
+
+Sequencer and rollup services &
+Generated transactions &
+Raw service metrics such as queueing, batching, execution, proof, and submission records \\ \hline
+
+\texttt{aggregate.py} &
+Raw JSON, JSONL, or CSV metric files &
+Joined and normalized benchmark dataset \\ \hline
+
+\texttt{stats.py} &
+Aggregated benchmark dataset &
+Summary metrics such as throughput, latency percentiles, finalization time, cost, and DA footprint \\ \hline
+
+Plotting scripts &
+Summary metrics and aggregated data &
+Evaluation figures such as latency CDFs, cost heatmaps, and Pareto-frontier plots \\ \hline
+
+\end{tabularx}
+\end{table}
+
+\section{Technical Impact}
+
+My workload generator and data-tools contributions were essential for making RollupX measurable. The workload generator provided repeatable and configurable transaction traffic, while the data tools transformed distributed service logs into research metrics. Together, these components connected experiment execution with result analysis.
+
+This contribution supported the final project evaluation in three ways. First, it allowed benchmark runs to be driven by controlled workload parameters rather than manual transaction submission. Second, it made outputs from different services comparable by aggregating them into a common analysis format. Third, it enabled the final report to present evidence-based comparisons of throughput, latency, finalization time, cost, and data availability trade-offs across different rollup configurations.
+

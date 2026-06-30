@@ -1,0 +1,62 @@
+\chapter{SEQUENCER FIXES AND END-TO-END INTEGRATION}
+
+\section{Sequencer Address Parsing Fix}
+
+During integration testing, one robustness issue was identified in the Sequencer request/configuration parsing path. Ethereum-style addresses may appear with a \texttt{0x} prefix in configuration files, generated workload payloads, or API request bodies. However, low-level hexadecimal decoders commonly expect only the raw hexadecimal characters. If the prefix is not removed before decoding, address parsing can fail and prevent the request from being accepted correctly.
+
+As verified in commit \texttt{bed3de7}, I fixed this issue in \path{sequencer/src/api/server.rs} and the related parsing logic by normalizing the address string before hexadecimal decoding:
+
+\begin{lstlisting}[basicstyle=\ttfamily\small]
+let trimmed = raw.strip_prefix("0x").unwrap_or(raw);
+\end{lstlisting}
+
+This change allows the same parser to accept both prefixed and non-prefixed Ethereum address formats. The fix is small at code level, but important for integration reliability because different components may serialize addresses differently. For example, a workload generator, configuration file, or external API client may naturally use the \texttt{0x}-prefixed form, while the internal decoder expects a plain hexadecimal string.
+
+The input to this parsing function is a raw address string. The output is a normalized byte representation of the address that can be used by the Sequencer during transaction validation or request handling. By stripping the prefix safely using \texttt{strip\_prefix}, the function avoids changing valid non-prefixed inputs while making prefixed inputs acceptable. This improved the robustness of the Sequencer boundary and reduced avoidable benchmark failures caused by formatting mismatches.
+
+\section{Batch Policy Configuration Fix}
+
+Another Sequencer-side issue involved benchmark configuration consistency. During benchmark startup, the Sequencer requires batching configuration values to determine how incoming transactions should be grouped into batches. If the expected batching policy field was missing or inconsistent in the TOML configuration, deserialization or configuration loading could fail, causing the Sequencer container to stop before the benchmark workload began.
+
+In commit \texttt{bed3de7}, I corrected this by ensuring that the batching configuration includes a valid default policy value such as:
+
+\begin{lstlisting}[basicstyle=\ttfamily\small]
+batch_policy = "fixed"
+\end{lstlisting}
+
+This fix ensured that the Sequencer had a valid batching policy during startup. The root cause was not the batching algorithm itself, but the mismatch between what the Sequencer configuration parser expected and what the benchmark configuration supplied. By making the configuration explicit and consistent, the benchmark runner could start the Sequencer reliably across repeated experiment runs.
+
+This fix mattered because benchmark automation depends on repeatability. A configuration-loading failure prevents the whole pipeline from starting, while inconsistent defaults can cause different runs to use different batching behaviour. The correction therefore improved both startup stability and experimental consistency.
+
+\section{Executor Contribution Statement}
+
+The Executor is responsible for applying state transitions to sealed batches and producing execution metadata for later proving or submission stages. However, the Git history did not provide enough distinct evidence to claim a separate executor-specific bug fix authored solely by me. Therefore, I do not claim independent ownership of the Executor implementation in this report.
+
+My Executor-related contribution is described only as part of the end-to-end integration work where evidence supports the connection between components. In particular, the benchmark pipeline required the Executor to be started with the correct service configuration, receive sealed batches from the Sequencer, produce execution outputs for the downstream Prover or Submitter path, and expose metrics that could be consumed by the data-tools pipeline. These integration responsibilities are discussed in the following section.
+
+\section{End-to-End Integration}
+
+A major part of my contribution was connecting separate implementation modules into a runnable benchmark pipeline. The RollupX prototype required multiple services to work together: the workload generator, Sequencer, Executor, Prover, Submitter, L1 contracts, and data analysis tools. My work on benchmark scripts, Submitter integration, smart contracts, workload generation, and data tools helped make this pipeline executable and measurable.
+
+The integrated execution path is summarized below:
+
+\begin{enumerate}
+    \item \textbf{Workload Generator:} The workload generator, implemented around \path{benchmark-suite/workload/poisson_generator.py}, reads benchmark parameters such as workload rate, duration, seed, and transaction count. It generates synthetic transfer-style transactions and submits them to the Sequencer as controlled benchmark input.
+
+    \item \textbf{Sequencer:} The Sequencer receives incoming transactions through its API layer, validates request fields such as addresses and transaction metadata, orders transactions according to the configured scheduling policy, and seals batches according to the configured batch policy. My parsing and configuration fixes improved this boundary by making address handling and batch-policy loading more robust.
+
+    \item \textbf{Executor:} The Executor receives sealed batches from the Sequencer and applies the corresponding state transition logic. Although I do not claim isolated executor bug fixes, the benchmark orchestration layer had to start and connect the Executor correctly so that downstream proving and submission stages could receive valid batch outputs.
+
+    \item \textbf{Prover:} The Prover or mock-prover path produces proof metadata or proof artifacts for executed batches. This stage allows the benchmark to separate pure execution, proof-delay simulation, and settlement behaviour depending on the experiment configuration.
+
+    \item \textbf{Submitter:} The Submitter, coordinated through files such as \path{submitter/src/application/orchestrator.rs}, receives finalized batch payloads and selects the configured data availability strategy. It then routes the payload through modules such as \path{submitter/src/infrastructure/da_calldata.rs} or \path{submitter/src/infrastructure/da_blob.rs}, submits the commitment and metadata to the L1 bridge contract, waits for confirmation, and records submission metrics.
+
+    \item \textbf{L1 Contracts:} The L1 contract layer, including files such as \path{contracts/contracts/bridge/ZKRollupBridge.sol} and DA-related contracts such as \path{contracts/contracts/da/BlobDA.sol}, receives the Submitter payload in the local benchmark environment. This provides the settlement boundary needed to measure L1 submission latency, gas usage, and data availability related behaviour.
+
+    \item \textbf{Metrics and Data Tools:} The benchmark services write raw metrics to shared result locations or metric output files. The data-tools pipeline, including \path{data-tools/aggregate.py} and related scripts, parses these outputs and converts them into aggregated datasets, statistics, and plots for final analysis.
+\end{enumerate}
+
+This integration work was technically important because the project evaluation depended on measuring the behaviour of the complete pipeline rather than isolated services. For example, Submitter metrics are only meaningful if batches are generated, ordered, executed, proven or marked with proof metadata, submitted to L1, and then processed by the data-tools pipeline. Similarly, workload-generator results are useful only if the downstream services can accept and process those transactions consistently.
+
+The end-to-end integration therefore connected implementation work to research validity. It ensured that workload inputs, batching behaviour, L1 submission results, and final analysis outputs were part of one coherent benchmark workflow. This made it possible to compare configurations such as different data availability modes, workload rates, and batching policies using a repeatable execution path.
+

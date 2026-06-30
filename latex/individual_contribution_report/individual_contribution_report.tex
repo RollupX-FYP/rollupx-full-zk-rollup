@@ -1,0 +1,77 @@
+\documentclass[12pt, a4paper]{uomthesis}
+\usepackage{uom_thesis_cse}
+\usepackage{pdflscape}
+\usepackage{adjustbox}
+\usepackage{longtable}
+\usepackage{tabularx}
+\usepackage{microtype}
+\usepackage{seqsplit}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\emergencystretch=3em
+
+\title{Individual Contribution Report: Modular ZK-Rollup Benchmarking Framework}
+\author{Harshana Lakshara Fernando}
+
+\begin{document}
+
+
+
+\begin{titlepage}
+\begin{center}
+    \vspace*{2cm}
+    \Huge \textbf{Individual Contribution Report: \\ Modular ZK-Rollup Benchmarking Framework} \\
+    \vspace{1.5cm}
+    \Large \textbf{Harshana Lakshara Fernando} \\
+    \vspace{2cm}
+    \large A report submitted in partial fulfillment of the requirements \\
+    for the Final Year Project \\
+    \vspace{1.5cm}
+    \normalsize Project: RollupX: A Modular ZK-Rollup Benchmarking Framework \\
+    \vspace{2cm}
+    \textbf{Department of Computer Science and Engineering} \\
+    \textbf{University of Moratuwa} \\
+    \textbf{Sri Lanka} \\
+    \vfill
+    \today
+\end{center}
+\end{titlepage}
+
+\chapter*{Declaration}
+I declare that this is my own work and this report does not incorporate without acknowledgement any material previously submitted for a Degree or Diploma in any other University or institute of higher learning and to the best of my knowledge and belief it does not contain any material previously published or written by another person except where the acknowledgement is made in the text.
+
+\vspace{2cm}
+\noindent
+\begin{tabular}{@{}p{0.5\textwidth}p{0.5\textwidth}@{}}
+    \dotfill & \dotfill \\
+    Harshana Lakshara Fernando & Date \\
+\end{tabular}
+
+\chapter*{Abstract}
+This report outlines my individual contributions to the modular ZK-rollup benchmarking framework project. Throughout the development lifecycle, my primary focus was on architecting the L1 interaction layer and engineering the rigorous benchmarking infrastructure necessary to evaluate our prototype. I led the development of the Submitter service, applying Domain-Driven Design (DDD) to implement robust, mock-testable Data Availability (DA) strategies, including EIP-4844 Blobs, Calldata, and Off-chain DA. Concurrently, I developed the complementary L1 smart contracts for batch settlement and proof verification. To validate our research questions, I constructed a fully automated, reproducible benchmarking suite featuring a Poisson process workload generator and complex matrix execution scripts. Furthermore, I built the Python-based data analysis pipeline to aggregate distributed metrics and generate statistical plots. Evidence for these claims was rigorously collected using a forensic Git history analysis across all repository branches, inspecting diffs and code histories rather than relying solely on high-level commit messages.
+
+\tableofcontents
+\listoftables
+\listoffigures
+
+
+
+\input{chapters/01_introduction.tex}
+\input{chapters/02_project_background.tex}
+\input{chapters/03_evidence_methodology.tex}
+\input{chapters/04_submitter_contribution.tex}
+\input{chapters/05_contracts_contribution.tex}
+\input{chapters/06_benchmark_suite_contribution.tex}
+\input{chapters/07_workload_and_data_tools.tex}
+\input{chapters/08_bug_fixes_and_integration.tex}
+\input{chapters/09_validation_and_reflection.tex}
+\input{chapters/10_conclusion.tex}
+
+\bibliographystyle{IEEEtranN}
+\bibliography{references}
+
+\appendix
+\input{chapters/appendices.tex}
+
+\end{document}

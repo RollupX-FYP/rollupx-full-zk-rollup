@@ -1,0 +1,114 @@
+\chapter{APPENDICES}
+
+\section*{Appendix A -- Git Commands Used for Evidence Collection}
+\addcontentsline{toc}{section}{Appendix A -- Git Commands Used for Evidence Collection}
+
+This appendix lists the main Git commands used to collect evidence for the individual contribution analysis. These commands were used to inspect author history, identify relevant commits, review file-level changes, and verify specific bug fixes across all available repository branches.
+
+\begin{lstlisting}[language=bash, basicstyle=\ttfamily\small]
+# List all local and remote branches
+git branch -a
+
+# Summarize all contributors across all branches
+git shortlog -sne --all
+
+# Search commit history using known author aliases
+
+git log --all --author="UchihaIthachi" --stat
+git log --all --author="Harshana-2000" --stat
+
+# Show compact commit history with branch information
+git log --all --oneline --decorate --graph --author="Harshana"
+
+# Inspect changed files in major contribution commits
+git show --stat e4dad07
+git show --name-status e4dad07
+git show --stat 9b282f0
+git show --name-status 9b282f0
+git show --stat bc90d40
+git show --name-status bc90d40
+git show --stat bed3de7
+git show --name-status bed3de7
+
+# Inspect detailed code diffs for contribution areas
+git show --function-context e4dad07 -- submitter/
+git show --function-context 9b282f0 -- benchmark-suite/
+git show --function-context bc90d40 -- data-tools/
+git show --function-context bed3de7 -- contracts/
+git show --function-context bed3de7 -- sequencer/
+
+# Trace file history for important files
+git log --all --follow -- submitter/src/infrastructure/da_calldata.rs
+git log --all --follow -- submitter/src/infrastructure/da_blob.rs
+git log --all --follow -- submitter/src/infrastructure/ethereum_adapter.rs
+git log --all --follow -- benchmark-suite/scripts/run_experiment.sh
+git log --all --follow -- benchmark-suite/scripts/wait_for_sequencer.sh
+git log --all --follow -- benchmark-suite/workload/poisson_generator.py
+git log --all --follow -- data-tools/aggregate.py
+git log --all --follow -- contracts/contracts/bridge/ZKRollupBridge.sol
+
+# Verify line-level authorship where needed
+git blame submitter/src/infrastructure/da_calldata.rs
+git blame submitter/src/infrastructure/da_blob.rs
+git blame sequencer/src/api/server.rs
+git blame benchmark-suite/scripts/wait_for_sequencer.sh
+
+# Verify the Submitter L1 revert-status fix
+git show e4dad07 -- submitter/src/infrastructure/da_calldata.rs \
+    | grep -n "status.as_u64"
+
+git show e4dad07 -- submitter/src/infrastructure/da_blob.rs \
+    | grep -n "status.as_u64"
+
+# Verify Sequencer address prefix parsing fix
+git show bed3de7 -- sequencer/ \
+    | grep -n "strip_prefix"
+
+# Verify benchmark readiness wait logic
+git show 9b282f0 -- benchmark-suite/scripts/wait_for_sequencer.sh
+
+# Verify benchmark and workload generator contribution
+git show 9b282f0 -- benchmark-suite/config/experiments.toml
+git show 9b282f0 -- benchmark-suite/workload/poisson_generator.py
+git show 9b282f0 -- benchmark-suite/scripts/run_matrix.sh
+git show 9b282f0 -- benchmark-suite/scripts/run_experiment.sh
+
+# Verify data-tools contribution
+git show bc90d40 -- data-tools/aggregate.py
+git show bc90d40 -- data-tools/stats.py
+git show bc90d40 -- data-tools/plots/
+
+# Verify smart contract contribution
+git show bed3de7 -- contracts/contracts/bridge/ZKRollupBridge.sol
+git show bed3de7 -- contracts/contracts/da/
+git show bed3de7 -- contracts/contracts/verifiers/
+\end{lstlisting}
+
+The commands above were used to avoid relying only on commit messages. For example, broad commits such as \texttt{update} were inspected using \texttt{git show}, \texttt{git diff}, and \texttt{git blame} so that the report could identify the actual files, functions, scripts, and bug fixes introduced by the contributor.
+
+\section*{Appendix B -- Evidence Repositories}
+\addcontentsline{toc}{section}{Appendix B -- Evidence Repositories}
+
+The contribution analysis considered the integrated RollupX repository and the connected component repositories. These repositories were reviewed because some components were initially developed separately and later integrated into the main project repository.
+
+\begin{itemize}
+    \item Personal GitHub profile: \url{https://github.com/UchihaIthachi}
+    \item Project organization: \url{https://github.com/RollupX-FYP}
+    \item Main integrated repository: \url{https://github.com/RollupX-FYP/rollupx-full-zk-rollup}
+    \item Benchmark suite repository: \url{https://github.com/RollupX-FYP/benchmark-suite}
+    \item Submitter repository: \url{https://github.com/RollupX-FYP/submitter}
+    \item Smart contracts repository: \url{https://github.com/RollupX-FYP/contracts}
+    \item Data tools repository: \url{https://github.com/RollupX-FYP/data-tools}
+\end{itemize}
+
+\section*{Appendix C -- Main Commit Evidence}
+\addcontentsline{toc}{section}{Appendix C -- Main Commit Evidence}
+
+The main commits used as contribution evidence are summarized below:
+
+\begin{itemize}
+    \item \texttt{e4dad07}: Submitter refactor, \texttt{BridgeClient} abstraction, DA strategy improvements, receipt-status validation, and Submitter testing/coverage support.
+    \item \texttt{9b282f0}: Benchmark suite orchestration, experiment matrix configuration, workload generator, and Sequencer readiness wait script.
+    \item \texttt{bc90d40}: Data-tools pipeline, aggregation scripts, statistics computation, and plotting scripts.
+    \item \texttt{bed3de7}: L1 contract integration, bridge/DA/verifier contract components, Sequencer address parsing fix, and batch policy configuration consistency.
+\end{itemize}
