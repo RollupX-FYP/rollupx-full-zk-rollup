@@ -31,8 +31,14 @@ Table~\ref{tab:commit_evidence} summarizes the primary commits used as evidence 
 \caption{Primary contribution commits}
 \label{tab:commit_evidence}
 \small
-\resizebox{\textwidth}{!}{
-\begin{tabular}{|p{0.12\textwidth}|p{0.11\textwidth}|p{0.16\textwidth}|p{0.24\textwidth}|p{0.30\textwidth}|}
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{|
+>{\raggedright\arraybackslash}p{0.10\textwidth}|
+>{\raggedright\arraybackslash}p{0.10\textwidth}|
+>{\raggedright\arraybackslash}p{0.15\textwidth}|
+>{\raggedright\arraybackslash}p{0.25\textwidth}|
+>{\raggedright\arraybackslash}X|}
 \hline
 \textbf{Commit} & \textbf{Date} & \textbf{Area} & \textbf{Representative Files} & \textbf{Evidence Summary} \\ \hline
 
@@ -60,8 +66,7 @@ L1 Contracts and Integration Fixes &
 \path{ZKRollupBridge.sol}, \path{BlobDA.sol}, \path{MockVerifier.sol}, \path{server.rs} &
 Added or integrated L1 bridge/DA/verifier contract components and introduced Sequencer robustness fixes such as address prefix handling and batching configuration consistency. \\ \hline
 
-\end{tabular}
-}
+\end{tabularx}
 \end{table}
 
 \section{Bug Fix Evidence Table}
@@ -73,7 +78,13 @@ Table~\ref{tab:bug_fixes} summarizes the verified bug fixes and consistency fixe
 \caption{Verified bug and consistency fixes}
 \label{tab:bug_fixes}
 \small
-\begin{tabularx}{\textwidth}{|p{0.18\textwidth}|p{0.12\textwidth}|p{0.22\textwidth}|X|}
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{tabularx}{\textwidth}{|
+>{\raggedright\arraybackslash}p{0.18\textwidth}|
+>{\raggedright\arraybackslash}p{0.10\textwidth}|
+>{\raggedright\arraybackslash}p{0.22\textwidth}|
+>{\raggedright\arraybackslash}X|}
 \hline
 \textbf{Issue} & \textbf{Commit} & \textbf{Files} & \textbf{Fix and Impact} \\ \hline
 

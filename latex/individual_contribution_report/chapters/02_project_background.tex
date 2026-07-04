@@ -8,6 +8,15 @@ The purpose of RollupX is to provide a configurable framework for evaluating per
 
 The core operational pipeline of the framework consists of the following stages:
 
+This final-report architecture figure (Figure \ref{fig:overall_boundary}) is reused here to show the boundary of my implementation contribution. My work was concentrated around the Submitter, L1 contract interaction, benchmark automation, workload generation, and post-experiment data analysis layers.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{../final_report/figures/chapter3/system_architecture.png}
+\caption{Overall architecture diagram (reused from final report) showing the RollupX pipeline. My core contribution areas are focused on the integration, settlement boundaries, workload generation, and data tools.}
+\label{fig:overall_boundary}
+\end{figure}
+
 \begin{enumerate}
     \item \textbf{Workload Generator:} Generates synthetic transfer-style transactions according to configurable workload parameters such as transaction rate, duration, random seed, and arrival distribution. These transactions provide the controlled input stream for benchmark experiments.
 

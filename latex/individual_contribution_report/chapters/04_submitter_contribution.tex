@@ -6,16 +6,24 @@ The Submitter is the component responsible for connecting the off-chain rollup e
 
 The internal flow executes as follows: Finalized batch input $\rightarrow$ DA strategy selection $\rightarrow$ DA payload encoding $\rightarrow$ \texttt{BridgeClient::commit\_batch} $\rightarrow$ L1 transaction hash $\rightarrow$ receipt polling/confirmation $\rightarrow$ receipt-status validation $\rightarrow$ metrics/export.
 
+Figure \ref{fig:submitter_pipeline} illustrates the internal pipeline and settlement flow of the Submitter service, identifying the sequence from batch retrieval to final L1 settlement metrics export. This figure is reused from the final project report.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.8\textwidth]{../final_report/figures/chapter5/submitter_settlement_flow.png}
+\caption{Submitter settlement flow diagram (reused from final report), showing the sequence of operations from batch retrieval to metrics export across my implementation modules.}
+\label{fig:submitter_pipeline}
+\end{figure}
+
 At a code level, the Submitter performs four main responsibilities, as summarized below:
-
-
 \begin{table}[!htbp]
+
 \centering
 \caption{Submitter Internal Pipeline Steps}
 \label{tab:submitter_internal_flow}
 \small
 \setlength{\tabcolsep}{3pt}
-\renewcommand{\arraystretch}{1.25}
+\renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\textwidth}{|
 >{\raggedright\arraybackslash}p{0.13\textwidth}|
 >{\raggedright\arraybackslash}p{0.23\textwidth}|
@@ -92,7 +100,16 @@ The technical value of this change was testability. By programming against the \
 
 \section{Data Availability Strategy Implementations}
 
-The Submitter supports multiple data availability strategies so that the benchmark suite can compare different L1 data publication models under a consistent pipeline. My contribution included implementing and refactoring the concrete DA strategy modules used by the Submitter, summarized in Table \ref{tab:da_strategies}.
+The Submitter supports multiple data availability strategies so that the benchmark suite can compare different L1 data publication models under a consistent pipeline. Figure \ref{fig:da_strategies} illustrates the three supported data publication paths. This final-report figure is reused to show the architectural impact of the DA module code I contributed.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{../final_report/figures/chapter3/da_com.png}
+\caption{Data Availability strategy diagram (reused from final report) showing the three available benchmark paths: Calldata, Blob-style, and Off-chain.}
+\label{fig:da_strategies}
+\end{figure}
+
+My contribution included implementing and refactoring the concrete DA strategy modules used by the Submitter, summarized in Table \ref{tab:da_strategies}.
 
 \begin{table}[!htbp]
 \centering
@@ -100,7 +117,7 @@ The Submitter supports multiple data availability strategies so that the benchma
 \label{tab:da_strategies}
 \small
 \setlength{\tabcolsep}{3pt}
-\renewcommand{\arraystretch}{1.25}
+\renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\textwidth}{|
 >{\raggedright\arraybackslash}p{0.15\textwidth}|
 >{\raggedright\arraybackslash}p{0.19\textwidth}|
@@ -124,13 +141,13 @@ Blob-style &
 \path{da_blob.rs} &
 \texttt{Batch} &
 Prepares blob-style DA metadata or commitment information for the benchmark-mode blob path. &
-Evaluates the cost and footprint impact of an EIP-4844-style DA configuration. \\ \hline
+Evaluates the cost and footprint impact of an EIP-4844-style DA configuration. As detailed in the final report, this mode achieved an approximately 70\% cost reduction over Calldata DA. \\ \hline
 
 Off-chain &
 \path{da_offchain.rs} &
 \texttt{Batch} &
 Keeps batch data outside L1 and submits off-chain pointer or commitment-style metadata. &
-Models a Validium-style low-L1-data configuration for comparison. \\ \hline
+Models a Validium-style low-L1-data configuration for comparison, achieving an 82.5\% cost reduction. \\ \hline
 
 \end{tabularx}
 \end{table}

@@ -6,14 +6,22 @@ The benchmark suite was developed to convert the research-grade prototype into a
 
 My contribution in this area focused on the initial benchmark orchestration layer, summarized in Table \ref{tab:automation_scripts}. This included the experiment configuration file, the scripts used to run individual experiments, the scripts used to execute a full experiment matrix, service readiness handling, and output collection. These components allowed the same benchmark procedure to be repeated across different data availability modes, workload rates, batch configurations, and sequencing policies.
 
+Figure \ref{fig:benchmark_workflow} visualizes the benchmark automation workflow, showing how the scripts and configurations connect to produce the final evaluation data. This figure is reused from the final report to demonstrate the context of my orchestration scripts.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{../final_report/figures/chapter3/experiment_pipeline.pdf}
+\caption{Experiment pipeline diagram (reused from final report), illustrating the sequence from TOML configuration parsing and Docker lifecycle management down to metric generation. I developed the scripts that coordinate this automated procedure.}
+\label{fig:benchmark_workflow}
+\end{figure}
 
 \begin{table}[!htbp]
 \centering
 \caption{Benchmark Automation Scripts}
 \label{tab:automation_scripts}
 \small
-\setlength{\tabcolsep}{4pt}
-\renewcommand{\arraystretch}{1.25}
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\textwidth}{|
 >{\raggedright\arraybackslash}p{0.24\textwidth}|
 >{\raggedright\arraybackslash}p{0.28\textwidth}|
@@ -47,6 +55,8 @@ The benchmark suite was important because the final research results depended on
 The experiment matrix was defined in \path{benchmark-suite/config/experiments.toml}, with commit evidence from \texttt{9b282f0}. This file provides the configurable input space for benchmark execution. Instead of hardcoding experiment settings inside shell scripts, the TOML file defines the parameters that the orchestration layer can iterate over.
 
 The configuration captures experiment variables such as data availability mode, workload rate, batch sizes, sequencing policies, and repeats. 
+
+Furthermore, the workload can maintain an 8 TPS base rate and periodically inject an 80 TPS burst, a configuration verified and heavily analyzed during the benchmark stages.
 
 Exact excerpt from \path{benchmark-suite/config/experiments.toml}:
 \begin{lstlisting}[language=bash, numbers=left, breaklines=true, basicstyle=\ttfamily\small]

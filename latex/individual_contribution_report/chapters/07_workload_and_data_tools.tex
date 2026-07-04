@@ -28,6 +28,19 @@ For example, at a target rate of 100 transactions per second, a constant-rate ge
 
 The generated workload consists mainly of transfer-style transactions. These transaction structures are defined in supporting workload files such as \path{benchmark-suite/workload/tx_types.py}, where present in the repository. A generated transaction typically includes fields such as sender, receiver, amount, nonce or sequence-related metadata, and optional fee or priority information depending on the benchmark configuration.
 
+The core arrival logic depends on an exponential distribution to determine the sleep time between transactions, rather than a fixed interval.
+
+\noindent
+Exact excerpt from \path{benchmark-suite/workload/poisson_generator.py}:
+
+\begin{lstlisting}[language=Python, numbers=left, breaklines=true, basicstyle=\ttfamily\small]
+def _arrival_loop(self, is_burst: bool, target_rate: float, end_time: float, record_to: list, label: str):
+    while time.time() < end_time:
+        if not is_burst:
+            delay = self.rng_arrival.expovariate(target_rate)
+            time.sleep(delay)
+\end{lstlisting}
+
 At a code-flow level, the workload generator performs the following steps:
 
 \begin{enumerate}
@@ -102,7 +115,14 @@ The plotting layer made the experimental results easier to interpret. Instead of
 
 \section{Data Analysis Pipeline and Flow}
 
-The workload generator and data tools form the two ends of the benchmark process. The evaluation phase required synthesizing distributed outputs. My pipeline logic transforms: Raw service logs $\rightarrow$ aggregation $\rightarrow$ statistics $\rightarrow$ plots $\rightarrow$ final report evaluation.
+Figure \ref{fig:data_pipeline} shows the sequential flow of metrics through the data analysis pipeline.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{../final_report/figures/chapter5/result_analysis_pipeline.png}
+\caption{Result analysis pipeline diagram (reused from final report) showing how raw metrics are aggregated into final evaluation plots through the data tools I developed.}
+\label{fig:data_pipeline}
+\end{figure}
 
 Table \ref{tab:data_analysis} summarizes the components involved in the data analysis pipeline.
 
@@ -112,8 +132,8 @@ Table \ref{tab:data_analysis} summarizes the components involved in the data ana
 \caption{Data Analysis Pipeline Components}
 \label{tab:data_analysis}
 \small
-\setlength{\tabcolsep}{4pt}
-\renewcommand{\arraystretch}{1.25}
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\textwidth}{|
 >{\raggedright\arraybackslash}p{0.22\textwidth}|
 >{\raggedright\arraybackslash}p{0.22\textwidth}|

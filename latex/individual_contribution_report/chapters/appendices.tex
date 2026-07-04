@@ -81,7 +81,7 @@ The contribution analysis considered the integrated RollupX repository and the c
 \section*{Appendix C -- Code Contribution Map and Evidence Tables}
 \addcontentsline{toc}{section}{Appendix C -- Code Contribution Map and Evidence Tables}
 This section summarizes the key evidence, input-output data flows, bug fixes, and exact file mappings proving my individual technical workload.
-\begin{table}[h!]\centering
+\begin{table}[!htbp]\centering
 \caption{Table A — Individual Code Contribution Map}
 \label{tab:code_contribution_map}
 \begin{tabularx}{\textwidth}{|l|l|X|X|}
@@ -96,7 +96,7 @@ Benchmark & \seqsplit{poisson\_generator.py} & Exponential inter-arrival delay l
 Data & \texttt{aggregate.py} & Batch ID joining and metric extraction. & Enabled end-to-end latency calculations from raw logs. \\ \hline
 \end{tabularx}
 \end{table}
-\begin{table}[h!]\centering
+\begin{table}[!htbp]\centering
 \caption{Table B — Input / Output Code Flow}
 \label{tab:input_output_flow}
 \begin{tabularx}{\textwidth}{|l|l|X|X|X|}
@@ -107,7 +107,7 @@ Smart Contract & Batch Payload & \texttt{commitBatch} $\rightarrow$ \texttt{prov
 Data Aggregation & JSONL Logs & \texttt{aggregate.py} $\rightarrow$ merges by \texttt{batch\_id} & Merged CSV Metrics & \texttt{stats.py} / Evaluators \\ \hline
 \end{tabularx}
 \end{table}
-\begin{table}[h!]\centering
+\begin{table}[!htbp]\centering
 \caption{Table C — Verified Bug Fixes}
 \label{tab:verified_bug_fixes}
 \begin{tabularx}{\textwidth}{|X|X|X|l|X|}
@@ -120,13 +120,13 @@ Address Parsing Error & Executor crashed on \texttt{0x}-prefixed addresses from 
 \end{table}
 
 
-\begin{table}[!htbp]
+\begin{table}[!htbp]\small\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.15}
 \centering
 \caption{Evidence Strength Summary}
 \label{tab:evidence_strength}
 \small
 \setlength{\tabcolsep}{4pt}
-\renewcommand{\arraystretch}{1.25}
+\renewcommand{\arraystretch}{1.15}
 \begin{tabularx}{\textwidth}{|
 >{\raggedright\arraybackslash}p{0.28\textwidth}|
 >{\raggedright\arraybackslash}p{0.32\textwidth}|

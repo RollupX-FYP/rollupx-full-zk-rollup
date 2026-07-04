@@ -41,11 +41,17 @@ The inputs to this function correspond directly to the payload prepared by the S
 
 The technical value of this design is that the Submitter can call one stable contract interface while the benchmark framework changes the DA or verifier configuration. This makes the L1 settlement path modular. Instead of hardcoding one DA mechanism or one verifier, the bridge uses identifiers such as \texttt{daId} and \texttt{verifierId} to select the appropriate contract-side logic. Table \ref{tab:contract_components} details these component responsibilities.
 
-\begin{table}[h!]
+\begin{table}[!htbp]
 \centering
 \caption{Contract Component Responsibilities}
 \label{tab:contract_components}
-\begin{tabularx}{\textwidth}{|X|X|X|}
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{\textwidth}{|
+>{\raggedright\arraybackslash}p{0.25\textwidth}|
+>{\raggedright\arraybackslash}X|
+>{\raggedright\arraybackslash}X|}
 \hline
 \textbf{Contract Component} & \textbf{Responsibility} & \textbf{Connected Submitter Data} \\ \hline
 \texttt{commitBatch} Router & Parses incoming L1 tx and routes to appropriate DA/verifier. & Core arguments (DA/Verifier IDs). \\ \hline
@@ -54,6 +60,26 @@ Verifier (\texttt{IVerifier}) & Validates the state transition via zk-SNARK or m
 State Root Updater & Finalizes the batch and emits \texttt{BatchCommitted}. & \texttt{newRoot}. \\ \hline
 \end{tabularx}
 \end{table}
+
+To connect the Submitter to this contract interface, I implemented the \texttt{BridgeClient} trait in the Submitter service, which maps directly to the \texttt{commitBatch} contract signature. This abstraction provides a testable interface for Layer-1 interactions.
+
+\noindent
+Exact excerpt from \path{submitter/src/infrastructure/ethereum_adapter.rs}:
+
+\begin{lstlisting}[language=Rust, numbers=left, breaklines=true, basicstyle=\ttfamily\small]
+#[async_trait]
+pub trait BridgeClient: BridgeReader + Send + Sync {
+    async fn commit_batch(
+        &self,
+        da_id: u8,
+        verifier_id: u8,
+        batch_data: Bytes,
+        da_meta: Bytes,
+        new_root: [u8; 32],
+        proof: Bytes,
+    ) -> Result<H256, DomainError>;
+}
+\end{lstlisting}
 
 If the data availability check and verifier check succeed, the bridge records the new state root. This update represents the benchmark model of L1 finalization for the submitted batch. The contract also emits a batch commitment event, which can be used by the Submitter or benchmark tooling to confirm that the submission reached the L1 boundary.
 
@@ -111,19 +137,7 @@ The smart contract contribution also included integration with the local develop
 
 This deployment step is important because the Submitter requires deployed contract addresses before it can submit batches. During benchmark execution, the contract deployment output becomes part of the configuration passed into the Submitter. The Submitter then calls the bridge contract through its Ethereum adapter, and the bridge contract invokes the configured DA and verifier components.
 
-The resulting integration path is:
-
-\begin{center}
-\texttt{Submitter}
-$\rightarrow$
-\texttt{ZKRollupBridge}
-$\rightarrow$
-\texttt{DA Provider}
-$\rightarrow$
-\texttt{Verifier}
-$\rightarrow$
-\texttt{State Root Update}
-\end{center}
+The resulting integration path follows the settlement architecture outlined previously. The Submitter acts as the single point of entry from the Layer-2 system, passing the finalized payload to the \texttt{ZKRollupBridge}. The bridge then orchestrates the validation of the data availability mode and the proof verification before updating the state root.
 
 This contract layer therefore completed the L1 side of the benchmarking pipeline. It provided the settlement endpoint required for testing calldata, blob-style, and mock-verifier configurations, and it enabled the Submitter to measure L1 submission behaviour as part of the full RollupX experiment workflow.
 
