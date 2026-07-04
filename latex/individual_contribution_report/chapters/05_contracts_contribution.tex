@@ -13,8 +13,11 @@ At a high level, the bridge contract performs four responsibilities. First, it r
 \section{Code-Level Implementation: \texttt{ZKRollupBridge.sol}}
 
 The key function in the bridge contract is the batch commitment function. Its purpose is to provide one common L1 submission interface that can support multiple data availability and verification configurations.
+\newpage
+\noindent
+Exact excerpt from \path{contracts/contracts/bridge/ZKRollupBridge.sol}:
 
-\begin{lstlisting}[basicstyle=\ttfamily\small]
+\begin{lstlisting}[language=C, numbers=left, breaklines=true, basicstyle=\ttfamily\small]
 function commitBatch(
     uint8 daId,
     uint8 verifierId,
@@ -22,7 +25,7 @@ function commitBatch(
     bytes calldata daMeta,
     bytes32 newRoot,
     bytes calldata proof
-) external nonReentrant onlySequencer
+) external {
 \end{lstlisting}
 
 The inputs to this function correspond directly to the payload prepared by the Submitter:
@@ -36,7 +39,21 @@ The inputs to this function correspond directly to the payload prepared by the S
     \item \texttt{proof}: contains proof bytes or proof metadata depending on the configured verifier path.
 \end{itemize}
 
-The technical value of this design is that the Submitter can call one stable contract interface while the benchmark framework changes the DA or verifier configuration. This makes the L1 settlement path modular. Instead of hardcoding one DA mechanism or one verifier, the bridge uses identifiers such as \texttt{daId} and \texttt{verifierId} to select the appropriate contract-side logic.
+The technical value of this design is that the Submitter can call one stable contract interface while the benchmark framework changes the DA or verifier configuration. This makes the L1 settlement path modular. Instead of hardcoding one DA mechanism or one verifier, the bridge uses identifiers such as \texttt{daId} and \texttt{verifierId} to select the appropriate contract-side logic. Table \ref{tab:contract_components} details these component responsibilities.
+
+\begin{table}[h!]
+\centering
+\caption{Contract Component Responsibilities}
+\label{tab:contract_components}
+\begin{tabularx}{\textwidth}{|X|X|X|}
+\hline
+\textbf{Contract Component} & \textbf{Responsibility} & \textbf{Connected Submitter Data} \\ \hline
+\texttt{commitBatch} Router & Parses incoming L1 tx and routes to appropriate DA/verifier. & Core arguments (DA/Verifier IDs). \\ \hline
+DA Provider (\texttt{IDAProvider}) & Validates commitment and extracts metadata. & \texttt{batchData} and \texttt{daMeta}. \\ \hline
+Verifier (\texttt{IVerifier}) & Validates the state transition via zk-SNARK or mock validation. & \texttt{newRoot}, DA commitment, \texttt{proof}. \\ \hline
+State Root Updater & Finalizes the batch and emits \texttt{BatchCommitted}. & \texttt{newRoot}. \\ \hline
+\end{tabularx}
+\end{table}
 
 If the data availability check and verifier check succeed, the bridge records the new state root. This update represents the benchmark model of L1 finalization for the submitted batch. The contract also emits a batch commitment event, which can be used by the Submitter or benchmark tooling to confirm that the submission reached the L1 boundary.
 
@@ -84,7 +101,7 @@ A real verifier interface or implementation, where present, provides the contrac
 
 The bridge contract includes safety-related constraints around who can submit batches and how submissions are accepted. The \texttt{onlySequencer} modifier shown in the batch commitment function restricts batch submission to the configured submitting role. This prevents arbitrary callers from committing invalid state roots during benchmark execution.
 
-The \texttt{nonReentrant} modifier protects the batch commitment function from re-entrant execution. Although the benchmark environment is local and controlled, using this pattern improves the correctness of the settlement contract design and keeps the implementation closer to realistic smart contract engineering practices.
+Although the benchmark environment is local and controlled, keeping the implementation closer to realistic smart contract engineering practices prevents testing edge cases from silently hiding bugs.
 
 Where custom errors, events, or role-management logic are present, they support clearer failure handling and observability. For example, a failed DA check or verifier check should prevent the bridge from updating the latest state root. This is important because the Submitter depends on the L1 receipt status to decide whether a batch submission was actually successful.
 

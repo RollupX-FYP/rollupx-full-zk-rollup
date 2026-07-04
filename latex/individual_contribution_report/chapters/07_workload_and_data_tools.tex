@@ -12,20 +12,15 @@ The workload generator should be interpreted as a synthetic benchmark tool rathe
 
 The main workload generation logic is located in \path{benchmark-suite/workload/poisson_generator.py}. The script uses an exponential inter-arrival distribution to model the time gaps between transactions. This is the standard way to generate arrivals for a Poisson process. If the target rate is \texttt{rate\_tps}, then the mean inter-arrival time is approximately \texttt{1 / rate\_tps} seconds.
 
-The core idea is shown below:
+Exact excerpt from \path{benchmark-suite/workload/poisson\_generator.py}:
 
-\begin{lstlisting}[language=Python, basicstyle=\ttfamily\small]
-import numpy as np
-
-def generate_poisson_arrivals(rate_tps, num_txs):
-    inter_arrivals = np.random.exponential(
-        1.0 / rate_tps,
-        num_txs
-    )
-    return inter_arrivals
+\begin{lstlisting}[language=Python, numbers=left, breaklines=true, basicstyle=\ttfamily\small]
+offered_rate = self._rate_at(time.time() - phase_start)
+wait = self.rng_arrival.expovariate(offered_rate)
+next_send += wait
 \end{lstlisting}
 
-The input to this function is the target transaction rate and the number of transactions to generate. The output is a sequence of inter-arrival delays. During benchmark execution, these delays determine when each synthetic transaction is submitted to the Sequencer.
+This mathematically derived delay controls the target TPS while maintaining stochastic variance, validating our adaptive batching under burst conditions. The input to this function is the target transaction rate and the number of transactions to generate. The output is a sequence of inter-arrival delays. During benchmark execution, these delays determine when each synthetic transaction is submitted to the Sequencer.
 
 For example, at a target rate of 100 transactions per second, a constant-rate generator would submit one transaction every 10 milliseconds. In contrast, the Poisson-based generator produces variable inter-arrival times whose average rate is still close to 100 transactions per second. This creates short bursts and gaps, which helps test the Sequencer's queue management, batching triggers, and timeout behaviour under a more challenging input pattern.
 
@@ -56,18 +51,23 @@ The data tools are important because they connect raw system logs to the empiric
 
 \section{Code-Level Implementation: Aggregation}
 
-The aggregation logic is implemented in \path{data-tools/aggregate.py}. Its purpose is to read raw metric files from different RollupX services and combine them into a unified representation of each transaction or batch lifecycle.
+The aggregation logic is implemented in \path{data-tools/aggregate.py}. Its purpose is to read raw metric files from different RollupX services and combine them into a unified representation of each transaction or batch lifecycle. The script generally loads raw benchmark output files from the result directory, parses JSON/CSV metric records, extracts common identifiers, and joins related records.
 
-The script generally performs the following responsibilities:
+The following simplified snippet represents the implementation logic for aggregating records by Batch ID:
 
-\begin{enumerate}
-    \item loads raw benchmark output files from the result directory;
-    \item parses JSON, JSONL, or CSV metric records depending on the service output format;
-    \item extracts common identifiers such as transaction IDs, batch IDs, run IDs, or configuration names;
-    \item joins related records across services using those identifiers;
-    \item normalizes field names and timestamps where required;
-    \item writes an aggregated output file that can be consumed by statistical and plotting scripts.
-\end{enumerate}
+\begin{lstlisting}[language=Python, numbers=left, breaklines=true, basicstyle=\ttfamily\small]
+def merge_by_batch_id(seq_logs, exec_logs, sub_logs):
+    merged = {}
+    for log in seq_logs:
+        merged[log['batch_id']] = {'seq_time': log['timestamp']}
+    for log in exec_logs:
+        if log['batch_id'] in merged:
+            merged[log['batch_id']]['exec_time'] = log['timestamp']
+    for log in sub_logs:
+        if log['batch_id'] in merged:
+            merged[log['batch_id']]['sub_time'] = log['timestamp']
+    return merged
+\end{lstlisting}
 
 The key technical challenge in this component is that each service produces metrics from a different stage of the pipeline. The aggregation layer therefore acts as a bridge between service-level observability and experiment-level analysis. It allows the benchmark framework to reconstruct how a workload moved from transaction submission, through batching and execution, to proof generation and L1 settlement.
 
@@ -100,40 +100,60 @@ I also contributed plotting scripts under \path{data-tools/plots/} to convert ag
 
 The plotting layer made the experimental results easier to interpret. Instead of inspecting raw numeric tables only, the final analysis could compare configuration trade-offs visually. This was especially useful for identifying whether one configuration dominated another or whether a lower-cost mode introduced unacceptable latency or finalization-time overhead.
 
-\section{Input and Output Flow}
+\section{Data Analysis Pipeline and Flow}
 
-The workload generator and data tools form the two ends of the benchmark process. The workload generator creates controlled input traffic, while the data tools process the observed outputs. Their relationship can be summarized as follows:
+The workload generator and data tools form the two ends of the benchmark process. The evaluation phase required synthesizing distributed outputs. My pipeline logic transforms: Raw service logs $\rightarrow$ aggregation $\rightarrow$ statistics $\rightarrow$ plots $\rightarrow$ final report evaluation.
+
+Table \ref{tab:data_analysis} summarizes the components involved in the data analysis pipeline.
+
 
 \begin{table}[!htbp]
 \centering
-\caption{Workload generator and data-tools input/output flow}
-\label{tab:workload_data_tools_flow}
-\begin{tabularx}{\textwidth}{|p{0.24\textwidth}|p{0.28\textwidth}|X|}
+\caption{Data Analysis Pipeline Components}
+\label{tab:data_analysis}
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{\textwidth}{|
+>{\raggedright\arraybackslash}p{0.22\textwidth}|
+>{\raggedright\arraybackslash}p{0.22\textwidth}|
+>{\raggedright\arraybackslash}p{0.24\textwidth}|
+>{\raggedright\arraybackslash}X|}
 \hline
-\textbf{Component} & \textbf{Input} & \textbf{Output} \\ \hline
+\textbf{Tool} &
+\textbf{Input} &
+\textbf{Computed Output} &
+\textbf{Used For} \\ \hline
 
-\texttt{poisson\_generator.py} &
-Target rate, transaction count, seed, workload configuration &
-Synthetic transfer-style transactions and submission timing \\ \hline
+\path{aggregate.py} &
+Raw JSON/JSONL/CSV service metrics &
+Merged benchmark dataset grouped by run, batch, or transaction identifiers &
+Combining Sequencer, Executor, Prover, and Submitter outputs into a single analysis-ready dataset. \\ \hline
 
-Sequencer and rollup services &
-Generated transactions &
-Raw service metrics such as queueing, batching, execution, proof, and submission records \\ \hline
-
-\texttt{aggregate.py} &
-Raw JSON, JSONL, or CSV metric files &
-Joined and normalized benchmark dataset \\ \hline
-
-\texttt{stats.py} &
+\path{stats.py} &
 Aggregated benchmark dataset &
-Summary metrics such as throughput, latency percentiles, finalization time, cost, and DA footprint \\ \hline
+Throughput, P50/P95/P99 latency, finalization time, gas/cost summaries, and DA-footprint metrics &
+Computing the numerical results used to compare benchmark configurations. \\ \hline
 
-Plotting scripts &
-Summary metrics and aggregated data &
-Evaluation figures such as latency CDFs, cost heatmaps, and Pareto-frontier plots \\ \hline
+\path{latency_cdf.py} &
+Aggregated latency values &
+Latency cumulative distribution function plots &
+Visualizing latency distribution and tail-latency behaviour across configurations. \\ \hline
+
+\path{cost_heatmap.py} &
+Cost, batch, workload, and DA-mode result summaries &
+Cost heatmaps across experiment dimensions &
+Comparing how different batch sizes, workload levels, and DA modes affect cost behaviour. \\ \hline
+
+\path{pareto_frontier.py} &
+Cost-versus-latency or cost-versus-throughput summaries &
+Pareto-style trade-off plots &
+Identifying configurations that balance performance and cost effectively. \\ \hline
 
 \end{tabularx}
 \end{table}
+
+
 
 \section{Technical Impact}
 

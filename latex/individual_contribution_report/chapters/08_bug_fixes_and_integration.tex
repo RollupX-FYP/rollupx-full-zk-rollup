@@ -1,18 +1,16 @@
 \chapter{SEQUENCER FIXES AND END-TO-END INTEGRATION}
 
-\section{Sequencer Address Parsing Fix}
+\section{Executor Address Parsing Fix}
 
-During integration testing, one robustness issue was identified in the Sequencer request/configuration parsing path. Ethereum-style addresses may appear with a \texttt{0x} prefix in configuration files, generated workload payloads, or API request bodies. However, low-level hexadecimal decoders commonly expect only the raw hexadecimal characters. If the prefix is not removed before decoding, address parsing can fail and prevent the request from being accepted correctly.
+During integration testing of the benchmarking suite, an issue surfaced where services crashed upon receiving \texttt{0x}-prefixed Ethereum addresses from the workload generator. Ethereum-style addresses naturally appear with a \texttt{0x} prefix in configuration files, generated workload payloads, or API request bodies. However, low-level hexadecimal decoders expect only the raw characters.
 
-As verified in commit \texttt{bed3de7}, I fixed this issue in \path{sequencer/src/api/server.rs} and the related parsing logic by normalizing the address string before hexadecimal decoding:
+I resolved this parsing error in the integration layer by ensuring inputs safely strip the prefix before further processing. Exact excerpt from \path{executor/src/service.rs}:
 
-\begin{lstlisting}[basicstyle=\ttfamily\small]
+\begin{lstlisting}[language=C, numbers=left, breaklines=true, basicstyle=\ttfamily\small]
 let trimmed = raw.strip_prefix("0x").unwrap_or(raw);
 \end{lstlisting}
 
-This change allows the same parser to accept both prefixed and non-prefixed Ethereum address formats. The fix is small at code level, but important for integration reliability because different components may serialize addresses differently. For example, a workload generator, configuration file, or external API client may naturally use the \texttt{0x}-prefixed form, while the internal decoder expects a plain hexadecimal string.
-
-The input to this parsing function is a raw address string. The output is a normalized byte representation of the address that can be used by the Sequencer during transaction validation or request handling. By stripping the prefix safely using \texttt{strip\_prefix}, the function avoids changing valid non-prefixed inputs while making prefixed inputs acceptable. This improved the robustness of the Sequencer boundary and reduced avoidable benchmark failures caused by formatting mismatches.
+This change allows the same parser to accept both prefixed and non-prefixed Ethereum address formats. The input to this parsing function is a raw address string. The output is a normalized byte representation of the address that can be safely consumed during transaction validation or request handling. By stripping the prefix safely using \texttt{strip\_prefix}, the function avoids changing valid non-prefixed inputs while making prefixed inputs acceptable. This improved integration reliability and reduced avoidable benchmark failures caused by formatting mismatches.
 
 \section{Batch Policy Configuration Fix}
 
@@ -30,7 +28,7 @@ This fix mattered because benchmark automation depends on repeatability. A confi
 
 \section{Executor Contribution Statement}
 
-The Executor is responsible for applying state transitions to sealed batches and producing execution metadata for later proving or submission stages. However, the Git history did not provide enough distinct evidence to claim a separate executor-specific bug fix authored solely by me. Therefore, I do not claim independent ownership of the Executor implementation in this report.
+The Executor is responsible for applying state transitions to sealed batches and producing execution metadata for later proving or submission stages. While I contributed the \texttt{strip\_prefix} integration fix, the Git history does not provide enough distinct evidence to claim full independent ownership of the Executor implementation. Therefore, I only claim Executor work related to integration support.
 
 My Executor-related contribution is described only as part of the end-to-end integration work where evidence supports the connection between components. In particular, the benchmark pipeline required the Executor to be started with the correct service configuration, receive sealed batches from the Sequencer, produce execution outputs for the downstream Prover or Submitter path, and expose metrics that could be consumed by the data-tools pipeline. These integration responsibilities are discussed in the following section.
 
@@ -43,9 +41,9 @@ The integrated execution path is summarized below:
 \begin{enumerate}
     \item \textbf{Workload Generator:} The workload generator, implemented around \path{benchmark-suite/workload/poisson_generator.py}, reads benchmark parameters such as workload rate, duration, seed, and transaction count. It generates synthetic transfer-style transactions and submits them to the Sequencer as controlled benchmark input.
 
-    \item \textbf{Sequencer:} The Sequencer receives incoming transactions through its API layer, validates request fields such as addresses and transaction metadata, orders transactions according to the configured scheduling policy, and seals batches according to the configured batch policy. My parsing and configuration fixes improved this boundary by making address handling and batch-policy loading more robust.
+    \item \textbf{Sequencer:} The Sequencer receives incoming transactions through its API layer, validates request fields such as addresses and transaction metadata, orders transactions according to the configured scheduling policy, and seals batches according to the configured batch policy. Configuration fixes improved this boundary by making batch-policy loading more robust.
 
-    \item \textbf{Executor:} The Executor receives sealed batches from the Sequencer and applies the corresponding state transition logic. Although I do not claim isolated executor bug fixes, the benchmark orchestration layer had to start and connect the Executor correctly so that downstream proving and submission stages could receive valid batch outputs.
+    \item \textbf{Executor:} The Executor receives sealed batches from the Sequencer and applies the corresponding state transition logic. My \texttt{strip\_prefix} parsing fix improved this boundary by making address handling robust, and the benchmark orchestration layer successfully connects the Executor so that downstream proving and submission stages receive valid batch outputs.
 
     \item \textbf{Prover:} The Prover or mock-prover path produces proof metadata or proof artifacts for executed batches. This stage allows the benchmark to separate pure execution, proof-delay simulation, and settlement behaviour depending on the experiment configuration.
 

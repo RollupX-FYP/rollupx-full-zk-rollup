@@ -94,8 +94,8 @@ Added a Sequencer readiness wait/polling step before starting workload generatio
 
 Ethereum address parsing mismatch &
 \texttt{bed3de7} &
-\path{sequencer/src/api/server.rs} &
-Normalized address strings using \texttt{strip\_prefix("0x")} before hexadecimal decoding. This allowed both prefixed and non-prefixed Ethereum-style addresses to be accepted by the Sequencer parsing path. \\ \hline
+\path{executor/src/service.rs} &
+Normalized address strings using \texttt{strip\_prefix("0x")} before hexadecimal decoding. This allowed both prefixed and non-prefixed Ethereum-style addresses to be accepted by the integration parsing path. \\ \hline
 
 Batching policy configuration inconsistency &
 \texttt{bed3de7} &
@@ -129,7 +129,7 @@ This validation path is important because the final evaluation depended on measu
 
 The RollupX project was developed collaboratively, and some commits contain large mixed updates across multiple modules. Therefore, this report avoids claiming full ownership of shared components unless the Git evidence clearly supports the claim.
 
-In particular, the core state-transition logic inside the \path{executor/} directory and some of the complex scheduling logic inside the \path{sequencer/} directory appear in large collaborative commits. For these modules, I only claim verifiable integration and bug-fix contributions, such as address parsing robustness and batching configuration consistency. I do not claim sole ownership of the Executor implementation or the complete Sequencer scheduling subsystem.
+In particular, the core state-transition logic inside the \path{executor/} directory and some of the complex scheduling logic inside the \path{sequencer/} directory appear in large collaborative commits. For these modules, I only claim verifiable integration and bug-fix contributions, such as Executor address parsing robustness and batching configuration consistency. I do not claim sole ownership of the Executor implementation or the complete Sequencer scheduling subsystem.
 
 Similarly, some contract and integration commits include multiple files added together as part of a larger system update. Where exact authorship cannot be separated at function level, the contribution is described as implementation or integration work supported by commit authorship and changed-file evidence, but not overstated as exclusive ownership of the entire subsystem.
 

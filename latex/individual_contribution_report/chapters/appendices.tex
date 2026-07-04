@@ -1,25 +1,17 @@
 \chapter{APPENDICES}
-
 \section*{Appendix A -- Git Commands Used for Evidence Collection}
 \addcontentsline{toc}{section}{Appendix A -- Git Commands Used for Evidence Collection}
-
 This appendix lists the main Git commands used to collect evidence for the individual contribution analysis. These commands were used to inspect author history, identify relevant commits, review file-level changes, and verify specific bug fixes across all available repository branches.
-
-\begin{lstlisting}[language=bash, basicstyle=\ttfamily\small]
+\begin{lstlisting}[language=bash, basicstyle=\ttfamily]
 # List all local and remote branches
 git branch -a
-
 # Summarize all contributors across all branches
 git shortlog -sne --all
-
 # Search commit history using known author aliases
-
 git log --all --author="UchihaIthachi" --stat
 git log --all --author="Harshana-2000" --stat
-
 # Show compact commit history with branch information
 git log --all --oneline --decorate --graph --author="Harshana"
-
 # Inspect changed files in major contribution commits
 git show --stat e4dad07
 git show --name-status e4dad07
@@ -29,14 +21,12 @@ git show --stat bc90d40
 git show --name-status bc90d40
 git show --stat bed3de7
 git show --name-status bed3de7
-
 # Inspect detailed code diffs for contribution areas
 git show --function-context e4dad07 -- submitter/
 git show --function-context 9b282f0 -- benchmark-suite/
 git show --function-context bc90d40 -- data-tools/
 git show --function-context bed3de7 -- contracts/
 git show --function-context bed3de7 -- sequencer/
-
 # Trace file history for important files
 git log --all --follow -- submitter/src/infrastructure/da_calldata.rs
 git log --all --follow -- submitter/src/infrastructure/da_blob.rs
@@ -46,51 +36,39 @@ git log --all --follow -- benchmark-suite/scripts/wait_for_sequencer.sh
 git log --all --follow -- benchmark-suite/workload/poisson_generator.py
 git log --all --follow -- data-tools/aggregate.py
 git log --all --follow -- contracts/contracts/bridge/ZKRollupBridge.sol
-
 # Verify line-level authorship where needed
 git blame submitter/src/infrastructure/da_calldata.rs
 git blame submitter/src/infrastructure/da_blob.rs
 git blame sequencer/src/api/server.rs
 git blame benchmark-suite/scripts/wait_for_sequencer.sh
-
 # Verify the Submitter L1 revert-status fix
 git show e4dad07 -- submitter/src/infrastructure/da_calldata.rs \
     | grep -n "status.as_u64"
-
 git show e4dad07 -- submitter/src/infrastructure/da_blob.rs \
     | grep -n "status.as_u64"
-
 # Verify Sequencer address prefix parsing fix
 git show bed3de7 -- sequencer/ \
     | grep -n "strip_prefix"
-
 # Verify benchmark readiness wait logic
 git show 9b282f0 -- benchmark-suite/scripts/wait_for_sequencer.sh
-
 # Verify benchmark and workload generator contribution
 git show 9b282f0 -- benchmark-suite/config/experiments.toml
 git show 9b282f0 -- benchmark-suite/workload/poisson_generator.py
 git show 9b282f0 -- benchmark-suite/scripts/run_matrix.sh
 git show 9b282f0 -- benchmark-suite/scripts/run_experiment.sh
-
 # Verify data-tools contribution
 git show bc90d40 -- data-tools/aggregate.py
 git show bc90d40 -- data-tools/stats.py
 git show bc90d40 -- data-tools/plots/
-
 # Verify smart contract contribution
 git show bed3de7 -- contracts/contracts/bridge/ZKRollupBridge.sol
 git show bed3de7 -- contracts/contracts/da/
 git show bed3de7 -- contracts/contracts/verifiers/
 \end{lstlisting}
-
 The commands above were used to avoid relying only on commit messages. For example, broad commits such as \texttt{update} were inspected using \texttt{git show}, \texttt{git diff}, and \texttt{git blame} so that the report could identify the actual files, functions, scripts, and bug fixes introduced by the contributor.
-
 \section*{Appendix B -- Evidence Repositories}
 \addcontentsline{toc}{section}{Appendix B -- Evidence Repositories}
-
 The contribution analysis considered the integrated RollupX repository and the connected component repositories. These repositories were reviewed because some components were initially developed separately and later integrated into the main project repository.
-
 \begin{itemize}
     \item Personal GitHub profile: \url{https://github.com/UchihaIthachi}
     \item Project organization: \url{https://github.com/RollupX-FYP}
@@ -100,15 +78,100 @@ The contribution analysis considered the integrated RollupX repository and the c
     \item Smart contracts repository: \url{https://github.com/RollupX-FYP/contracts}
     \item Data tools repository: \url{https://github.com/RollupX-FYP/data-tools}
 \end{itemize}
+\section*{Appendix C -- Code Contribution Map and Evidence Tables}
+\addcontentsline{toc}{section}{Appendix C -- Code Contribution Map and Evidence Tables}
+This section summarizes the key evidence, input-output data flows, bug fixes, and exact file mappings proving my individual technical workload.
+\begin{table}[h!]\centering
+\caption{Table A — Individual Code Contribution Map}
+\label{tab:code_contribution_map}
+\begin{tabularx}{\textwidth}{|l|l|X|X|}
+\hline
+\textbf{Area} & \textbf{File} & \textbf{What I Implemented} & \textbf{Technical Importance} \\ \hline
+Submitter & \texttt{orchestrator.rs} & Batch processing loop and state transitions. & Enabled automated L1 batch settlement. \\ \hline
+Submitter & \seqsplit{ethereum\_adapter.rs} & \texttt{BridgeClient} trait and Ethereum RPC integration. & Decoupled L1 interaction; allowed mock-testing DA strategies. \\ \hline
+Submitter & \seqsplit{da\_blob.rs} \seqsplit{da\_calldata.rs} & DA specific commitment generation and metadata encoding. & Provided configurable DA methods for empirical comparison. \\ \hline
+Contracts & \seqsplit{ZKRollupBridge.sol} & \texttt{commitBatch} logic, DA routing, Verifier routing. & Handled L1 batch finality and state root updates. \\ \hline
+Benchmark & \seqsplit{wait\_for\_sequencer.sh} & API readiness polling script for the Sequencer. & Resolved Docker startup race conditions. \\ \hline
+Benchmark & \seqsplit{poisson\_generator.py} & Exponential inter-arrival delay logic for workload. & Allowed mathematically rigorous synthetic TPS generation. \\ \hline
+Data & \texttt{aggregate.py} & Batch ID joining and metric extraction. & Enabled end-to-end latency calculations from raw logs. \\ \hline
+\end{tabularx}
+\end{table}
+\begin{table}[h!]\centering
+\caption{Table B — Input / Output Code Flow}
+\label{tab:input_output_flow}
+\begin{tabularx}{\textwidth}{|l|l|X|X|X|}
+\hline
+\textbf{Component} & \textbf{Input} & \textbf{Main Code Path} & \textbf{Output} & \textbf{Downstream Consumer} \\ \hline
+Submitter Flow & Finalized Batch & \texttt{Orchestrator::process\_batch} $\rightarrow$ \texttt{DaStrategy::submit} & Tx Hash \& Soft Confirmation & Data-tools pipeline \\ \hline
+Smart Contract & Batch Payload & \texttt{commitBatch} $\rightarrow$ \texttt{provider.validateDA} $\rightarrow$ \texttt{verifier.verifyProof} & \texttt{BatchCommitted} Event & L1 Explorers / Rollup Monitors \\ \hline
+Data Aggregation & JSONL Logs & \texttt{aggregate.py} $\rightarrow$ merges by \texttt{batch\_id} & Merged CSV Metrics & \texttt{stats.py} / Evaluators \\ \hline
+\end{tabularx}
+\end{table}
+\begin{table}[h!]\centering
+\caption{Table C — Verified Bug Fixes}
+\label{tab:verified_bug_fixes}
+\begin{tabularx}{\textwidth}{|X|X|X|l|X|}
+\hline
+\textbf{Bug} & \textbf{Root Cause} & \textbf{Code Fix} & \textbf{File} & \textbf{Impact on Benchmark Validity} \\ \hline
+False Positive Submissions & A mined L1 tx could be a reverted execution, but was marked success. & Added receipt-status check (\texttt{status == 1}) before confirmation. & \seqsplit{da\_calldata.rs} \& \seqsplit{da\_blob.rs} & Prevented failed batches from silently corrupting benchmark metrics. \\ \hline
+Startup Race Condition & Workload generator fired before Sequencer API was fully ready. & Added a polling loop (\texttt{wait\_for\_sequencer.sh}) blocking on \texttt{/health}. & \seqsplit{wait\_for\_sequencer.sh} & Stabilized automated benchmarking, preventing random failures. \\ \hline
+Address Parsing Error & Executor crashed on \texttt{0x}-prefixed addresses from generator. & Implemented \texttt{strip\_prefix("0x")} fallback parsing. & \texttt{service.rs} & Allowed seamless integration between benchmark suite and rust Executor. \\ \hline
+\end{tabularx}
+\end{table}
 
-\section*{Appendix C -- Main Commit Evidence}
-\addcontentsline{toc}{section}{Appendix C -- Main Commit Evidence}
 
-The main commits used as contribution evidence are summarized below:
+\begin{table}[!htbp]
+\centering
+\caption{Evidence Strength Summary}
+\label{tab:evidence_strength}
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabularx}{\textwidth}{|
+>{\raggedright\arraybackslash}p{0.28\textwidth}|
+>{\raggedright\arraybackslash}p{0.32\textwidth}|
+>{\raggedright\arraybackslash}X|}
+\hline
+\textbf{Claim} &
+\textbf{Evidence Source} &
+\textbf{Notes} \\ \hline
 
-\begin{itemize}
-    \item \texttt{e4dad07}: Submitter refactor, \texttt{BridgeClient} abstraction, DA strategy improvements, receipt-status validation, and Submitter testing/coverage support.
-    \item \texttt{9b282f0}: Benchmark suite orchestration, experiment matrix configuration, workload generator, and Sequencer readiness wait script.
-    \item \texttt{bc90d40}: Data-tools pipeline, aggregation scripts, statistics computation, and plotting scripts.
-    \item \texttt{bed3de7}: L1 contract integration, bridge/DA/verifier contract components, Sequencer address parsing fix, and batch policy configuration consistency.
-\end{itemize}
+Implemented Submitter core workflow &
+Commit \texttt{e4dad07}; \path{orchestrator.rs}; Submitter infrastructure modules &
+The commit history and source structure show contribution to the Submitter orchestration, DA strategy flow, bridge interaction, and settlement handling. \\ \hline
+
+Introduced L1 bridge abstraction &
+Commit \texttt{e4dad07}; \path{ethereum_adapter.rs}; \texttt{BridgeClient} trait &
+The abstraction decouples Submitter logic from direct Ethereum RPC calls and supports mock-based testing of L1 submission paths. \\ \hline
+
+Implemented receipt-status validation &
+Commit \texttt{e4dad07}; \path{da_calldata.rs}; \path{da_blob.rs} &
+The source code contains explicit receipt-status checking using \texttt{status.as\_u64() == 1}, preventing reverted L1 transactions from being treated as successful. \\ \hline
+
+Contributed L1 bridge and DA contracts &
+Commit \texttt{bed3de7}; \path{ZKRollupBridge.sol}; DA and verifier-related contracts &
+The contract files provide the local L1 settlement boundary used by the Submitter and benchmark pipeline. \\ \hline
+
+Automated benchmark execution &
+Commit \texttt{9b282f0}; \path{run_experiment.sh}; \path{run_matrix.sh}; \path{experiments.toml} &
+The scripts and configuration files support repeated benchmark execution, service setup, workload triggering, and metric extraction. \\ \hline
+
+Added service-readiness handling &
+Commit \texttt{9b282f0}; \path{wait_for_sequencer.sh} &
+The readiness check prevents workload generation from starting before the relevant service endpoint is available. \\ \hline
+
+Built workload generation support &
+Commit \texttt{9b282f0}; \path{poisson_generator.py} &
+The workload generator provides controlled synthetic transaction input for evaluating batching and scheduling behaviour. \\ \hline
+
+Built data analysis tooling &
+Commit \texttt{bc90d40}; \path{aggregate.py}; \path{stats.py}; plotting scripts &
+The data-tools pipeline converts raw benchmark outputs into aggregated datasets, statistics, and evaluation plots. \\ \hline
+
+Executor/Sequencer internal ownership &
+Mixed commits; selected parsing/configuration evidence only &
+The report only claims verified parsing, configuration, or integration fixes. It does not claim full ownership of shared Executor or Sequencer internals. \\ \hline
+
+\end{tabularx}
+\end{table}
+

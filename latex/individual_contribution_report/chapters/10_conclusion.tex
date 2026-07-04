@@ -10,6 +10,28 @@ Beyond the Submitter, I gained practical experience in designing empirical evalu
 
 My work also highlighted the importance of being honest about contribution boundaries in a collaborative project. Some modules, especially the Executor and parts of the Sequencer, were developed through shared or mixed commits. Therefore, this report limited my claims to evidence-backed contributions such as Submitter implementation, L1 contract integration, benchmark orchestration, workload generation, data analysis tooling, and specific Sequencer robustness fixes. This evidence-based approach helped distinguish individual implementation work from overall team outcomes.
 
+\section{Engineering Workload Summary}
+
+Table \ref{tab:engineering_workload} summarizes my core technical contribution areas, confirming that the workload meets the rigor and scale of an individual Final Year Project.
+
+\begin{table}[h!]
+\centering
+\caption{Engineering Workload Summary}
+\label{tab:engineering_workload}
+
+\begin{tabularx}{\textwidth}{|p{0.25\textwidth}|X|X|p{0.20\textwidth}|}
+\hline
+\textbf{Contribution Area} & \textbf{Main Code Written} & \textbf{Technical Complexity} & \textbf{Evidence} \\ \hline
+Submitter daemon & \texttt{orchestrator.rs}, \texttt{ethereum\_adapter.rs}, DA strategies & Managed async L1 polling, mockable trait abstraction, receipt status checks & Git commits, Rust source files \\ \hline
+L1 bridge/DA/verifier & \texttt{ZKRollupBridge.sol}, \texttt{BlobDA.sol}, \texttt{MockVerifier.sol} & Solidity state root management, DA commitment verification, mock validation & Solidity source, Hardhat deploy scripts \\ \hline
+Benchmark orchestration scripts & \texttt{run\_experiment.sh}, \texttt{run\_matrix.sh}, \texttt{experiments.toml} & Docker lifecycle management, systematic TOML parsing, sequencer readiness polling & Bash scripts, TOML configs \\ \hline
+Poisson workload generator & \texttt{poisson\_generator.py} & Exponential inter-arrival delays for burst simulations, seeded RNG & Python workload logic \\ \hline
+Data aggregation & \texttt{aggregate.py}, \texttt{stats.py}, plotting logic & Cross-service JSONL joining by batch ID, percentile computation, Pareto plots & Python tools \\ \hline
+Integration and bug fixes & \texttt{service.rs} parsing, batch policy configs & Fixed hidden upstream panics (\texttt{strip\_prefix}) and TOML policy defaults & Executor/Sequencer Git history \\ \hline
+\end{tabularx}
+
+\end{table}
+
 \vspace{1cm}
 \noindent\textbf{Final Contribution Statement:}
 
