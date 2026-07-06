@@ -47,6 +47,7 @@
 //! from L1 ALWAYS come first, regardless of the selected policy.
 
 use crate::PooledTransaction;
+use std::collections::HashMap;
 
 /// Scheduling policy trait (Strategy pattern)
 /// Defines the interface for all transaction ordering policies.
@@ -88,10 +89,51 @@ impl SchedulingPolicy for FcfsPolicy {
 pub struct FeePriorityPolicy;
 
 impl SchedulingPolicy for FeePriorityPolicy {
-    fn order_transactions(&self, mut transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction> {
-        // Sort by gas_price in descending order (highest fee first)
-        transactions.sort_by(|a, b| b.tx.gas_price.cmp(&a.tx.gas_price));
-        transactions
+    fn order_transactions(&self, transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction> {
+        let mut grouped: HashMap<ethers::types::Address, Vec<PooledTransaction>> = HashMap::new();
+        for tx in transactions {
+            grouped.entry(tx.tx.from).or_default().push(tx);
+        }
+        for queue in grouped.values_mut() {
+            queue.sort_by_key(|t| t.tx.nonce);
+        }
+
+        let mut ordered = Vec::new();
+        while !grouped.is_empty() {
+            let mut best_sender = None;
+            for (sender, queue) in &grouped {
+                if let Some(next_tx) = queue.first() {
+                    match best_sender {
+                        None => {
+                            best_sender = Some((*sender, next_tx));
+                        }
+                        Some((_, best_tx)) => {
+                            match next_tx.tx.gas_price.cmp(&best_tx.tx.gas_price) {
+                                std::cmp::Ordering::Greater => {
+                                    best_sender = Some((*sender, next_tx));
+                                }
+                                std::cmp::Ordering::Equal => {
+                                    if next_tx.tx.timestamp < best_tx.tx.timestamp {
+                                        best_sender = Some((*sender, next_tx));
+                                    }
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+            }
+            if let Some((sender, _)) = best_sender {
+                let queue = grouped.get_mut(&sender).unwrap();
+                ordered.push(queue.remove(0));
+                if queue.is_empty() {
+                    grouped.remove(&sender);
+                }
+            } else {
+                break;
+            }
+        }
+        ordered
     }
     
     fn name(&self) -> &str {
@@ -115,41 +157,67 @@ pub struct TimeBoostPolicy {
 }
 
 impl SchedulingPolicy for TimeBoostPolicy {
-    fn order_transactions(&self, mut transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction> {
-        // Group transactions by time window
-        // Time window = floor(timestamp / window_size)
-        
-        // Sort by multiple criteria:
-        // 1. Time window (ascending - earlier windows first)
-        // 2. Within same window: boost_bid (descending)
-        // 3. Within same boost_bid: gas_price (descending)
-        // 4. Maintain stable sort for FCFS tie-breaking
-        
-        transactions.sort_by(|a, b| {
-            // Calculate time windows
-            let window_a = a.tx.timestamp / self.time_window_ms;
-            let window_b = b.tx.timestamp / self.time_window_ms;
-            
-            // First, compare by time window
-            match window_a.cmp(&window_b) {
-                std::cmp::Ordering::Equal => {
-                    // Same window: compare by boost_bid
-                    let boost_a = a.tx.boost_bid.unwrap_or_default();
-                    let boost_b = b.tx.boost_bid.unwrap_or_default();
-                    
-                    match boost_b.cmp(&boost_a) { // Descending (b vs a)
-                        std::cmp::Ordering::Equal => {
-                            // Same boost: compare by gas_price
-                            b.tx.gas_price.cmp(&a.tx.gas_price) // Descending
+    fn order_transactions(&self, transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction> {
+        let mut grouped: HashMap<ethers::types::Address, Vec<PooledTransaction>> = HashMap::new();
+        for tx in transactions {
+            grouped.entry(tx.tx.from).or_default().push(tx);
+        }
+        for queue in grouped.values_mut() {
+            queue.sort_by_key(|t| t.tx.nonce);
+        }
+
+        let mut ordered = Vec::new();
+        while !grouped.is_empty() {
+            let mut best_sender = None;
+            for (sender, queue) in &grouped {
+                if let Some(next_tx) = queue.first() {
+                    match best_sender {
+                        None => {
+                            best_sender = Some((*sender, next_tx));
                         }
-                        other => other,
+                        Some((_, best_tx)) => {
+                            let window_next = next_tx.tx.timestamp / self.time_window_ms;
+                            let window_best = best_tx.tx.timestamp / self.time_window_ms;
+                            
+                            let next_is_better = match window_next.cmp(&window_best) {
+                                std::cmp::Ordering::Less => true,
+                                std::cmp::Ordering::Greater => false,
+                                std::cmp::Ordering::Equal => {
+                                    let boost_next = next_tx.tx.boost_bid.unwrap_or_default();
+                                    let boost_best = best_tx.tx.boost_bid.unwrap_or_default();
+                                    match boost_next.cmp(&boost_best) {
+                                        std::cmp::Ordering::Greater => true,
+                                        std::cmp::Ordering::Less => false,
+                                        std::cmp::Ordering::Equal => {
+                                            match next_tx.tx.gas_price.cmp(&best_tx.tx.gas_price) {
+                                                std::cmp::Ordering::Greater => true,
+                                                std::cmp::Ordering::Less => false,
+                                                std::cmp::Ordering::Equal => {
+                                                    next_tx.tx.timestamp < best_tx.tx.timestamp
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            };
+                            if next_is_better {
+                                best_sender = Some((*sender, next_tx));
+                            }
+                        }
                     }
                 }
-                other => other,
             }
-        });
-        
-        transactions
+            if let Some((sender, _)) = best_sender {
+                let queue = grouped.get_mut(&sender).unwrap();
+                ordered.push(queue.remove(0));
+                if queue.is_empty() {
+                    grouped.remove(&sender);
+                }
+            } else {
+                break;
+            }
+        }
+        ordered
     }
     
     fn name(&self) -> &str {
@@ -216,19 +284,59 @@ impl SchedulingPolicy for FairBftPolicy {
 pub struct BlobPackingPolicy;
 
 impl SchedulingPolicy for BlobPackingPolicy {
-    fn order_transactions(&self, mut transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction> {
-        transactions.sort_by(|a, b| {
-            let size_a = a.estimated_encoded_bytes();
-            let size_b = b.estimated_encoded_bytes();
-            match size_b.cmp(&size_a) {
-                std::cmp::Ordering::Equal => match b.tx.gas_price.cmp(&a.tx.gas_price) {
-                    std::cmp::Ordering::Equal => a.tx.timestamp.cmp(&b.tx.timestamp),
-                    other => other,
-                },
-                other => other,
+    fn order_transactions(&self, transactions: Vec<PooledTransaction>) -> Vec<PooledTransaction> {
+        let mut grouped: HashMap<ethers::types::Address, Vec<PooledTransaction>> = HashMap::new();
+        for tx in transactions {
+            grouped.entry(tx.tx.from).or_default().push(tx);
+        }
+        for queue in grouped.values_mut() {
+            queue.sort_by_key(|t| t.tx.nonce);
+        }
+
+        let mut ordered = Vec::new();
+        while !grouped.is_empty() {
+            let mut best_sender = None;
+            for (sender, queue) in &grouped {
+                if let Some(next_tx) = queue.first() {
+                    match best_sender {
+                        None => {
+                            best_sender = Some((*sender, next_tx));
+                        }
+                        Some((_, best_tx)) => {
+                            let size_next = next_tx.estimated_encoded_bytes();
+                            let size_best = best_tx.estimated_encoded_bytes();
+                            
+                            let next_is_better = match size_next.cmp(&size_best) {
+                                std::cmp::Ordering::Greater => true,
+                                std::cmp::Ordering::Less => false,
+                                std::cmp::Ordering::Equal => {
+                                    match next_tx.tx.gas_price.cmp(&best_tx.tx.gas_price) {
+                                        std::cmp::Ordering::Greater => true,
+                                        std::cmp::Ordering::Less => false,
+                                        std::cmp::Ordering::Equal => {
+                                            next_tx.tx.timestamp < best_tx.tx.timestamp
+                                        }
+                                    }
+                                }
+                            };
+                            if next_is_better {
+                                best_sender = Some((*sender, next_tx));
+                            }
+                        }
+                    }
+                }
             }
-        });
-        transactions
+            if let Some((sender, _)) = best_sender {
+                let queue = grouped.get_mut(&sender).unwrap();
+                ordered.push(queue.remove(0));
+                if queue.is_empty() {
+                    grouped.remove(&sender);
+                }
+            } else {
+                break;
+            }
+        }
+        ordered
     }
 
     fn name(&self) -> &str {
@@ -328,5 +436,47 @@ mod tests {
         assert_eq!(ordered.len(), 2);
         assert_eq!(ordered[0].tx.gas_price, large.tx.gas_price);
         assert_eq!(ordered[1].tx.gas_price, small.tx.gas_price);
+    }
+
+    #[test]
+    fn fee_priority_preserves_single_sender_nonce_order() {
+        let policy = FeePriorityPolicy;
+        let sender = Address::random();
+        let mut tx_low = tx_with_size(1, "1", 1);
+        tx_low.tx.from = sender;
+        tx_low.tx.nonce = 1;
+        
+        let mut tx_high = tx_with_size(10, "1", 2);
+        tx_high.tx.from = sender;
+        tx_high.tx.nonce = 2;
+
+        // The naive sorting would put tx_high first.
+        // The nonce-aware sorting must put tx_low first.
+        let ordered = policy.order_transactions(vec![tx_high.clone(), tx_low.clone()]);
+
+        assert_eq!(ordered.len(), 2);
+        assert_eq!(ordered[0].tx.nonce, 1);
+        assert_eq!(ordered[1].tx.nonce, 2);
+    }
+
+    #[test]
+    fn blob_packing_preserves_single_sender_nonce_order() {
+        let policy = BlobPackingPolicy;
+        let sender = Address::random();
+        let mut tx_small = tx_with_size(2, "1", 1); // small value
+        tx_small.tx.from = sender;
+        tx_small.tx.nonce = 1;
+        
+        let mut tx_large = tx_with_size(1, "1000000000000000000000000000000", 2); // large value
+        tx_large.tx.from = sender;
+        tx_large.tx.nonce = 2;
+
+        // The naive sorting would put tx_large first because of size.
+        // The nonce-aware sorting must put tx_small first.
+        let ordered = policy.order_transactions(vec![tx_large.clone(), tx_small.clone()]);
+
+        assert_eq!(ordered.len(), 2);
+        assert_eq!(ordered[0].tx.nonce, 1);
+        assert_eq!(ordered[1].tx.nonce, 2);
     }
 }
