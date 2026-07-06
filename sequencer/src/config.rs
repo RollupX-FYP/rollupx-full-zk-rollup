@@ -81,6 +81,12 @@ pub struct BatchConfig {
     pub adaptive_medium_batch_size: usize,
     #[serde(default = "default_adaptive_large_batch_size")]
     pub adaptive_large_batch_size: usize,
+    #[serde(default = "default_adaptive_small_timeout_ms")]
+    pub adaptive_small_timeout_ms: u64,
+    #[serde(default = "default_adaptive_medium_timeout_ms")]
+    pub adaptive_medium_timeout_ms: u64,
+    #[serde(default = "default_adaptive_large_timeout_ms")]
+    pub adaptive_large_timeout_ms: u64,
     #[serde(default = "default_blob_target_bytes")]
     pub blob_target_bytes: usize,
     #[serde(default = "default_blob_fill_target")]
@@ -109,6 +115,18 @@ fn default_adaptive_medium_batch_size() -> usize {
 
 fn default_adaptive_large_batch_size() -> usize {
     500
+}
+
+fn default_adaptive_small_timeout_ms() -> u64 {
+    500
+}
+
+fn default_adaptive_medium_timeout_ms() -> u64 {
+    1000
+}
+
+fn default_adaptive_large_timeout_ms() -> u64 {
+    2000
 }
 
 fn default_blob_target_bytes() -> usize {

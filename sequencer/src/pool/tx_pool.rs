@@ -142,6 +142,12 @@ impl TransactionPool {
         txs.len()
     }
 
+    /// Get the total size of all pending transactions in bytes.
+    pub async fn total_bytes(&self) -> usize {
+        let txs = self.transactions.read().await;
+        txs.iter().map(|tx| tx.estimated_encoded_bytes()).sum()
+    }
+
     /// Check if the pool is empty
     ///
     /// Convenience method used by the orchestrator to skip batch production
